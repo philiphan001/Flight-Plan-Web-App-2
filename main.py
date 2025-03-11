@@ -226,8 +226,8 @@ def main():
                         new_price = st.sidebar.number_input(
                             "Update Home Price",
                             value=float(next(asset.initial_value 
-                                          for asset in milestone.assets 
-                                          if isinstance(asset, Home))),
+                                              for asset in milestone.assets 
+                                              if isinstance(asset, Home))),
                             key=f"edit_price_{idx}"
                         )
                         new_down_payment_pct = st.sidebar.slider(
@@ -431,13 +431,13 @@ def main():
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Initial Net Worth",
-                       f"${projections['net_worth'][0]:,.2f}")
+                       f"${projections['net_worth'][0]:,}")
             with col2:
                 st.metric("Final Net Worth",
-                       f"${projections['net_worth'][-1]:,.2f}")
+                       f"${projections['net_worth'][-1]:,}")
             with col3:
                 st.metric("Average Annual Cash Flow", 
-                         f"${sum(projections['cash_flow'])/len(projections['cash_flow']):,.2f}")
+                          f"${int(sum(projections['cash_flow'])/len(projections['cash_flow'])):,}")
 
             # Create tabs for different projections
             net_worth_tab, cash_flow_tab, assets_tab, home_tab = st.tabs([
@@ -456,10 +456,10 @@ def main():
                                               projections['investment_growth'])
                 net_worth_df = pd.DataFrame({
                     'Year': projections['years'],
-                    'Total Assets': [f"${x:,.2f}" for x in projections['asset_values']],
-                    'Total Liabilities': [f"${x:,.2f}" for x in projections['liability_values']],
-                    'Savings': [f"${x:,.2f}" for x in projections['investment_growth']],
-                    'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
+                    'Total Assets': [f"${x:,}" for x in projections['asset_values']],
+                    'Total Liabilities': [f"${x:,}" for x in projections['liability_values']],
+                    'Savings': [f"${x:,}" for x in projections['investment_growth']],
+                    'Net Worth': [f"${x:,}" for x in projections['net_worth']]
                 })
                 st.dataframe(net_worth_df)
 
@@ -467,7 +467,7 @@ def main():
                 st.subheader("Asset Components")
                 assets_breakdown_df = pd.DataFrame({
                     'Year': projections['years'],
-                    **{category: [f"${x:,.2f}" for x in values] 
+                    **{category: [f"${x:,}" for x in values] 
                        for category, values in projections['asset_breakdown'].items()}
                 })
                 st.dataframe(assets_breakdown_df)
@@ -475,7 +475,7 @@ def main():
                 st.subheader("Liability Components")
                 liabilities_breakdown_df = pd.DataFrame({
                     'Year': projections['years'],
-                    **{category: [f"${x:,.2f}" for x in values] 
+                    **{category: [f"${x:,}" for x in values] 
                        for category, values in projections['liability_breakdown'].items()}
                 })
                 st.dataframe(liabilities_breakdown_df)
@@ -493,17 +493,17 @@ def main():
                 # Create detailed cash flow DataFrame
                 cash_flow_data = {
                     'Year': projections['years'],
-                    'Total Income': [f"${x:,.2f}" for x in projections['total_income']],
+                    'Total Income': [f"${x:,}" for x in projections['total_income']],
                 }
 
                 # Add expense categories
                 for category, values in projections['expense_categories'].items():
-                    cash_flow_data[f"Expense: {category}"] = [f"${x:,.2f}" for x in values]
+                    cash_flow_data[f"Expense: {category}"] = [f"${x:,}" for x in values]
 
                 cash_flow_data.update({
-                    'Total Expenses': [f"${x:,.2f}" for x in projections['total_expenses']],
-                    'Net Savings': [f"${x:,.2f}" for x in projections['cash_flow']],
-                    'Cumulative Investment Growth': [f"${x:,.2f}" for x in projections['investment_growth']]
+                    'Total Expenses': [f"${x:,}" for x in projections['total_expenses']],
+                    'Net Savings': [f"${x:,}" for x in projections['cash_flow']],
+                    'Cumulative Investment Growth': [f"${x:,}" for x in projections['investment_growth']]
                 })
 
                 cash_flow_df = pd.DataFrame(cash_flow_data)
@@ -522,18 +522,18 @@ def main():
                 }
                 # Add individual asset values
                 for category, values in projections['asset_breakdown'].items():
-                    assets_data[category] = [f"${x:,.2f}" for x in values]
+                    assets_data[category] = [f"${x:,}" for x in values]
 
                 # Add individual liability values
                 liabilities_data = {
                     'Year': projections['years'],
                 }
                 for category, values in projections['liability_breakdown'].items():
-                    liabilities_data[category] = [f"${x:,.2f}" for x in values]
+                    liabilities_data[category] = [f"${x:,}" for x in values]
 
                 # Add totals
-                assets_data['Total Assets'] = [f"${x:,.2f}" for x in projections['asset_values']]
-                liabilities_data['Total Liabilities'] = [f"${x:,.2f}" for x in projections['liability_values']]
+                assets_data['Total Assets'] = [f"${x:,}" for x in projections['asset_values']]
+                liabilities_data['Total Liabilities'] = [f"${x:,}" for x in projections['liability_values']]
 
                 # Display breakdowns
                 st.subheader("Assets Breakdown")
@@ -545,9 +545,9 @@ def main():
                 st.subheader("Net Worth Summary")
                 assets_liab_df = pd.DataFrame({
                     'Year': projections['years'],
-                    'Total Assets': [f"${x:,.2f}" for x in projections['asset_values']],
-                    'Total Liabilities': [f"${x:,.2f}" for x in projections['liability_values']],
-                    'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
+                    'Total Assets': [f"${x:,}" for x in projections['asset_values']],
+                    'Total Liabilities': [f"${x:,}" for x in projections['liability_values']],
+                    'Net Worth': [f"${x:,}" for x in projections['net_worth']]
                 })
                 st.dataframe(assets_liab_df)
 
@@ -571,17 +571,17 @@ def main():
                     with col1:
                         st.metric("Purchase Year", f"Year {home_milestone.trigger_year}")
                     with col2:
-                        st.metric("Home Price", f"${home.initial_value:,.2f}")
+                        st.metric("Home Price", f"${home.initial_value:,}")
                     with col3:
-                        st.metric("Down Payment", f"${home_milestone.one_time_expense:,.2f}")
+                        st.metric("Down Payment", f"${home_milestone.one_time_expense:,}")
 
                     # Show mortgage details
                     if mortgage:
                         st.subheader("Mortgage Details")
-                        st.write(f"Principal: ${mortgage.principal:,.2f}")
+                        st.write(f"Principal: ${mortgage.principal:,}")
                         st.write(f"Interest Rate: {mortgage.interest_rate*100:.1f}%")
                         st.write(f"Term: {mortgage.term_years} years")
-                        st.write(f"Monthly Payment: ${mortgage.calculate_payment():,.2f}")
+                        st.write(f"Monthly Payment: ${mortgage.calculate_payment():,}")
 
                     # Show projected home value
                     st.subheader("Home Value Projection")
@@ -605,9 +605,9 @@ def main():
 
                     home_data = pd.DataFrame({
                         'Year': years,
-                        'Home Value': [f"${x:,.2f}" for x in home_values],
-                        'Mortgage Balance': [f"${x:,.2f}" for x in mortgage_balance],
-                        'Home Equity': [f"${x:,.2f}" for x in equity]
+                        'Home Value': [f"${x:,}" for x in home_values],
+                        'Mortgage Balance': [f"${x:,}" for x in mortgage_balance],
+                        'Home Equity': [f"${x:,}" for x in equity]
                     })
                     st.dataframe(home_data)
 
