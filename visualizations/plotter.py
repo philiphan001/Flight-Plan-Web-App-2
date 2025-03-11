@@ -45,6 +45,7 @@ class FinancialPlotter:
     def plot_cash_flow(years: List[int], income: List[float], 
                        expenses: Dict[str, List[float]], total_expenses: List[float],
                        cash_flow: List[float]) -> None:
+        # Create figure with secondary y-axis
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
         # Add income bar
