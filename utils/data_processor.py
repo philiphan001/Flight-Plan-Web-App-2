@@ -8,8 +8,8 @@ class DataProcessor:
         try:
             df = pd.read_csv(file_path)
             required_columns = ['Cost of Living', 'Housing', 'Transportation', 'Food', 'Healthcare', 
-                              'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
-                              'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
+                                  'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
+                                  'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
             if not all(col in df.columns for col in required_columns):
                 raise ValueError("COLI CSV file missing required columns")
             return df
@@ -92,7 +92,13 @@ class DataProcessor:
 
             def calculate_expense(self, year: int) -> float:
                 # Check if there's an active car in this year
-                has_car = any(year >= purchase_year and year < purchase_year + 5 for purchase_year in self.car_purchase_years)
+                # A car remains active from its purchase year onwards until a new car is purchased
+                has_car = False
+                if self.car_purchase_years:
+                    # Sort purchase years to find the most recent purchase before current year
+                    relevant_purchases = [y for y in sorted(self.car_purchase_years) if y <= year]
+                    has_car = bool(relevant_purchases)  # True if any purchase year is before or equal to current year
+
                 base_expense = super().calculate_expense(year)
                 return base_expense * 0.2 if has_car else base_expense
 
