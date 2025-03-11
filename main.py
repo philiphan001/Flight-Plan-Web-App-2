@@ -4,7 +4,7 @@ from utils.data_processor import DataProcessor
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
 from difflib import get_close_matches
-from models.financial_models import MilestoneFactory
+from models.financial_models import MilestoneFactory, Home
 
 def main():
     st.set_page_config(page_title="Financial Projection App", layout="wide")
@@ -205,6 +205,49 @@ def main():
                 st.sidebar.markdown("### Current Milestones")
                 for idx, milestone in enumerate(st.session_state.milestones):
                     st.sidebar.markdown(f"- {milestone.name} (Year {milestone.trigger_year})")
+
+                    # Add edit button for home purchase milestone
+                    if milestone.name == "Home Purchase":
+                        if st.sidebar.button("Edit Home Purchase", key=f"edit_{idx}"):
+                            st.session_state.editing_home_purchase = idx
+
+                    # Show edit form if this milestone is being edited
+                    if milestone.name == "Home Purchase" and getattr(st.session_state, 'editing_home_purchase', None) == idx:
+                        st.sidebar.markdown("### Edit Home Purchase Details")
+                        new_year = st.sidebar.slider(
+                            "Update Purchase Year",
+                            min_value=1,
+                            max_value=projection_years,
+                            value=milestone.trigger_year,
+                            key=f"edit_year_{idx}"
+                        )
+                        new_price = st.sidebar.number_input(
+                            "Update Home Price",
+                            value=float(next(asset.initial_value 
+                                          for asset in milestone.assets 
+                                          if isinstance(asset, Home))),
+                            key=f"edit_price_{idx}"
+                        )
+                        new_down_payment_pct = st.sidebar.slider(
+                            "Update Down Payment %",
+                            5, 40, int(milestone.one_time_expense / new_price * 100),
+                            key=f"edit_down_{idx}"
+                        ) / 100
+
+                        if st.sidebar.button("Save Changes", key=f"save_{idx}"):
+                            # Create new milestone with updated values
+                            new_milestone = MilestoneFactory.create_home_purchase(
+                                new_year, new_price, new_down_payment_pct)
+                            st.session_state.milestones[idx] = new_milestone
+                            # Clear editing state
+                            st.session_state.editing_home_purchase = None
+                            st.rerun()
+
+                        if st.sidebar.button("Cancel", key=f"cancel_{idx}"):
+                            st.session_state.editing_home_purchase = None
+                            st.rerun()
+
+                    # Regular remove button
                     if st.sidebar.button(f"Remove {milestone.name}", key=f"remove_{idx}"):
                         st.session_state.milestones.pop(idx)
                         st.rerun()
