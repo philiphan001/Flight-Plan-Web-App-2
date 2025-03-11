@@ -7,7 +7,9 @@ class DataProcessor:
     def load_coli_data(file_path: str) -> pd.DataFrame:
         try:
             df = pd.read_csv(file_path)
-            required_columns = ['Cost of Living', 'Housing', 'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
+            required_columns = ['Cost of Living', 'Housing', 'Transportation', 'Food', 'Healthcare', 
+                              'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
+                              'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
             if not all(col in df.columns for col in required_columns):
                 raise ValueError("COLI CSV file missing required columns")
             return df
@@ -33,7 +35,16 @@ class DataProcessor:
         occupation_data = occupation_df[occupation_df['Occupation'].astype(str) == str(occupation)].iloc[0]
 
         return {
-            'cost_of_living': float(location_data['Monthly Expense']),
+            'housing': float(location_data['Housing']),
+            'transportation': float(location_data['Transportation']),
+            'food': float(location_data['Food']),
+            'healthcare': float(location_data['Healthcare']),
+            'insurance': float(location_data['Personal Insurance']),
+            'apparel': float(location_data['Apparel']),
+            'services': float(location_data['Services']),
+            'entertainment': float(location_data['Entertainment']),
+            'other': float(location_data['Other']),
+            'monthly_expense': float(location_data['Monthly Expense']),
             'home_price': float(location_data['Average Price of Starter Home']),
             'location_adjustment': float(location_data['Income Adjustment Factor']),
             'base_income': float(occupation_data['Monthly Income']) * 12  # Convert to annual
@@ -54,16 +65,23 @@ class DataProcessor:
         # Create Asset and Liability objects based on housing situation
         if is_homeowner:
             home = Home("Primary Residence", location_data['home_price'])
-            mortgage = MortgageLoan(location_data['home_price'] * 0.8, 0.035)
+            mortgage = MortgageLoan(location_data['home_price'] * 0.8, 0.035)  # 80% LTV, 3.5% interest
             assets.append(home)
             liabilities.append(mortgage)
             expenses.append(FixedExpense("Property Tax", location_data['home_price'] * 0.015))
             expenses.append(FixedExpense("Home Insurance", location_data['home_price'] * 0.005))
-            expenses.append(FixedExpense("Home Maintenance", location_data['home_price'] * 0.01))
+            expenses.append(FixedExpense("Home Maintenance", location_data['housing'] * 12))
         else:
-            expenses.append(FixedExpense("Rent", location_data['cost_of_living'] * 0.4))
+            expenses.append(FixedExpense("Rent", location_data['housing'] * 12))
 
-        # Add basic living expenses
-        expenses.append(VariableExpense("Living Expenses", location_data['cost_of_living'] * 0.6))
+        # Add categorized monthly expenses (converted to annual)
+        expenses.append(FixedExpense("Transportation", location_data['transportation'] * 12))
+        expenses.append(VariableExpense("Food", location_data['food'] * 12))
+        expenses.append(FixedExpense("Healthcare", location_data['healthcare'] * 12))
+        expenses.append(FixedExpense("Insurance", location_data['insurance'] * 12))
+        expenses.append(VariableExpense("Apparel", location_data['apparel'] * 12))
+        expenses.append(VariableExpense("Services", location_data['services'] * 12))
+        expenses.append(VariableExpense("Entertainment", location_data['entertainment'] * 12))
+        expenses.append(VariableExpense("Other", location_data['other'] * 12))
 
         return assets, liabilities, income, expenses
