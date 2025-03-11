@@ -10,31 +10,38 @@ def main():
 
     # Sidebar inputs
     st.sidebar.header("Input Parameters")
-    
-    # File upload
-    uploaded_file = st.sidebar.file_uploader("Upload financial data CSV", type="csv")
-    
-    if uploaded_file is not None:
+
+    # File uploads
+    coli_file = st.sidebar.file_uploader("Upload Cost of Living Index CSV", type="csv", key="coli_upload")
+    occupation_file = st.sidebar.file_uploader("Upload Occupational Data CSV", type="csv", key="occupation_upload")
+
+    if coli_file is not None and occupation_file is not None:
         try:
-            df = DataProcessor.load_financial_data(uploaded_file)
-            
-            # Location selection
-            locations = df['Location'].unique()
+            # Load both data files
+            coli_df = DataProcessor.load_coli_data(coli_file)
+            occupation_df = DataProcessor.load_occupation_data(occupation_file)
+
+            # Location and occupation selection
+            locations = coli_df['Cost of Living'].unique()
+            occupations = occupation_df['Occupation'].unique()
+
             selected_location = st.sidebar.selectbox("Select Location", locations)
-            
-            # Salary input
-            salary = st.sidebar.number_input("Annual Salary", min_value=0, value=50000)
-            
+            selected_occupation = st.sidebar.selectbox("Select Occupation", occupations)
+
+
             # Housing choice
             is_homeowner = st.sidebar.checkbox("Are you a homeowner?")
-            
+
             # Projection years
             projection_years = st.sidebar.slider("Projection Years", 1, 20, 10)
 
             # Process data
-            location_data = DataProcessor.process_location_data(df, selected_location)
+            location_data = DataProcessor.process_location_data(
+                coli_df, occupation_df, selected_location, selected_occupation
+            )
+
             assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
-                location_data, salary, is_homeowner
+                location_data, is_homeowner
             )
 
             # Calculate projections
@@ -55,19 +62,19 @@ def main():
 
             # Display visualizations
             st.header("Financial Projections")
-            
+
             FinancialPlotter.plot_net_worth(
                 projections['years'], 
                 projections['net_worth']
             )
-            
+
             FinancialPlotter.plot_cash_flow(
                 projections['years'],
                 projections['total_income'],
                 projections['total_expenses'],
                 projections['cash_flow']
             )
-            
+
             FinancialPlotter.plot_assets_liabilities(
                 projections['years'],
                 projections['asset_values'],
@@ -77,7 +84,7 @@ def main():
         except Exception as e:
             st.error(f"Error processing data: {str(e)}")
     else:
-        st.info("Please upload a CSV file to begin the financial projection analysis.")
+        st.info("Please upload both CSV files to begin the financial projection analysis.")
 
 if __name__ == "__main__":
     main()
