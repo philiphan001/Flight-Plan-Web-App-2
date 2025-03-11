@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from models.financial_models import *
 
 class DataProcessor:
@@ -53,7 +53,8 @@ class DataProcessor:
 
     @staticmethod
     def create_financial_objects(location_data: Dict, 
-                               is_homeowner: bool) -> Tuple[List[Asset], List[Liability], List[Income], List[Expense]]:
+                               is_homeowner: bool,
+                               milestones: Optional[List[Milestone]] = None) -> Tuple[List[Asset], List[Liability], List[Income], List[Expense]]:
         assets = []
         liabilities = []
         income = []
@@ -88,5 +89,19 @@ class DataProcessor:
         expenses.append(VariableExpense("Services", location_data['services'] * 12))
         expenses.append(VariableExpense("Entertainment", location_data['entertainment'] * 12))
         expenses.append(VariableExpense("Other", location_data['other'] * 12))
+
+        # Add milestone-related financial objects
+        if milestones:
+            for milestone in milestones:
+                assets.extend(milestone.assets)
+                liabilities.extend(milestone.liabilities)
+                income.extend(milestone.income_adjustments)
+                expenses.extend(milestone.recurring_expenses)
+                if milestone.one_time_expense > 0:
+                    expenses.append(
+                        FixedExpense(f"{milestone.name} One-time Cost", 
+                                   milestone.one_time_expense,
+                                   inflation_rate=0)  # One-time expenses don't inflate
+                    )
 
         return assets, liabilities, income, expenses

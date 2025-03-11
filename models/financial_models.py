@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import date
 
 class Asset(ABC):
@@ -42,6 +42,14 @@ class Investment(Asset):
                 self.current_value = value
 
         return self.current_value
+
+class Vehicle(Asset):
+    def __init__(self, name: str, initial_value: float, depreciation_rate: float = 0.15):
+        super().__init__(name, initial_value)
+        self.depreciation_rate = depreciation_rate
+
+    def calculate_value(self, year: int) -> float:
+        return self.initial_value * (1 - self.depreciation_rate) ** year
 
 class DepreciableAsset(Asset):
     def __init__(self, name: str, initial_value: float, depreciation_rate: float = 0.1):
@@ -85,6 +93,14 @@ class MortgageLoan(Loan):
     def __init__(self, principal: float, interest_rate: float, term_years: int = 30):
         super().__init__("Mortgage", principal, interest_rate, term_years)
 
+class CarLoan(Loan):
+    def __init__(self, principal: float, interest_rate: float, term_years: int = 5):
+        super().__init__("Car Loan", principal, interest_rate, term_years)
+
+class StudentLoan(Loan):
+    def __init__(self, principal: float, interest_rate: float, term_years: int = 10):
+        super().__init__("Student Loan", principal, interest_rate, term_years)
+
 class Income(ABC):
     def __init__(self, name: str, annual_amount: float, growth_rate: float = 0.03):
         self.name = name
@@ -122,3 +138,83 @@ class VariableExpense(Expense):
     def calculate_expense(self, year: int) -> float:
         base_expense = super().calculate_expense(year)
         return base_expense * (1 + self.volatility)
+
+class Milestone:
+    def __init__(self, name: str, trigger_year: int, category: str):
+        self.name = name
+        self.trigger_year = trigger_year
+        self.category = category
+        self.one_time_expense = 0.0
+        self.recurring_expenses: List[Expense] = []
+        self.income_adjustments: List[Income] = []
+        self.assets: List[Asset] = []
+        self.liabilities: List[Liability] = []
+
+    def add_one_time_expense(self, amount: float):
+        self.one_time_expense = amount
+
+    def add_recurring_expense(self, expense: Expense):
+        self.recurring_expenses.append(expense)
+
+    def add_income_adjustment(self, income: Income):
+        self.income_adjustments.append(income)
+
+    def add_asset(self, asset: Asset):
+        self.assets.append(asset)
+
+    def add_liability(self, liability: Liability):
+        self.liabilities.append(liability)
+
+class MilestoneFactory:
+    @staticmethod
+    def create_marriage(trigger_year: int, cost: float = 30000) -> Milestone:
+        milestone = Milestone("Marriage", trigger_year, "Family")
+        milestone.add_one_time_expense(cost)
+        milestone.add_recurring_expense(VariableExpense("Joint Living Expenses", 5000 * 12))
+        return milestone
+
+    @staticmethod
+    def create_child(trigger_year: int) -> Milestone:
+        milestone = Milestone("New Child", trigger_year, "Family")
+        milestone.add_one_time_expense(10000)  # Initial costs
+        milestone.add_recurring_expense(FixedExpense("Childcare", 15000))
+        milestone.add_recurring_expense(VariableExpense("Child Expenses", 10000))
+        return milestone
+
+    @staticmethod
+    def create_home_purchase(trigger_year: int, home_price: float, down_payment_percentage: float = 0.20) -> Milestone:
+        milestone = Milestone("Home Purchase", trigger_year, "Asset")
+        down_payment = home_price * down_payment_percentage
+        loan_amount = home_price * (1 - down_payment_percentage)
+
+        milestone.add_one_time_expense(down_payment)
+        milestone.add_asset(Home("Primary Residence", home_price))
+        milestone.add_liability(MortgageLoan(loan_amount, 0.035))  # 3.5% interest rate
+        milestone.add_recurring_expense(FixedExpense("Property Tax", home_price * 0.015))
+        milestone.add_recurring_expense(FixedExpense("Home Insurance", home_price * 0.005))
+        milestone.add_recurring_expense(FixedExpense("Home Maintenance", home_price * 0.01))
+        return milestone
+
+    @staticmethod
+    def create_car_purchase(trigger_year: int, car_price: float, down_payment_percentage: float = 0.20) -> Milestone:
+        milestone = Milestone("Car Purchase", trigger_year, "Asset")
+        down_payment = car_price * down_payment_percentage
+        loan_amount = car_price * (1 - down_payment_percentage)
+
+        milestone.add_one_time_expense(down_payment)
+        milestone.add_asset(Vehicle("Car", car_price))
+        milestone.add_liability(CarLoan(loan_amount, 0.045))  # 4.5% interest rate
+        milestone.add_recurring_expense(FixedExpense("Car Insurance", 1200))
+        milestone.add_recurring_expense(FixedExpense("Car Maintenance", 1000))
+        return milestone
+
+    @staticmethod
+    def create_grad_school(trigger_year: int, total_cost: float, years: int = 2) -> Milestone:
+        milestone = Milestone("Graduate School", trigger_year, "Education")
+        annual_cost = total_cost / years
+
+        milestone.add_liability(StudentLoan(total_cost, 0.06))  # 6% interest rate
+        milestone.add_recurring_expense(FixedExpense("Graduate School Expenses", annual_cost))
+        # Potential income increase after graduation
+        milestone.add_income_adjustment(Salary(30000, 1.0))  # Average salary increase post-grad
+        return milestone

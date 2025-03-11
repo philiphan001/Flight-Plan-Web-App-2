@@ -4,6 +4,7 @@ from utils.data_processor import DataProcessor
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
 from difflib import get_close_matches
+from models.financial_models import MilestoneFactory
 
 def main():
     st.set_page_config(page_title="Financial Projection App", layout="wide")
@@ -17,15 +18,19 @@ def main():
         coli_df = DataProcessor.load_coli_data("COLI by Location.csv")
         occupation_df = DataProcessor.load_occupation_data("Occupational Data.csv")
 
-        # Get available options
-        locations = coli_df['Cost of Living'].astype(str).unique().tolist()
-        occupations = occupation_df['Occupation'].astype(str).unique().tolist()
+        # Get available options and remove any NaN values
+        locations = [loc for loc in coli_df['Cost of Living'].astype(str).unique().tolist() 
+                    if loc.lower() != 'nan']
+        occupations = [occ for occ in occupation_df['Occupation'].astype(str).unique().tolist() 
+                      if occ.lower() != 'nan']
 
         # Initialize session state
         if 'selected_location' not in st.session_state:
             st.session_state.selected_location = None
         if 'selected_occupation' not in st.session_state:
             st.session_state.selected_occupation = None
+        if 'milestones' not in st.session_state:
+            st.session_state.milestones = []
 
         # Location input with suggestions
         location_input = st.sidebar.text_input("Enter Location", "")
@@ -135,7 +140,74 @@ def main():
             is_homeowner = st.sidebar.checkbox("Are you a homeowner?")
 
             # Projection years
-            projection_years = st.sidebar.slider("Projection Years", 1, 20, 10)
+            projection_years = st.sidebar.slider("Projection Years", 1, 30, 10)
+
+            # Life Milestones Section
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("Life Milestones")
+
+            # Add milestone button
+            milestone_type = st.sidebar.selectbox(
+                "Add a Life Milestone",
+                ["Marriage", "New Child", "Home Purchase", "Car Purchase", "Graduate School"]
+            )
+
+            milestone_year = st.sidebar.slider(
+                "Milestone Year",
+                min_value=1,
+                max_value=projection_years,
+                value=2
+            )
+
+            # Additional inputs based on milestone type
+            if milestone_type == "Marriage":
+                wedding_cost = st.sidebar.number_input("Wedding Cost", value=30000)
+                if st.sidebar.button("Add Marriage Milestone"):
+                    milestone = MilestoneFactory.create_marriage(milestone_year, wedding_cost)
+                    st.session_state.milestones.append(milestone)
+                    st.rerun()
+
+            elif milestone_type == "New Child":
+                if st.sidebar.button("Add Child Milestone"):
+                    milestone = MilestoneFactory.create_child(milestone_year)
+                    st.session_state.milestones.append(milestone)
+                    st.rerun()
+
+            elif milestone_type == "Home Purchase":
+                home_price = st.sidebar.number_input("Home Price", value=300000)
+                down_payment_pct = st.sidebar.slider("Down Payment %", 5, 40, 20) / 100
+                if st.sidebar.button("Add Home Purchase Milestone"):
+                    milestone = MilestoneFactory.create_home_purchase(
+                        milestone_year, home_price, down_payment_pct)
+                    st.session_state.milestones.append(milestone)
+                    st.rerun()
+
+            elif milestone_type == "Car Purchase":
+                car_price = st.sidebar.number_input("Car Price", value=30000)
+                down_payment_pct = st.sidebar.slider("Down Payment %", 5, 100, 20) / 100
+                if st.sidebar.button("Add Car Purchase Milestone"):
+                    milestone = MilestoneFactory.create_car_purchase(
+                        milestone_year, car_price, down_payment_pct)
+                    st.session_state.milestones.append(milestone)
+                    st.rerun()
+
+            elif milestone_type == "Graduate School":
+                total_cost = st.sidebar.number_input("Total Cost", value=100000)
+                program_years = st.sidebar.slider("Program Length (Years)", 1, 4, 2)
+                if st.sidebar.button("Add Graduate School Milestone"):
+                    milestone = MilestoneFactory.create_grad_school(
+                        milestone_year, total_cost, program_years)
+                    st.session_state.milestones.append(milestone)
+                    st.rerun()
+
+            # Display current milestones
+            if st.session_state.milestones:
+                st.sidebar.markdown("### Current Milestones")
+                for idx, milestone in enumerate(st.session_state.milestones):
+                    st.sidebar.markdown(f"- {milestone.name} (Year {milestone.trigger_year})")
+                    if st.sidebar.button(f"Remove {milestone.name}", key=f"remove_{idx}"):
+                        st.session_state.milestones.pop(idx)
+                        st.rerun()
 
             # Process data
             location_data = DataProcessor.process_location_data(
@@ -145,8 +217,11 @@ def main():
                 investment_return_rate
             )
 
+            # Create financial objects with milestones
             assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
-                location_data, is_homeowner
+                location_data,
+                is_homeowner,
+                st.session_state.milestones
             )
 
             # Calculate projections
@@ -162,10 +237,8 @@ def main():
                 st.metric("Final Net Worth",
                        f"${projections['net_worth'][-1]:,.2f}")
             with col3:
-                st.metric(
-                    "Average Annual Cash Flow",
-                    f"${sum(projections['cash_flow'])/len(projections['cash_flow']):,.2f}"
-                )
+                st.metric("Average Annual Cash Flow", 
+                         f"${sum(projections['cash_flow'])/len(projections['cash_flow']):,.2f}")
 
             # Display visualizations and data tables
             st.header("Financial Projections")
@@ -173,7 +246,7 @@ def main():
             # Net Worth Section
             st.subheader("Net Worth Projection")
             FinancialPlotter.plot_net_worth(projections['years'],
-                                         projections['net_worth'])
+                                          projections['net_worth'])
             net_worth_df = pd.DataFrame({
                 'Year': projections['years'],
                 'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
@@ -183,9 +256,9 @@ def main():
             # Cash Flow Section
             st.subheader("Income, Expenses, and Cash Flow")
             FinancialPlotter.plot_cash_flow(projections['years'],
-                                         projections['total_income'],
-                                         projections['total_expenses'],
-                                         projections['cash_flow'])
+                                          projections['total_income'],
+                                          projections['total_expenses'],
+                                          projections['cash_flow'])
             cash_flow_df = pd.DataFrame({
                 'Year': projections['years'],
                 'Total Income': [f"${x:,.2f}" for x in projections['total_income']],
