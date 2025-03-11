@@ -214,6 +214,8 @@ def main():
                     # Show edit form if this milestone is being edited
                     if milestone.name == "Home Purchase" and getattr(st.session_state, 'editing_home_purchase', None) == idx:
                         st.sidebar.markdown("### Edit Home Purchase Details")
+
+                        # Basic purchase details
                         new_year = st.sidebar.slider(
                             "Update Purchase Year",
                             min_value=1,
@@ -234,10 +236,66 @@ def main():
                             key=f"edit_down_{idx}"
                         ) / 100
 
+                        # Advanced settings
+                        st.sidebar.markdown("#### Advanced Settings")
+
+                        # Get current home for existing rates
+                        current_home = next((asset for asset in milestone.assets if isinstance(asset, Home)), None)
+                        current_mortgage = next((l for l in milestone.liabilities if isinstance(l, MortgageLoan)), None)
+
+                        new_appreciation_rate = st.sidebar.slider(
+                            "Home Appreciation Rate (%)",
+                            0.0, 10.0, 
+                            float(current_home.appreciation_rate * 100) if current_home else 3.0,
+                            0.1,
+                            key=f"edit_appreciation_{idx}"
+                        ) / 100
+
+                        new_mortgage_rate = st.sidebar.slider(
+                            "Mortgage Interest Rate (%)",
+                            2.0, 8.0, 
+                            float(current_mortgage.interest_rate * 100) if current_mortgage else 3.5,
+                            0.1,
+                            key=f"edit_mortgage_{idx}"
+                        ) / 100
+
+                        # Get current expense rates from the recurring expenses
+                        property_tax_exp = next((e for e in milestone.recurring_expenses if e.name == "Property Tax"), None)
+                        insurance_exp = next((e for e in milestone.recurring_expenses if e.name == "Home Insurance"), None)
+                        maintenance_exp = next((e for e in milestone.recurring_expenses if e.name == "Home Maintenance"), None)
+
+                        new_property_tax_rate = st.sidebar.slider(
+                            "Property Tax Rate (%)",
+                            0.1, 5.0, 
+                            float(property_tax_exp.annual_amount / new_price * 100) if property_tax_exp else 1.5,
+                            0.1,
+                            key=f"edit_tax_{idx}"
+                        ) / 100
+
+                        new_insurance_rate = st.sidebar.slider(
+                            "Home Insurance Rate (%)",
+                            0.1, 2.0, 
+                            float(insurance_exp.annual_amount / new_price * 100) if insurance_exp else 0.5,
+                            0.1,
+                            key=f"edit_insurance_{idx}"
+                        ) / 100
+
+                        new_maintenance_rate = st.sidebar.slider(
+                            "Annual Maintenance Rate (%)",
+                            0.1, 5.0, 
+                            float(maintenance_exp.annual_amount / new_price * 100) if maintenance_exp else 1.0,
+                            0.1,
+                            key=f"edit_maintenance_{idx}"
+                        ) / 100
+
                         if st.sidebar.button("Save Changes", key=f"save_{idx}"):
                             # Create new milestone with updated values
                             new_milestone = MilestoneFactory.create_home_purchase(
-                                new_year, new_price, new_down_payment_pct)
+                                new_year, new_price, new_down_payment_pct,
+                                new_property_tax_rate, new_insurance_rate,
+                                new_maintenance_rate, new_appreciation_rate,
+                                new_mortgage_rate
+                            )
                             st.session_state.milestones[idx] = new_milestone
                             # Clear editing state
                             st.session_state.editing_home_purchase = None

@@ -196,29 +196,32 @@ class MilestoneFactory:
         return milestone
 
     @staticmethod
-    def create_home_purchase(trigger_year: int, home_price: float, down_payment_percentage: float = 0.20) -> Milestone:
+    def create_home_purchase(trigger_year: int, home_price: float, down_payment_percentage: float = 0.20,
+                           property_tax_rate: float = 0.015, insurance_rate: float = 0.005,
+                           maintenance_rate: float = 0.01, appreciation_rate: float = 0.03,
+                           mortgage_rate: float = 0.035) -> Milestone:
         milestone = Milestone("Home Purchase", trigger_year, "Asset")
         down_payment = home_price * down_payment_percentage
         loan_amount = home_price * (1 - down_payment_percentage)
 
         # Create mortgage loan
-        mortgage = MortgageLoan(loan_amount, 0.035)  # 3.5% interest rate
+        mortgage = MortgageLoan(loan_amount, mortgage_rate)  # Configurable interest rate
         monthly_payment = mortgage.calculate_payment()
 
         # Add the down payment as a one-time expense with specific year
         milestone.add_one_time_expense(down_payment)
 
-        # Add the home as an asset
-        milestone.add_asset(Home("Primary Residence", home_price))
+        # Add the home as an asset with configurable appreciation rate
+        milestone.add_asset(Home("Primary Residence", home_price, appreciation_rate))
 
         # Add mortgage and recurring housing expenses
         milestone.add_liability(mortgage)
         # Add mortgage payment as a fixed expense (no inflation adjustment)
         milestone.add_recurring_expense(FixedExpense("Mortgage Payment", monthly_payment * 12, inflation_rate=0))
         # Add other housing expenses that do inflate
-        milestone.add_recurring_expense(FixedExpense("Property Tax", home_price * 0.015))
-        milestone.add_recurring_expense(FixedExpense("Home Insurance", home_price * 0.005))
-        milestone.add_recurring_expense(FixedExpense("Home Maintenance", home_price * 0.01))
+        milestone.add_recurring_expense(FixedExpense("Property Tax", home_price * property_tax_rate))
+        milestone.add_recurring_expense(FixedExpense("Home Insurance", home_price * insurance_rate))
+        milestone.add_recurring_expense(FixedExpense("Home Maintenance", home_price * maintenance_rate))
 
         return milestone
 
