@@ -187,6 +187,7 @@ class MilestoneFactory:
         down_payment = home_price * down_payment_percentage
         loan_amount = home_price * (1 - down_payment_percentage)
 
+        # Add one-time expense with year tag
         milestone.add_one_time_expense(down_payment)
         milestone.add_asset(Home("Primary Residence", home_price))
         milestone.add_liability(MortgageLoan(loan_amount, 0.035))  # 3.5% interest rate

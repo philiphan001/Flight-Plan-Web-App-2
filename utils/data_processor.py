@@ -60,6 +60,14 @@ class DataProcessor:
         income = []
         expenses = []
 
+        # Find home purchase milestone year if it exists
+        home_purchase_year = None
+        if milestones:
+            for milestone in milestones:
+                if milestone.name == "Home Purchase":
+                    home_purchase_year = milestone.trigger_year
+                    break
+
         # Create Income objects
         base_salary = Salary(location_data['base_income'], location_data['location_adjustment'])
         income.append(base_salary)
@@ -68,19 +76,7 @@ class DataProcessor:
         investment = Investment("Savings", 0, location_data['investment_return_rate'])
         assets.append(investment)
 
-        # Create Asset and Liability objects based on housing situation
-        if is_homeowner:
-            home = Home("Primary Residence", location_data['home_price'])
-            mortgage = MortgageLoan(location_data['home_price'] * 0.8, 0.035)  # 80% LTV, 3.5% interest
-            assets.append(home)
-            liabilities.append(mortgage)
-            expenses.append(FixedExpense("Property Tax", location_data['home_price'] * 0.015))
-            expenses.append(FixedExpense("Home Insurance", location_data['home_price'] * 0.005))
-            expenses.append(FixedExpense("Home Maintenance", location_data['housing'] * 12))
-        else:
-            expenses.append(FixedExpense("Rent", location_data['housing'] * 12))
-
-        # Add categorized monthly expenses (converted to annual)
+        # Add basic living expenses
         expenses.append(FixedExpense("Transportation", location_data['transportation'] * 12))
         expenses.append(VariableExpense("Food", location_data['food'] * 12))
         expenses.append(FixedExpense("Healthcare", location_data['healthcare'] * 12))
@@ -90,18 +86,52 @@ class DataProcessor:
         expenses.append(VariableExpense("Entertainment", location_data['entertainment'] * 12))
         expenses.append(VariableExpense("Other", location_data['other'] * 12))
 
+        # Add rent only if not a homeowner from start and no home purchase milestone
+        if not is_homeowner and home_purchase_year is None:
+            expenses.append(FixedExpense("Rent", location_data['housing'] * 12))
+        elif not is_homeowner and home_purchase_year is not None:
+            # Add rent expense that only applies before home purchase
+            class PreHomeRentExpense(FixedExpense):
+                def calculate_expense(self, year: int) -> float:
+                    return super().calculate_expense(year) if year < home_purchase_year else 0
+
+            expenses.append(PreHomeRentExpense("Rent", location_data['housing'] * 12))
+
         # Add milestone-related financial objects
         if milestones:
             for milestone in milestones:
-                assets.extend(milestone.assets)
-                liabilities.extend(milestone.liabilities)
-                income.extend(milestone.income_adjustments)
-                expenses.extend(milestone.recurring_expenses)
                 if milestone.one_time_expense > 0:
+                    class OneTimeExpense(FixedExpense):
+                        def __init__(self, name: str, amount: float, year: int):
+                            super().__init__(name, amount, inflation_rate=0)
+                            self.trigger_year = year
+
+                        def calculate_expense(self, year: int) -> float:
+                            return self.annual_amount if year == self.trigger_year else 0
+
                     expenses.append(
-                        FixedExpense(f"{milestone.name} One-time Cost", 
-                                   milestone.one_time_expense,
-                                   inflation_rate=0)  # One-time expenses don't inflate
+                        OneTimeExpense(f"{milestone.name} One-time Cost",
+                                     milestone.one_time_expense,
+                                     milestone.trigger_year)
                     )
+
+                # Add recurring expenses starting from milestone year
+                for expense in milestone.recurring_expenses:
+                    class PostMilestoneExpense(expense.__class__):
+                        def __init__(self, base_expense, trigger_year):
+                            super().__init__(base_expense.name, base_expense.annual_amount)
+                            self.trigger_year = trigger_year
+
+                        def calculate_expense(self, year: int) -> float:
+                            return super().calculate_expense(year) if year >= self.trigger_year else 0
+
+                    expenses.append(PostMilestoneExpense(expense, milestone.trigger_year))
+
+                # Add assets and liabilities at the milestone year
+                for asset in milestone.assets:
+                    assets.append(asset)
+                for liability in milestone.liabilities:
+                    liabilities.append(liability)
+                income.extend(milestone.income_adjustments)
 
         return assets, liabilities, income, expenses
