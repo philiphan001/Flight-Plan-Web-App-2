@@ -226,16 +226,30 @@ class MilestoneFactory:
         return milestone
 
     @staticmethod
-    def create_car_purchase(trigger_year: int, car_price: float, down_payment_percentage: float = 0.20) -> Milestone:
+    def create_car_purchase(trigger_year: int, car_price: float, down_payment_percentage: float = 0.20,
+                          loan_interest_rate: float = 0.045, loan_term_years: int = 5,
+                          insurance_rate: float = 0.04, maintenance_rate: float = 0.033,
+                          depreciation_rate: float = 0.15) -> Milestone:
         milestone = Milestone("Car Purchase", trigger_year, "Asset")
         down_payment = car_price * down_payment_percentage
         loan_amount = car_price * (1 - down_payment_percentage)
 
+        # Add down payment as one-time expense
         milestone.add_one_time_expense(down_payment)
-        milestone.add_asset(Vehicle("Car", car_price))
-        milestone.add_liability(CarLoan(loan_amount, 0.045))  # 4.5% interest rate
-        milestone.add_recurring_expense(FixedExpense("Car Insurance", 1200))
-        milestone.add_recurring_expense(FixedExpense("Car Maintenance", 1000))
+
+        # Add the car as an asset with configurable depreciation
+        milestone.add_asset(Vehicle("Car", car_price, depreciation_rate))
+
+        # Add car loan with configurable terms
+        car_loan = CarLoan(loan_amount, loan_interest_rate, loan_term_years)
+        milestone.add_liability(car_loan)
+
+        # Add recurring expenses (insurance and maintenance)
+        monthly_payment = car_loan.calculate_payment()
+        milestone.add_recurring_expense(FixedExpense("Car Payment", monthly_payment * 12, inflation_rate=0))
+        milestone.add_recurring_expense(FixedExpense("Car Insurance", car_price * insurance_rate))
+        milestone.add_recurring_expense(FixedExpense("Car Maintenance", car_price * maintenance_rate))
+
         return milestone
 
     @staticmethod

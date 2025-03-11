@@ -4,7 +4,7 @@ from utils.data_processor import DataProcessor
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
 from difflib import get_close_matches
-from models.financial_models import MilestoneFactory, Home, MortgageLoan
+from models.financial_models import MilestoneFactory, Home, MortgageLoan, Vehicle, CarLoan
 
 def main():
     st.set_page_config(page_title="Financial Projection App", layout="wide")
@@ -303,6 +303,104 @@ def main():
 
                         if st.sidebar.button("Cancel", key=f"cancel_{idx}"):
                             st.session_state.editing_home_purchase = None
+                            st.rerun()
+
+                    # Add edit button for car purchase milestone
+                    if milestone.name == "Car Purchase":
+                        if st.sidebar.button("Edit Car Purchase", key=f"edit_car_{idx}"):
+                            st.session_state.editing_car_purchase = idx
+
+                    # Show edit form if this milestone is being edited
+                    if milestone.name == "Car Purchase" and getattr(st.session_state, 'editing_car_purchase', None) == idx:
+                        st.sidebar.markdown("### Edit Car Purchase Details")
+
+                        # Basic purchase details
+                        new_year = st.sidebar.slider(
+                            "Update Purchase Year",
+                            min_value=1,
+                            max_value=projection_years,
+                            value=milestone.trigger_year,
+                            key=f"edit_car_year_{idx}"
+                        )
+
+                        # Get current car and loan details
+                        current_car = next((asset for asset in milestone.assets if isinstance(asset, Vehicle)), None)
+                        current_loan = next((l for l in milestone.liabilities if isinstance(l, CarLoan)), None)
+
+                        new_price = st.sidebar.number_input(
+                            "Update Car Price",
+                            value=float(current_car.initial_value if current_car else 30000),
+                            key=f"edit_car_price_{idx}"
+                        )
+
+                        new_down_payment_pct = st.sidebar.slider(
+                            "Update Down Payment %",
+                            5, 100, 
+                            int(milestone.one_time_expense / new_price * 100) if milestone.one_time_expense else 20,
+                            key=f"edit_car_down_{idx}"
+                        ) / 100
+
+                        # Advanced settings
+                        st.sidebar.markdown("#### Advanced Settings")
+
+                        new_loan_rate = st.sidebar.slider(
+                            "Loan Interest Rate (%)",
+                            2.0, 12.0, 
+                            float(current_loan.interest_rate * 100) if current_loan else 4.5,
+                            0.1,
+                            key=f"edit_car_loan_rate_{idx}"
+                        ) / 100
+
+                        new_loan_term = st.sidebar.slider(
+                            "Loan Term (Years)",
+                            1, 7, 
+                            int(current_loan.term_years) if current_loan else 5,
+                            key=f"edit_car_loan_term_{idx}"
+                        )
+
+                        new_depreciation_rate = st.sidebar.slider(
+                            "Annual Depreciation Rate (%)",
+                            5.0, 30.0, 
+                            float(current_car.depreciation_rate * 100) if current_car else 15.0,
+                            0.5,
+                            key=f"edit_car_depreciation_{idx}"
+                        ) / 100
+
+                        # Get current expense rates
+                        insurance_exp = next((e for e in milestone.recurring_expenses if e.name == "Car Insurance"), None)
+                        maintenance_exp = next((e for e in milestone.recurring_expenses if e.name == "Car Maintenance"), None)
+
+                        new_insurance_rate = st.sidebar.slider(
+                            "Annual Insurance Rate (% of car value)",
+                            1.0, 10.0, 
+                            float(insurance_exp.annual_amount / new_price * 100) if insurance_exp else 4.0,
+                            0.1,
+                            key=f"edit_car_insurance_{idx}"
+                        ) / 100
+
+                        new_maintenance_rate = st.sidebar.slider(
+                            "Annual Maintenance Rate (% of car value)",
+                            1.0, 10.0, 
+                            float(maintenance_exp.annual_amount / new_price * 100) if maintenance_exp else 3.3,
+                            0.1,
+                            key=f"edit_car_maintenance_{idx}"
+                        ) / 100
+
+                        if st.sidebar.button("Save Changes", key=f"save_car_{idx}"):
+                            # Create new milestone with updated values
+                            new_milestone = MilestoneFactory.create_car_purchase(
+                                new_year, new_price, new_down_payment_pct,
+                                new_loan_rate, new_loan_term,
+                                new_insurance_rate, new_maintenance_rate,
+                                new_depreciation_rate
+                            )
+                            st.session_state.milestones[idx] = new_milestone
+                            # Clear editing state
+                            st.session_state.editing_car_purchase = None
+                            st.rerun()
+
+                        if st.sidebar.button("Cancel", key=f"cancel_car_{idx}"):
+                            st.session_state.editing_car_purchase = None
                             st.rerun()
 
                     # Regular remove button
