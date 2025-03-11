@@ -29,7 +29,7 @@ class DataProcessor:
 
     @staticmethod
     def process_location_data(coli_df: pd.DataFrame, occupation_df: pd.DataFrame,
-                            location: str, occupation: str) -> Dict:
+                            location: str, occupation: str, investment_return_rate: float) -> Dict:
         # Convert location and occupation to string for comparison
         location_data = coli_df[coli_df['Cost of Living'].astype(str) == str(location)].iloc[0]
         occupation_data = occupation_df[occupation_df['Occupation'].astype(str) == str(occupation)].iloc[0]
@@ -47,7 +47,8 @@ class DataProcessor:
             'monthly_expense': float(location_data['Monthly Expense']),
             'home_price': float(location_data['Average Price of Starter Home']),
             'location_adjustment': float(location_data['Income Adjustment Factor']),
-            'base_income': float(occupation_data['Monthly Income']) * 12  # Convert to annual
+            'base_income': float(occupation_data['Monthly Income']) * 12,  # Convert to annual
+            'investment_return_rate': investment_return_rate
         }
 
     @staticmethod
@@ -61,6 +62,10 @@ class DataProcessor:
         # Create Income objects
         base_salary = Salary(location_data['base_income'], location_data['location_adjustment'])
         income.append(base_salary)
+
+        # Create Investment asset for savings (starts at 0)
+        investment = Investment("Savings", 0, location_data['investment_return_rate'])
+        assets.append(investment)
 
         # Create Asset and Liability objects based on housing situation
         if is_homeowner:

@@ -17,9 +17,11 @@ class FinancialCalculator:
             'total_income': [],
             'total_expenses': [],
             'asset_values': [],
-            'liability_values': []
+            'liability_values': [],
+            'investment_growth': []
         }
 
+        cumulative_savings = 0
         for year in range(projection_years):
             # Calculate total income
             total_income = sum(inc.calculate_income(year) for inc in self.income)
@@ -29,13 +31,29 @@ class FinancialCalculator:
             total_expenses = sum(exp.calculate_expense(year) for exp in self.expenses)
             projections['total_expenses'].append(total_expenses)
 
-            # Calculate cash flow
+            # Calculate cash flow (savings)
             cash_flow = total_income - total_expenses
             projections['cash_flow'].append(cash_flow)
 
-            # Calculate asset values
+            # Add cash flow to cumulative savings for investment
+            cumulative_savings += cash_flow
+
+            # Update the investment asset with new savings
+            for asset in self.assets:
+                if isinstance(asset, Investment) and asset.name == "Savings":
+                    asset.add_contribution(cash_flow)
+
+            # Calculate asset values including investment growth
             asset_value = sum(asset.calculate_value(year) for asset in self.assets)
             projections['asset_values'].append(asset_value)
+
+            # Calculate investment growth
+            investment_growth = next(
+                (asset.calculate_value(year) for asset in self.assets 
+                 if isinstance(asset, Investment) and asset.name == "Savings"),
+                0
+            )
+            projections['investment_growth'].append(investment_growth)
 
             # Calculate liability values
             liability_value = sum(liability.get_balance(year) for liability in self.liabilities)

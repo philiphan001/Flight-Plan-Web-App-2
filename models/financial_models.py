@@ -25,9 +25,23 @@ class Investment(Asset):
     def __init__(self, name: str, initial_value: float, return_rate: float = 0.07):
         super().__init__(name, initial_value)
         self.return_rate = return_rate
+        self.contributions = []  # Track yearly contributions
+
+    def add_contribution(self, amount: float):
+        self.contributions.append(amount)
 
     def calculate_value(self, year: int) -> float:
-        return self.initial_value * (1 + self.return_rate) ** year
+        if year >= len(self.contributions):
+            return self.current_value
+
+        # Calculate compound growth including contributions
+        value = self.initial_value
+        for i in range(year + 1):
+            value = (value + self.contributions[i]) * (1 + self.return_rate)
+            if i == year:
+                self.current_value = value
+
+        return self.current_value
 
 class DepreciableAsset(Asset):
     def __init__(self, name: str, initial_value: float, depreciation_rate: float = 0.1):
