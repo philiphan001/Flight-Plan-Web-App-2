@@ -93,6 +93,20 @@ class MortgageLoan(Loan):
     def __init__(self, principal: float, interest_rate: float, term_years: int = 30):
         super().__init__("Mortgage", principal, interest_rate, term_years)
 
+    def get_balance(self, year: int) -> float:
+        # Return 0 for years before the loan starts
+        if year < 0:
+            return 0
+        # For active years, calculate remaining balance
+        if year < self.term_years:
+            monthly_rate = self.interest_rate / 12
+            num_payments = self.term_years * 12
+            payment = self.calculate_payment()
+            remaining_payments = (self.term_years - year) * 12
+            return (payment * ((1 - (1 + monthly_rate)**(-remaining_payments)) / monthly_rate))
+        # After term ends, balance is 0
+        return 0
+
 class CarLoan(Loan):
     def __init__(self, principal: float, interest_rate: float, term_years: int = 5):
         super().__init__("Car Loan", principal, interest_rate, term_years)
@@ -187,13 +201,23 @@ class MilestoneFactory:
         down_payment = home_price * down_payment_percentage
         loan_amount = home_price * (1 - down_payment_percentage)
 
-        # Add one-time expense with year tag
+        # Create mortgage loan
+        mortgage = MortgageLoan(loan_amount, 0.035)  # 3.5% interest rate
+        monthly_payment = mortgage.calculate_payment()
+
+        # Add the down payment as a one-time expense
         milestone.add_one_time_expense(down_payment)
+
+        # Add the home as an asset
         milestone.add_asset(Home("Primary Residence", home_price))
-        milestone.add_liability(MortgageLoan(loan_amount, 0.035))  # 3.5% interest rate
+
+        # Add mortgage as both a liability and a source of recurring expenses
+        milestone.add_liability(mortgage)
+        milestone.add_recurring_expense(FixedExpense("Mortgage Payment", monthly_payment * 12))
         milestone.add_recurring_expense(FixedExpense("Property Tax", home_price * 0.015))
         milestone.add_recurring_expense(FixedExpense("Home Insurance", home_price * 0.005))
         milestone.add_recurring_expense(FixedExpense("Home Maintenance", home_price * 0.01))
+
         return milestone
 
     @staticmethod
