@@ -11,45 +11,69 @@ def main():
 
     # Debug logging
     st.write("Starting application...")
+    st.write("Current Python packages loaded successfully")
 
     try:
-        # Initialize session state
-        if 'selected_location' not in st.session_state:
-            st.session_state.selected_location = ""
-        if 'selected_occupation' not in st.session_state:
-            st.session_state.selected_occupation = ""
+        # Basic UI element test
+        st.sidebar.title("Input Parameters")
 
-        # Investment return rate slider (moved to top for early testing)
-        investment_return_rate = st.sidebar.slider(
-            "Investment Return Rate (%)", 
-            min_value=0.0, 
-            max_value=15.0, 
-            value=7.0, 
-            step=0.5,
-            help="Annual rate of return for invested savings"
-        ) / 100.0
+        test_slider = st.sidebar.slider(
+            "Test Slider", 
+            min_value=0, 
+            max_value=100, 
+            value=50
+        )
+        st.write("Basic UI elements loaded successfully")
 
-        # Load and process CSV files
+        # Load CSV files with detailed error handling
         try:
+            st.write("Attempting to load COLI CSV file...")
             coli_df = pd.read_csv("COLI by Location.csv")
+            # Remove empty rows
+            coli_df = coli_df.dropna(how='all')
             st.write("COLI CSV loaded successfully")
-            locations = coli_df['Cost of Living'].astype(str).unique().tolist()
-            st.write(f"Found {len(locations)} locations")
+            st.write("COLI columns:", coli_df.columns.tolist())
+            st.write("COLI shape:", coli_df.shape)
 
+            st.write("Attempting to load Occupation CSV file...")
             occupation_df = pd.read_csv("Occupational Data.csv")
             st.write("Occupation CSV loaded successfully")
+            st.write("Occupation columns:", occupation_df.columns.tolist())
+            st.write("Occupation shape:", occupation_df.shape)
+
+            # Get unique values
+            locations = coli_df['Cost of Living'].astype(str).unique().tolist()
             occupations = occupation_df['Occupation'].astype(str).unique().tolist()
-            st.write(f"Found {len(occupations)} occupations")
+
+            st.write(f"Found {len(locations)} locations and {len(occupations)} occupations")
+
+            # Initialize session state for selections
+            if 'selected_location' not in st.session_state:
+                st.session_state.selected_location = ""
+            if 'selected_occupation' not in st.session_state:
+                st.session_state.selected_occupation = ""
+
+            st.write("Session state initialized successfully")
+
+            # Basic input fields
+            location_input = st.text_input("Enter Location", "")
+            occupation_input = st.text_input("Enter Occupation", "")
+
+            st.write("Basic input fields created successfully")
 
         except FileNotFoundError as e:
-            st.error("Required CSV files not found. Please ensure both 'COLI by Location.csv' and 'Occupational Data.csv' exist.")
+            st.error(f"CSV file not found: {str(e)}")
+            st.error("Please ensure both CSV files exist in the correct location")
+            return
+        except pd.errors.EmptyDataError:
+            st.error("One of the CSV files is empty")
             return
         except Exception as e:
             st.error(f"Error loading data: {str(e)}")
+            st.error(f"Error type: {type(e).__name__}")
             return
 
-        # Location input
-        location_input = st.sidebar.text_input("Enter Location", "")
+        # Location input (rest of the original code)
         if location_input:
             matching_locations = [loc for loc in locations if location_input.lower() in loc.lower()]
             if matching_locations:
@@ -67,8 +91,7 @@ def main():
             else:
                 st.sidebar.error(f"No matching locations found. Try: {', '.join(locations[:3])}")
 
-        # Occupation input
-        occupation_input = st.sidebar.text_input("Enter Occupation", "")
+        # Occupation input (rest of the original code)
         if occupation_input:
             matching_occupations = [occ for occ in occupations if occupation_input.lower() in occ.lower()]
             if matching_occupations:
@@ -86,18 +109,18 @@ def main():
             else:
                 st.sidebar.error(f"No matching occupations found. Try: {', '.join(occupations[:3])}")
 
-        # Only proceed if both selections are valid
+        # Only proceed if both selections are valid (rest of the original code)
         if st.session_state.selected_location and st.session_state.selected_occupation:
             st.write("Processing selections...")
 
-            # Housing choice
+            # Housing choice (rest of the original code)
             is_homeowner = st.sidebar.checkbox("Are you a homeowner?")
 
-            # Projection years
+            # Projection years (rest of the original code)
             projection_years = st.sidebar.slider("Projection Years", 1, 20, 10)
 
             try:
-                # Process data with debug logging
+                # Process data with debug logging (rest of the original code)
                 st.write("Processing location and occupation data...")
                 location_data = DataProcessor.process_location_data(
                     coli_df, occupation_df, 
@@ -115,7 +138,7 @@ def main():
                 calculator = FinancialCalculator(assets, liabilities, income, expenses)
                 projections = calculator.calculate_yearly_projection(projection_years)
 
-                # Display results
+                # Display results (rest of the original code)
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("Initial Net Worth", f"${projections['net_worth'][0]:,.2f}")
@@ -126,7 +149,7 @@ def main():
                     st.metric("Average Annual Cash Flow", f"${avg_cash_flow:,.2f}")
 
                 st.write("Generating visualizations...")
-                # Net Worth Section
+                # Net Worth Section (rest of the original code)
                 st.subheader("Net Worth Projection")
                 FinancialPlotter.plot_net_worth(projections['years'], projections['net_worth'])
                 st.dataframe(pd.DataFrame({
@@ -134,7 +157,7 @@ def main():
                     'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
                 }))
 
-                # Cash Flow Section
+                # Cash Flow Section (rest of the original code)
                 st.subheader("Income, Expenses, and Net Savings")
                 FinancialPlotter.plot_cash_flow(
                     projections['years'],
@@ -150,7 +173,7 @@ def main():
                     'Investment Growth': [f"${x:,.2f}" for x in projections['investment_growth']]
                 }))
 
-                # Assets and Liabilities
+                # Assets and Liabilities (rest of the original code)
                 st.subheader("Assets and Liabilities")
                 FinancialPlotter.plot_assets_liabilities(
                     projections['years'],
