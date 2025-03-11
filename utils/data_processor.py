@@ -127,9 +127,14 @@ class DataProcessor:
                         def __init__(self, base_expense, trigger_year):
                             super().__init__(base_expense.name, base_expense.annual_amount)
                             self.trigger_year = trigger_year
+                            self.inflation_rate = base_expense.inflation_rate  # Preserve inflation rate
 
                         def calculate_expense(self, year: int) -> float:
-                            return super().calculate_expense(year - self.trigger_year) if year >= self.trigger_year else 0
+                            if year < self.trigger_year:
+                                return 0
+                            # For years after trigger, calculate with inflation from the start year
+                            years_since_start = year - self.trigger_year
+                            return self.annual_amount * (1 + self.inflation_rate) ** years_since_start
 
                     expenses.append(PostMilestoneExpense(expense, milestone.trigger_year))
 
@@ -159,6 +164,7 @@ class DataProcessor:
                             self.interest_rate = base_liability.interest_rate
                             self.term_years = base_liability.term_years
                             self.start_year = start_year
+                            self._payment = self.calculate_payment()  # Calculate payment once
 
                         def calculate_payment(self) -> float:
                             monthly_rate = self.interest_rate / 12
@@ -172,9 +178,11 @@ class DataProcessor:
                             if adjusted_year >= self.term_years:
                                 return 0
                             monthly_rate = self.interest_rate / 12
-                            payment = self.calculate_payment()
                             remaining_payments = (self.term_years - adjusted_year) * 12
-                            return (payment * ((1 - (1 + monthly_rate)**(-remaining_payments)) / monthly_rate))
+                            return (self._payment * ((1 - (1 + monthly_rate)**(-remaining_payments)) / monthly_rate))
+
+                        def get_annual_payment(self) -> float:
+                            return self._payment * 12
 
                     liabilities.append(TimedLiability(liability, milestone.trigger_year))
 

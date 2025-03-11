@@ -213,7 +213,9 @@ class MilestoneFactory:
 
         # Add mortgage and recurring housing expenses
         milestone.add_liability(mortgage)
-        milestone.add_recurring_expense(FixedExpense("Mortgage Payment", monthly_payment * 12))
+        # Add mortgage payment as a fixed expense (no inflation adjustment)
+        milestone.add_recurring_expense(FixedExpense("Mortgage Payment", monthly_payment * 12, inflation_rate=0))
+        # Add other housing expenses that do inflate
         milestone.add_recurring_expense(FixedExpense("Property Tax", home_price * 0.015))
         milestone.add_recurring_expense(FixedExpense("Home Insurance", home_price * 0.005))
         milestone.add_recurring_expense(FixedExpense("Home Maintenance", home_price * 0.01))
