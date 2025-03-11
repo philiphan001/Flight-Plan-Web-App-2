@@ -57,145 +57,9 @@ def main():
 
             else:
                 st.sidebar.error(
-
-        # Milestone inputs
-        st.sidebar.header("Life Milestones")
-        
-        # Initialize milestones list in session state if not present
-        if 'milestones' not in st.session_state:
-            st.session_state.milestones = []
-            
-        # Add milestone section
-        add_milestone = st.sidebar.expander("Add New Milestone")
-        with add_milestone:
-            milestone_type = st.selectbox(
-                "Milestone Type", 
-                [t.value for t in MilestoneType],
-                key="milestone_type"
-            )
-            
-            milestone_year = st.number_input(
-                "Year (0 = now)", 
-                min_value=0, 
-                max_value=projection_years-1 if 'projection_years' in locals() else 30,
-                key="milestone_year"
-            )
-            
-            # Specific inputs based on milestone type
-            if milestone_type == MilestoneType.MARRIAGE.value:
-                income_change = st.slider("Income Change (%)", -100, 100, 50, key="marriage_income")
-                expense_change = st.slider("Expense Change (%)", -50, 100, 25, key="marriage_expense")
-                
-                if st.button("Add Marriage Milestone"):
-                    st.session_state.milestones.append(
-                        MarriageMilestone(milestone_year, income_change/100, expense_change/100)
-                    )
-                    st.success(f"Added Marriage milestone at year {milestone_year}")
-                    
-            elif milestone_type == MilestoneType.CHILD.value:
-                child_expense = st.number_input("Annual Child Expenses ($)", 
-                                             min_value=0, value=12000, key="child_expense")
-                college_savings = st.number_input("Annual College Savings ($)",
-                                               min_value=0, value=2500, key="college_savings")
-                
-                if st.button("Add Child Milestone"):
-                    st.session_state.milestones.append(
-                        ChildMilestone(milestone_year, child_expense, college_savings)
-                    )
-                    st.success(f"Added Child milestone at year {milestone_year}")
-                    
-            elif milestone_type == MilestoneType.HOME_PURCHASE.value:
-                home_value = st.number_input("Home Purchase Price ($)", 
-                                          min_value=0, value=350000, key="home_value")
-                down_payment = st.slider("Down Payment (%)", 0, 100, 20, key="down_payment")
-                interest_rate = st.slider("Interest Rate (%)", 2.0, 8.0, 3.5, key="interest_rate")
-                mortgage_term = st.selectbox("Mortgage Term (years)", [15, 20, 30], index=2, key="mortgage_term")
-                
-                if st.button("Add Home Purchase Milestone"):
-                    st.session_state.milestones.append(
-                        HomePurchaseMilestone(milestone_year, home_value, down_payment/100, 
-                                            interest_rate/100, mortgage_term)
-                    )
-                    st.success(f"Added Home Purchase milestone at year {milestone_year}")
-                    
-            elif milestone_type == MilestoneType.CAR_PURCHASE.value:
-                car_value = st.number_input("Car Purchase Price ($)", 
-                                         min_value=0, value=30000, key="car_value")
-                car_down_payment = st.slider("Down Payment (%)", 0, 100, 20, key="car_down_payment")
-                car_interest = st.slider("Interest Rate (%)", 2.0, 10.0, 4.5, key="car_interest")
-                car_term = st.selectbox("Loan Term (years)", [3, 4, 5, 6], index=2, key="car_term")
-                
-                if st.button("Add Car Purchase Milestone"):
-                    st.session_state.milestones.append(
-
-            elif milestone_type == MilestoneType.CAR_PURCHASE.value:
-                car_value = st.number_input("Car Purchase Price ($)", 
-                                         min_value=0, value=30000, key="car_value")
-                car_down_payment = st.slider("Down Payment (%)", 0, 100, 20, key="car_down_payment")
-                car_interest = st.slider("Interest Rate (%)", 2.0, 10.0, 4.5, key="car_interest")
-                car_term = st.selectbox("Loan Term (years)", [3, 4, 5, 6], index=2, key="car_term")
-                
-                if st.button("Add Car Purchase Milestone"):
-                    st.session_state.milestones.append(
-                        CarPurchaseMilestone(milestone_year, car_value, car_down_payment/100, 
-                                           car_interest/100, car_term)
-                    )
-                    st.success(f"Added Car Purchase milestone at year {milestone_year}")
-                    
-            elif milestone_type == MilestoneType.PROMOTION.value:
-                salary_increase = st.slider("Salary Increase (%)", 0, 100, 15, key="promotion_increase")
-                
-                if st.button("Add Promotion Milestone"):
-                    st.session_state.milestones.append(
-                        PromotionMilestone(milestone_year, salary_increase/100)
-                    )
-                    st.success(f"Added Promotion milestone at year {milestone_year}")
-                    
-            elif milestone_type == MilestoneType.EDUCATION.value:
-                edu_years = st.number_input("Duration (years)", min_value=1, max_value=10, value=2, key="edu_years")
-                edu_cost = st.number_input("Annual Tuition ($)", min_value=0, value=25000, key="edu_cost")
-                income_reduction = st.slider("Income Reduction During Education (%)", 
-                                          0, 100, 50, key="income_reduction")
-                
-                if st.button("Add Education Milestone"):
-                    st.session_state.milestones.append(
-                        EducationMilestone(milestone_year, edu_years, edu_cost, income_reduction/100)
-                    )
-                    st.success(f"Added Education milestone at year {milestone_year}")
-                    
-            elif milestone_type == MilestoneType.CUSTOM.value:
-                custom_name = st.text_input("Milestone Name", "Custom Event", key="custom_name")
-                income_change = st.number_input("Annual Income Change ($)", key="custom_income")
-                expense_change = st.number_input("Annual Expense Change ($)", key="custom_expense")
-                asset_change = st.number_input("Asset Value Change ($)", key="custom_asset")
-                liability_change = st.number_input("Liability Change ($)", key="custom_liability")
-                
-                if st.button("Add Custom Milestone"):
-                    st.session_state.milestones.append(
-                        CustomMilestone(custom_name, milestone_year, income_change, 
-                                      expense_change, asset_change, liability_change)
-                    )
-                    st.success(f"Added Custom milestone at year {milestone_year}")
-                    
-        # Display current milestones
-        if st.session_state.milestones:
-            st.sidebar.subheader("Current Milestones")
-            for i, milestone in enumerate(st.session_state.milestones):
-                st.sidebar.write(f"{milestone.year}: {milestone.name}")
-                
-            if st.sidebar.button("Clear All Milestones"):
-                st.session_state.milestones = []
-                st.sidebar.success("All milestones removed")
-                
-        # Show milestones visualization if we have milestones
-        if 'milestones' in projections and projections['milestones']:
-            st.subheader("Net Worth with Life Milestones")
-            FinancialPlotter.plot_milestones(projections['years'], 
-                                           projections['net_worth'],
-                                           projections['milestones'])
-
                     "No matching locations found. Available locations: " +
-                    ", ".join(locations[:3]))
+                    ", ".join(locations[:3])
+                )
                 st.stop()
 
         # Occupation input with suggestions
@@ -229,7 +93,8 @@ def main():
             else:
                 st.sidebar.error(
                     "No matching occupations found. Available occupations: " +
-                    ", ".join(occupations[:3]))
+                    ", ".join(occupations[:3])
+                )
                 st.stop()
 
         # Only proceed if both selections are valid
