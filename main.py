@@ -11,98 +11,91 @@ def main():
     # Sidebar inputs
     st.sidebar.header("Input Parameters")
 
-    # File uploads
-    coli_file = st.sidebar.file_uploader("Upload Cost of Living Index CSV", type="csv", key="coli_upload")
-    occupation_file = st.sidebar.file_uploader("Upload Occupational Data CSV", type="csv", key="occupation_upload")
+    try:
+        # Load data files directly from filesystem
+        coli_df = DataProcessor.load_coli_data("COLI by Location.csv")
+        occupation_df = DataProcessor.load_occupation_data("Occupational Data.csv")
 
-    if coli_file is not None and occupation_file is not None:
-        try:
-            # Load both data files
-            coli_df = DataProcessor.load_coli_data(coli_file)
-            occupation_df = DataProcessor.load_occupation_data(occupation_file)
+        # Get available options
+        locations = coli_df['Cost of Living'].unique().tolist()
+        occupations = occupation_df['Occupation'].unique().tolist()
 
-            # Get available options
-            locations = coli_df['Cost of Living'].unique().tolist()
-            occupations = occupation_df['Occupation'].unique().tolist()
+        # Location input with suggestions
+        location_input = st.sidebar.text_input("Enter Location", "")
+        matching_locations = [loc for loc in locations if location_input.lower() in loc.lower()]
+        if location_input:
+            if len(matching_locations) > 0:
+                selected_location = st.sidebar.radio("Select from matching locations:", matching_locations)
+            else:
+                st.sidebar.error("No matching locations found. Available locations: " + ", ".join(locations))
+                st.stop()
 
-            # Location input with suggestions
-            location_input = st.sidebar.text_input("Enter Location", "")
-            matching_locations = [loc for loc in locations if location_input.lower() in loc.lower()]
-            if location_input:
-                if len(matching_locations) > 0:
-                    selected_location = st.sidebar.radio("Select from matching locations:", matching_locations)
-                else:
-                    st.sidebar.error("No matching locations found. Available locations: " + ", ".join(locations))
-                    st.stop()
+        # Occupation input with suggestions
+        occupation_input = st.sidebar.text_input("Enter Occupation", "")
+        matching_occupations = [occ for occ in occupations if occupation_input.lower() in occ.lower()]
+        if occupation_input:
+            if len(matching_occupations) > 0:
+                selected_occupation = st.sidebar.radio("Select from matching occupations:", matching_occupations)
+            else:
+                st.sidebar.error("No matching occupations found. Available occupations: " + ", ".join(occupations))
+                st.stop()
 
-            # Occupation input with suggestions
-            occupation_input = st.sidebar.text_input("Enter Occupation", "")
-            matching_occupations = [occ for occ in occupations if occupation_input.lower() in occ.lower()]
-            if occupation_input:
-                if len(matching_occupations) > 0:
-                    selected_occupation = st.sidebar.radio("Select from matching occupations:", matching_occupations)
-                else:
-                    st.sidebar.error("No matching occupations found. Available occupations: " + ", ".join(occupations))
-                    st.stop()
+        # Only proceed if both inputs are valid
+        if location_input and occupation_input and len(matching_locations) > 0 and len(matching_occupations) > 0:
+            # Housing choice
+            is_homeowner = st.sidebar.checkbox("Are you a homeowner?")
 
-            # Only proceed if both inputs are valid
-            if location_input and occupation_input and len(matching_locations) > 0 and len(matching_occupations) > 0:
-                # Housing choice
-                is_homeowner = st.sidebar.checkbox("Are you a homeowner?")
+            # Projection years
+            projection_years = st.sidebar.slider("Projection Years", 1, 20, 10)
 
-                # Projection years
-                projection_years = st.sidebar.slider("Projection Years", 1, 20, 10)
+            # Process data
+            location_data = DataProcessor.process_location_data(
+                coli_df, occupation_df, selected_location, selected_occupation
+            )
 
-                # Process data
-                location_data = DataProcessor.process_location_data(
-                    coli_df, occupation_df, selected_location, selected_occupation
-                )
+            assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
+                location_data, is_homeowner
+            )
 
-                assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
-                    location_data, is_homeowner
-                )
+            # Calculate projections
+            calculator = FinancialCalculator(assets, liabilities, income, expenses)
+            projections = calculator.calculate_yearly_projection(projection_years)
 
-                # Calculate projections
-                calculator = FinancialCalculator(assets, liabilities, income, expenses)
-                projections = calculator.calculate_yearly_projection(projection_years)
+            # Display summary metrics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Initial Net Worth", 
+                         f"${projections['net_worth'][0]:,.2f}")
+            with col2:
+                st.metric("Final Net Worth", 
+                         f"${projections['net_worth'][-1]:,.2f}")
+            with col3:
+                st.metric("Average Annual Cash Flow", 
+                         f"${sum(projections['cash_flow'])/len(projections['cash_flow']):,.2f}")
 
-                # Display summary metrics
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Initial Net Worth", 
-                             f"${projections['net_worth'][0]:,.2f}")
-                with col2:
-                    st.metric("Final Net Worth", 
-                             f"${projections['net_worth'][-1]:,.2f}")
-                with col3:
-                    st.metric("Average Annual Cash Flow", 
-                             f"${sum(projections['cash_flow'])/len(projections['cash_flow']):,.2f}")
+            # Display visualizations
+            st.header("Financial Projections")
 
-                # Display visualizations
-                st.header("Financial Projections")
+            FinancialPlotter.plot_net_worth(
+                projections['years'], 
+                projections['net_worth']
+            )
 
-                FinancialPlotter.plot_net_worth(
-                    projections['years'], 
-                    projections['net_worth']
-                )
+            FinancialPlotter.plot_cash_flow(
+                projections['years'],
+                projections['total_income'],
+                projections['total_expenses'],
+                projections['cash_flow']
+            )
 
-                FinancialPlotter.plot_cash_flow(
-                    projections['years'],
-                    projections['total_income'],
-                    projections['total_expenses'],
-                    projections['cash_flow']
-                )
+            FinancialPlotter.plot_assets_liabilities(
+                projections['years'],
+                projections['asset_values'],
+                projections['liability_values']
+            )
 
-                FinancialPlotter.plot_assets_liabilities(
-                    projections['years'],
-                    projections['asset_values'],
-                    projections['liability_values']
-                )
-
-        except Exception as e:
-            st.error(f"Error processing data: {str(e)}")
-    else:
-        st.info("Please upload both CSV files to begin the financial projection analysis.")
+    except Exception as e:
+        st.error(f"Error processing data: {str(e)}")
 
 if __name__ == "__main__":
     main()
