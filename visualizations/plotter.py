@@ -6,11 +6,15 @@ from typing import List, Dict
 class FinancialPlotter:
     @staticmethod
     def plot_net_worth(years: List[int], net_worth: List[float]) -> None:
+        """Plot net worth progression over time."""
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=years, y=net_worth,
-                                mode='lines+markers',
-                                name='Net Worth',
-                                line=dict(color='#2E86C1', width=2)))
+        fig.add_trace(go.Scatter(
+            x=years, 
+            y=net_worth,
+            mode='lines+markers',
+            name='Net Worth',
+            line=dict(color='#2E86C1', width=2)
+        ))
         fig.update_layout(
             title='Net Worth Projection',
             xaxis_title='Year',
@@ -21,7 +25,8 @@ class FinancialPlotter:
 
     @staticmethod
     def plot_cash_flow(years: List[int], income: List[float], 
-                       expenses: List[float], cash_flow: List[float]) -> None:
+                      expenses: List[float], cash_flow: List[float]) -> None:
+        """Plot income, expenses, and net savings over time."""
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
         fig.add_trace(
@@ -39,7 +44,7 @@ class FinancialPlotter:
         )
 
         fig.update_layout(
-            title='Income, Expenses, and Cash Flow Projection',
+            title='Income, Expenses, and Net Savings Projection',
             barmode='group',
             template='plotly_white'
         )
@@ -51,15 +56,22 @@ class FinancialPlotter:
     @staticmethod
     def plot_assets_liabilities(years: List[int], assets: List[float], 
                               liabilities: List[float]) -> None:
+        """Plot assets and liabilities over time."""
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=years, y=assets,
-                                mode='lines+markers',
-                                name='Assets',
-                                line=dict(color='#27AE60', width=2)))
-        fig.add_trace(go.Scatter(x=years, y=liabilities,
-                                mode='lines+markers',
-                                name='Liabilities',
-                                line=dict(color='#E74C3C', width=2)))
+        fig.add_trace(go.Scatter(
+            x=years, 
+            y=assets,
+            mode='lines+markers',
+            name='Assets',
+            line=dict(color='#27AE60', width=2)
+        ))
+        fig.add_trace(go.Scatter(
+            x=years, 
+            y=liabilities,
+            mode='lines+markers',
+            name='Liabilities',
+            line=dict(color='#E74C3C', width=2)
+        ))
         fig.update_layout(
             title='Assets and Liabilities Projection',
             xaxis_title='Year',
@@ -67,6 +79,7 @@ class FinancialPlotter:
             template='plotly_white'
         )
         st.plotly_chart(fig)
+
     @staticmethod
     def plot_milestones(years: List[int], net_worth: List[float], 
                       milestones: Dict[int, List[str]]) -> None:
