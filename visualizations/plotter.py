@@ -1,7 +1,7 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
-from typing import List
+from typing import List, Dict
 
 class FinancialPlotter:
     @staticmethod
@@ -21,30 +21,39 @@ class FinancialPlotter:
 
     @staticmethod
     def plot_cash_flow(years: List[int], income: List[float], 
-                       expenses: List[float], cash_flow: List[float]) -> None:
+                      expenses: Dict[str, List[float]], total_expenses: List[float],
+                      cash_flow: List[float]) -> None:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
+        # Add income bar
         fig.add_trace(
             go.Bar(x=years, y=income, name="Income", marker_color='#27AE60'),
             secondary_y=False
         )
+
+        # Add stacked expense bars for each category
+        colors = ['#E74C3C', '#F39C12', '#8E44AD', '#3498DB', '#16A085', 
+                 '#D35400', '#2C3E50', '#7F8C8D', '#C0392B']
+        for (category, values), color in zip(expenses.items(), colors):
+            fig.add_trace(
+                go.Bar(x=years, y=values, name=category, marker_color=color),
+                secondary_y=False
+            )
+
+        # Add cash flow line
         fig.add_trace(
-            go.Bar(x=years, y=expenses, name="Expenses", marker_color='#E74C3C'),
-            secondary_y=False
-        )
-        fig.add_trace(
-            go.Scatter(x=years, y=cash_flow, name="Cash Flow", 
+            go.Scatter(x=years, y=cash_flow, name="Net Savings", 
                       line=dict(color='#2E86C1', width=2)),
             secondary_y=True
         )
 
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
-            barmode='group',
+            barmode='stack',
             template='plotly_white'
         )
         fig.update_yaxes(title_text="Amount ($)", secondary_y=False)
-        fig.update_yaxes(title_text="Cash Flow ($)", secondary_y=True)
+        fig.update_yaxes(title_text="Net Savings ($)", secondary_y=True)
 
         st.plotly_chart(fig)
 

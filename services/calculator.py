@@ -16,10 +16,20 @@ class FinancialCalculator:
             'cash_flow': [],
             'total_income': [],
             'total_expenses': [],
+            'expense_categories': {},
             'asset_values': [],
             'liability_values': [],
             'investment_growth': []
         }
+
+        # Initialize expense categories
+        expense_categories = {}
+        for expense in self.expenses:
+            category = expense.name
+            if "One-time Cost" in category:
+                milestone_name = category.replace(" One-time Cost", "")
+                category = f"One-time: {milestone_name}"
+            expense_categories[category] = []
 
         cumulative_savings = 0
         for year in range(projection_years):
@@ -27,9 +37,25 @@ class FinancialCalculator:
             total_income = sum(inc.calculate_income(year) for inc in self.income)
             projections['total_income'].append(total_income)
 
-            # Calculate total expenses
-            total_expenses = sum(exp.calculate_expense(year) for exp in self.expenses)
+            # Calculate expenses by category
+            total_expenses = 0
+            for expense in self.expenses:
+                category = expense.name
+                if "One-time Cost" in category:
+                    milestone_name = category.replace(" One-time Cost", "")
+                    category = f"One-time: {milestone_name}"
+                    # Only apply one-time costs in their specific year
+                    expense_amount = expense.calculate_expense(year) if expense.name.endswith(f"Year {year}") else 0
+                else:
+                    expense_amount = expense.calculate_expense(year)
+
+                if category not in expense_categories:
+                    expense_categories[category] = [0] * projection_years
+                expense_categories[category].append(expense_amount)
+                total_expenses += expense_amount
+
             projections['total_expenses'].append(total_expenses)
+            projections['expense_categories'] = expense_categories
 
             # Calculate cash flow (savings)
             cash_flow = total_income - total_expenses

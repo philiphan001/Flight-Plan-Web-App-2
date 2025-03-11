@@ -259,17 +259,31 @@ def main():
 
             # Cash Flow Tab
             with cash_flow_tab:
-                FinancialPlotter.plot_cash_flow(projections['years'],
-                                             projections['total_income'],
-                                             projections['total_expenses'],
-                                             projections['cash_flow'])
-                cash_flow_df = pd.DataFrame({
+                FinancialPlotter.plot_cash_flow(
+                    projections['years'],
+                    projections['total_income'],
+                    projections['expense_categories'],
+                    projections['total_expenses'],
+                    projections['cash_flow']
+                )
+
+                # Create detailed cash flow DataFrame
+                cash_flow_data = {
                     'Year': projections['years'],
                     'Total Income': [f"${x:,.2f}" for x in projections['total_income']],
+                }
+
+                # Add expense categories
+                for category, values in projections['expense_categories'].items():
+                    cash_flow_data[f"Expense: {category}"] = [f"${x:,.2f}" for x in values]
+
+                cash_flow_data.update({
                     'Total Expenses': [f"${x:,.2f}" for x in projections['total_expenses']],
                     'Net Savings': [f"${x:,.2f}" for x in projections['cash_flow']],
                     'Cumulative Investment Growth': [f"${x:,.2f}" for x in projections['investment_growth']]
                 })
+
+                cash_flow_df = pd.DataFrame(cash_flow_data)
                 st.dataframe(cash_flow_df)
 
             # Assets and Liabilities Tab
