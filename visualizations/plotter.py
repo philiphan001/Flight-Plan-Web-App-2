@@ -34,7 +34,20 @@ class FinancialPlotter:
         # Add stacked expense bars for each category
         colors = ['#E74C3C', '#F39C12', '#8E44AD', '#3498DB', '#16A085', 
                  '#D35400', '#2C3E50', '#7F8C8D', '#C0392B']
-        for (category, values), color in zip(expenses.items(), colors):
+
+        # Sort expense categories to ensure consistent ordering
+        expense_items = sorted(expenses.items())
+
+        # Prioritize certain categories to appear at the bottom of the stack
+        priority_categories = ['Mortgage Payment', 'Rent']
+        for category in priority_categories:
+            for item in expense_items:
+                if item[0] == category:
+                    expense_items.remove(item)
+                    expense_items.insert(0, item)
+                    break
+
+        for (category, values), color in zip(expense_items, colors):
             fig.add_trace(
                 go.Bar(x=years, y=values, name=category, marker_color=color),
                 secondary_y=False
@@ -50,7 +63,14 @@ class FinancialPlotter:
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
             barmode='stack',
-            template='plotly_white'
+            template='plotly_white',
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=1.05
+            )
         )
         fig.update_yaxes(title_text="Amount ($)", secondary_y=False)
         fig.update_yaxes(title_text="Net Savings ($)", secondary_y=True)
@@ -59,7 +79,7 @@ class FinancialPlotter:
 
     @staticmethod
     def plot_assets_liabilities(years: List[int], assets: List[float], 
-                              liabilities: List[float]) -> None:
+                             liabilities: List[float]) -> None:
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=years, y=assets,
                                 mode='lines+markers',
