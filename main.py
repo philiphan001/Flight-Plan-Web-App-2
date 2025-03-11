@@ -128,13 +128,15 @@ def main():
                 if st.button("Add Car Purchase Milestone"):
                     st.session_state.milestones.append(
 
-            # Show milestones visualization if we have milestones
-            if 'milestones' in projections and projections['milestones']:
-                st.subheader("Net Worth with Life Milestones")
-                FinancialPlotter.plot_milestones(projections['years'], 
-                                               projections['net_worth'],
-                                               projections['milestones'])
-
+            elif milestone_type == MilestoneType.CAR_PURCHASE.value:
+                car_value = st.number_input("Car Purchase Price ($)", 
+                                         min_value=0, value=30000, key="car_value")
+                car_down_payment = st.slider("Down Payment (%)", 0, 100, 20, key="car_down_payment")
+                car_interest = st.slider("Interest Rate (%)", 2.0, 10.0, 4.5, key="car_interest")
+                car_term = st.selectbox("Loan Term (years)", [3, 4, 5, 6], index=2, key="car_term")
+                
+                if st.button("Add Car Purchase Milestone"):
+                    st.session_state.milestones.append(
                         CarPurchaseMilestone(milestone_year, car_value, car_down_payment/100, 
                                            car_interest/100, car_term)
                     )
@@ -184,6 +186,13 @@ def main():
             if st.sidebar.button("Clear All Milestones"):
                 st.session_state.milestones = []
                 st.sidebar.success("All milestones removed")
+                
+        # Show milestones visualization if we have milestones
+        if 'milestones' in projections and projections['milestones']:
+            st.subheader("Net Worth with Life Milestones")
+            FinancialPlotter.plot_milestones(projections['years'], 
+                                           projections['net_worth'],
+                                           projections['milestones'])
 
                     "No matching locations found. Available locations: " +
                     ", ".join(locations[:3]))
