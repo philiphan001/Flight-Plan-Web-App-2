@@ -8,8 +8,8 @@ class DataProcessor:
         try:
             df = pd.read_csv(file_path)
             required_columns = ['Cost of Living', 'Housing', 'Transportation', 'Food', 'Healthcare', 
-                                  'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
-                                  'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
+                              'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
+                              'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
             if not all(col in df.columns for col in required_columns):
                 raise ValueError("COLI CSV file missing required columns")
             return df
@@ -29,7 +29,7 @@ class DataProcessor:
 
     @staticmethod
     def process_location_data(coli_df: pd.DataFrame, occupation_df: pd.DataFrame,
-                              location: str, occupation: str, investment_return_rate: float) -> Dict:
+                            location: str, occupation: str, investment_return_rate: float) -> Dict:
         # Convert location and occupation to string for comparison
         location_data = coli_df[coli_df['Cost of Living'].astype(str) == str(location)].iloc[0]
         occupation_data = occupation_df[occupation_df['Occupation'].astype(str) == str(occupation)].iloc[0]
@@ -107,14 +107,14 @@ class DataProcessor:
                 if milestone.one_time_expense > 0:
                     class OneTimeExpense(FixedExpense):
                         def __init__(self, name: str, amount: float, year: int):
-                            super().__init__(f"{name} One-time Cost Year {year}", amount, inflation_rate=0)
+                            super().__init__(name, amount, inflation_rate=0)
                             self.trigger_year = year
 
                         def calculate_expense(self, year: int) -> float:
                             return self.annual_amount if year == self.trigger_year else 0
 
                     expenses.append(
-                        OneTimeExpense(milestone.name,
+                        OneTimeExpense(f"{milestone.name} One-time Cost",
                                      milestone.one_time_expense,
                                      milestone.trigger_year)
                     )
@@ -131,12 +131,17 @@ class DataProcessor:
 
                     expenses.append(PostMilestoneExpense(expense, milestone.trigger_year))
 
-                # Add assets and liabilities with proper timing
+                # Add assets with timing
                 for asset in milestone.assets:
                     class TimedAsset(asset.__class__):
                         def __init__(self, base_asset, start_year):
-                            super().__init__(base_asset.name, base_asset.initial_value)
+                            self.name = base_asset.name
+                            self.initial_value = base_asset.initial_value
                             self.start_year = start_year
+                            # Copy any additional attributes from the base asset
+                            for attr, value in base_asset.__dict__.items():
+                                if attr not in ['name', 'initial_value']:
+                                    setattr(self, attr, value)
 
                         def calculate_value(self, year: int) -> float:
                             if year >= self.start_year:
@@ -145,17 +150,31 @@ class DataProcessor:
 
                     assets.append(TimedAsset(asset, milestone.trigger_year))
 
+                # Add liabilities with timing
                 for liability in milestone.liabilities:
-                    class TimedLiability(liability.__class__):
+                    class TimedLiability:
                         def __init__(self, base_liability, start_year):
-                            super().__init__(base_liability.name, base_liability.principal,
-                                          base_liability.interest_rate, base_liability.term_years)
+                            self.name = base_liability.name
+                            self.principal = base_liability.principal
+                            self.interest_rate = base_liability.interest_rate
+                            self.term_years = base_liability.term_years
                             self.start_year = start_year
 
+                        def calculate_payment(self) -> float:
+                            monthly_rate = self.interest_rate / 12
+                            num_payments = self.term_years * 12
+                            return (self.principal * monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
+
                         def get_balance(self, year: int) -> float:
-                            if year >= self.start_year:
-                                return super().get_balance(year - self.start_year)
-                            return 0
+                            if year < self.start_year:
+                                return 0
+                            adjusted_year = year - self.start_year
+                            if adjusted_year >= self.term_years:
+                                return 0
+                            monthly_rate = self.interest_rate / 12
+                            payment = self.calculate_payment()
+                            remaining_payments = (self.term_years - adjusted_year) * 12
+                            return (payment * ((1 - (1 + monthly_rate)**(-remaining_payments)) / monthly_rate))
 
                     liabilities.append(TimedLiability(liability, milestone.trigger_year))
 
