@@ -50,13 +50,13 @@ class FinancialPlotter:
 
         # Add income bar
         fig.add_trace(
-            go.Bar(x=years, y=income, name="Income", marker_color='#27AE60'),
+            go.Bar(x=years, y=income, 
+                  name="Income", 
+                  marker_color='#27AE60',
+                  width=0.4,
+                  offset=-0.2),  # Shift left
             secondary_y=False
         )
-
-        # Add stacked expense bars for each category
-        colors = ['#E74C3C', '#F39C12', '#8E44AD', '#3498DB', '#16A085', 
-                 '#D35400', '#2C3E50', '#7F8C8D', '#C0392B']
 
         # Sort expense categories to ensure consistent ordering
         expense_items = sorted(expenses.items())
@@ -70,15 +70,24 @@ class FinancialPlotter:
                     expense_items.insert(0, item)
                     break
 
+        # Add stacked expense bars
+        colors = ['#E74C3C', '#F39C12', '#8E44AD', '#3498DB', '#16A085', 
+                 '#D35400', '#2C3E50', '#7F8C8D', '#C0392B']
+
         for (category, values), color in zip(expense_items, colors):
             fig.add_trace(
-                go.Bar(x=years, y=values, name=category, marker_color=color),
+                go.Bar(x=years, y=values, 
+                      name=category, 
+                      marker_color=color,
+                      width=0.4,
+                      offset=0.2),  # Shift right
                 secondary_y=False
             )
 
         # Add cash flow line
         fig.add_trace(
-            go.Scatter(x=years, y=cash_flow, name="Net Savings", 
+            go.Scatter(x=years, y=cash_flow, 
+                      name="Net Savings", 
                       line=dict(color='#2E86C1', width=2)),
             secondary_y=True
         )
