@@ -38,8 +38,8 @@ def main():
         if location_input:
             # Find best matches using string similarity
             matches = get_close_matches(location_input.lower(), 
-                                     [loc.lower() for loc in locations], 
-                                     n=3, cutoff=0.1)
+                                        [loc.lower() for loc in locations], 
+                                        n=3, cutoff=0.1)
 
             # Get original case matches
             matching_locations = [
@@ -84,8 +84,8 @@ def main():
         if occupation_input:
             # Find best matches using string similarity
             matches = get_close_matches(occupation_input.lower(), 
-                                     [occ.lower() for occ in occupations], 
-                                     n=3, cutoff=0.1)
+                                        [occ.lower() for occ in occupations], 
+                                        n=3, cutoff=0.1)
 
             # Get original case matches
             matching_occupations = [
@@ -240,46 +240,50 @@ def main():
                 st.metric("Average Annual Cash Flow", 
                          f"${sum(projections['cash_flow'])/len(projections['cash_flow']):,.2f}")
 
-            # Display visualizations and data tables
-            st.header("Financial Projections")
+            # Create tabs for different projections
+            net_worth_tab, cash_flow_tab, assets_tab = st.tabs([
+                "Net Worth Projection", 
+                "Income & Expenses", 
+                "Assets & Liabilities"
+            ])
 
-            # Net Worth Section
-            st.subheader("Net Worth Projection")
-            FinancialPlotter.plot_net_worth(projections['years'],
-                                          projections['net_worth'])
-            net_worth_df = pd.DataFrame({
-                'Year': projections['years'],
-                'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
-            })
-            st.dataframe(net_worth_df)
+            # Net Worth Tab
+            with net_worth_tab:
+                FinancialPlotter.plot_net_worth(projections['years'],
+                                             projections['net_worth'])
+                net_worth_df = pd.DataFrame({
+                    'Year': projections['years'],
+                    'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
+                })
+                st.dataframe(net_worth_df)
 
-            # Cash Flow Section
-            st.subheader("Income, Expenses, and Cash Flow")
-            FinancialPlotter.plot_cash_flow(projections['years'],
-                                          projections['total_income'],
-                                          projections['total_expenses'],
-                                          projections['cash_flow'])
-            cash_flow_df = pd.DataFrame({
-                'Year': projections['years'],
-                'Total Income': [f"${x:,.2f}" for x in projections['total_income']],
-                'Total Expenses': [f"${x:,.2f}" for x in projections['total_expenses']],
-                'Net Savings': [f"${x:,.2f}" for x in projections['cash_flow']],
-                'Cumulative Investment Growth': [f"${x:,.2f}" for x in projections['investment_growth']]
-            })
-            st.dataframe(cash_flow_df)
+            # Cash Flow Tab
+            with cash_flow_tab:
+                FinancialPlotter.plot_cash_flow(projections['years'],
+                                             projections['total_income'],
+                                             projections['total_expenses'],
+                                             projections['cash_flow'])
+                cash_flow_df = pd.DataFrame({
+                    'Year': projections['years'],
+                    'Total Income': [f"${x:,.2f}" for x in projections['total_income']],
+                    'Total Expenses': [f"${x:,.2f}" for x in projections['total_expenses']],
+                    'Net Savings': [f"${x:,.2f}" for x in projections['cash_flow']],
+                    'Cumulative Investment Growth': [f"${x:,.2f}" for x in projections['investment_growth']]
+                })
+                st.dataframe(cash_flow_df)
 
-            # Assets and Liabilities Section
-            st.subheader("Assets and Liabilities")
-            FinancialPlotter.plot_assets_liabilities(
-                projections['years'], projections['asset_values'],
-                projections['liability_values'])
-            assets_liab_df = pd.DataFrame({
-                'Year': projections['years'],
-                'Assets': [f"${x:,.2f}" for x in projections['asset_values']],
-                'Liabilities': [f"${x:,.2f}" for x in projections['liability_values']],
-                'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
-            })
-            st.dataframe(assets_liab_df)
+            # Assets and Liabilities Tab
+            with assets_tab:
+                FinancialPlotter.plot_assets_liabilities(
+                    projections['years'], projections['asset_values'],
+                    projections['liability_values'])
+                assets_liab_df = pd.DataFrame({
+                    'Year': projections['years'],
+                    'Assets': [f"${x:,.2f}" for x in projections['asset_values']],
+                    'Liabilities': [f"${x:,.2f}" for x in projections['liability_values']],
+                    'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
+                })
+                st.dataframe(assets_liab_df)
 
     except Exception as e:
         st.error(f"Error processing data: {str(e)}")
