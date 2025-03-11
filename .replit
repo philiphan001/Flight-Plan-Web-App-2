@@ -21,7 +21,7 @@ args = "CSV Test"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Streamlit App"
+args = "Port Test"
 
 [[workflows.workflow]]
 name = "CSV Test"
@@ -39,7 +39,7 @@ args = "streamlit run test_csv.py --server.port 5000"
 waitForPort = 5000
 
 [[workflows.workflow]]
-name = "Streamlit App"
+name = "Port Test"
 author = "agent"
 
 [workflows.workflow.metadata]
@@ -50,12 +50,16 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "streamlit run app.py --server.address=0.0.0.0 --server.port=5000 --logger.level=debug"
+args = "python test_server.py"
 waitForPort = 5000
 
 [[ports]]
 localPort = 5000
 externalPort = 5000
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
 
 [[ports]]
 localPort = 8501
