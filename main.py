@@ -1,9 +1,8 @@
 import streamlit as st
 
 def main():
-    st.write("Initializing...")
-    st.title("Simple Test")
-    st.write("Basic test complete.")
+    st.title('Financial Projection App')
+    st.write('Welcome! Loading initial setup...')
 
 if __name__ == "__main__":
     main()
