@@ -17,12 +17,12 @@ def main():
         occupation_df = DataProcessor.load_occupation_data("Occupational Data.csv")
 
         # Get available options
-        locations = coli_df['Cost of Living'].unique().tolist()
-        occupations = occupation_df['Occupation'].unique().tolist()
+        locations = coli_df['Cost of Living'].astype(str).unique().tolist()
+        occupations = occupation_df['Occupation'].astype(str).unique().tolist()
 
         # Location input with suggestions
         location_input = st.sidebar.text_input("Enter Location", "")
-        matching_locations = [loc for loc in locations if location_input.lower() in loc.lower()]
+        matching_locations = [loc for loc in locations if location_input.lower() in str(loc).lower()]
         if location_input:
             if len(matching_locations) > 0:
                 selected_location = st.sidebar.radio("Select from matching locations:", matching_locations)
@@ -32,7 +32,7 @@ def main():
 
         # Occupation input with suggestions
         occupation_input = st.sidebar.text_input("Enter Occupation", "")
-        matching_occupations = [occ for occ in occupations if occupation_input.lower() in occ.lower()]
+        matching_occupations = [occ for occ in occupations if occupation_input.lower() in str(occ).lower()]
         if occupation_input:
             if len(matching_occupations) > 0:
                 selected_occupation = st.sidebar.radio("Select from matching occupations:", matching_occupations)

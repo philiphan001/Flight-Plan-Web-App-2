@@ -28,8 +28,9 @@ class DataProcessor:
     @staticmethod
     def process_location_data(coli_df: pd.DataFrame, occupation_df: pd.DataFrame,
                             location: str, occupation: str) -> Dict:
-        location_data = coli_df[coli_df['Cost of Living'].str.strip() == location].iloc[0]
-        occupation_data = occupation_df[occupation_df['Occupation'].str.strip() == occupation].iloc[0]
+        # Convert location and occupation to string for comparison
+        location_data = coli_df[coli_df['Cost of Living'].astype(str) == str(location)].iloc[0]
+        occupation_data = occupation_df[occupation_df['Occupation'].astype(str) == str(occupation)].iloc[0]
 
         return {
             'cost_of_living': float(location_data['Monthly Expense']),
