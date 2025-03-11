@@ -291,10 +291,38 @@ def main():
                 FinancialPlotter.plot_assets_liabilities(
                     projections['years'], projections['asset_values'],
                     projections['liability_values'])
+
+                # Create detailed breakdown DataFrames
+                assets_data = {
+                    'Year': projections['years'],
+                }
+                # Add individual asset values
+                for category, values in projections['asset_breakdown'].items():
+                    assets_data[category] = [f"${x:,.2f}" for x in values]
+
+                # Add individual liability values
+                liabilities_data = {
+                    'Year': projections['years'],
+                }
+                for category, values in projections['liability_breakdown'].items():
+                    liabilities_data[category] = [f"${x:,.2f}" for x in values]
+
+                # Add totals
+                assets_data['Total Assets'] = [f"${x:,.2f}" for x in projections['asset_values']]
+                liabilities_data['Total Liabilities'] = [f"${x:,.2f}" for x in projections['liability_values']]
+
+                # Display breakdowns
+                st.subheader("Assets Breakdown")
+                st.dataframe(pd.DataFrame(assets_data))
+
+                st.subheader("Liabilities Breakdown")
+                st.dataframe(pd.DataFrame(liabilities_data))
+
+                st.subheader("Net Worth Summary")
                 assets_liab_df = pd.DataFrame({
                     'Year': projections['years'],
-                    'Assets': [f"${x:,.2f}" for x in projections['asset_values']],
-                    'Liabilities': [f"${x:,.2f}" for x in projections['liability_values']],
+                    'Total Assets': [f"${x:,.2f}" for x in projections['asset_values']],
+                    'Total Liabilities': [f"${x:,.2f}" for x in projections['liability_values']],
                     'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
                 })
                 st.dataframe(assets_liab_df)
