@@ -452,11 +452,13 @@ def main():
                 FinancialPlotter.plot_net_worth(projections['years'],
                                               projections['net_worth'],
                                               projections['asset_values'],
-                                              projections['liability_values'])
+                                              projections['liability_values'],
+                                              projections['investment_growth'])
                 net_worth_df = pd.DataFrame({
                     'Year': projections['years'],
                     'Total Assets': [f"${x:,.2f}" for x in projections['asset_values']],
                     'Total Liabilities': [f"${x:,.2f}" for x in projections['liability_values']],
+                    'Savings': [f"${x:,.2f}" for x in projections['investment_growth']],
                     'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
                 })
                 st.dataframe(net_worth_df)
@@ -511,7 +513,8 @@ def main():
             with assets_tab:
                 FinancialPlotter.plot_assets_liabilities(
                     projections['years'], projections['asset_values'],
-                    projections['liability_values'])
+                    projections['liability_values'],
+                    projections['investment_growth'])
 
                 # Create detailed breakdown DataFrames
                 assets_data = {

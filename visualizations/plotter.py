@@ -6,7 +6,8 @@ from typing import List, Dict
 class FinancialPlotter:
     @staticmethod
     def plot_net_worth(years: List[int], net_worth: List[float], 
-                      assets: List[float], liabilities: List[float]) -> None:
+                      assets: List[float], liabilities: List[float],
+                      savings: List[float] = None) -> None:
         fig = go.Figure()
 
         # Add assets as positive bars
@@ -24,6 +25,13 @@ class FinancialPlotter:
                                 mode='lines+markers',
                                 name='Net Worth',
                                 line=dict(color='#2E86C1', width=2)))
+
+        # Add savings line if provided
+        if savings:
+            fig.add_trace(go.Scatter(x=years, y=savings,
+                                   mode='lines',
+                                   name='Savings',
+                                   line=dict(color='#F1C40F', width=2, dash='dot')))
 
         fig.update_layout(
             title='Net Worth Components',
@@ -91,7 +99,7 @@ class FinancialPlotter:
 
     @staticmethod
     def plot_assets_liabilities(years: List[int], assets: List[float], 
-                             liabilities: List[float]) -> None:
+                              liabilities: List[float], savings: List[float] = None) -> None:
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=years, y=assets,
                                 mode='lines+markers',
@@ -101,10 +109,25 @@ class FinancialPlotter:
                                 mode='lines+markers',
                                 name='Liabilities',
                                 line=dict(color='#E74C3C', width=2)))
+
+        # Add savings line if provided
+        if savings:
+            fig.add_trace(go.Scatter(x=years, y=savings,
+                                   mode='lines',
+                                   name='Savings',
+                                   line=dict(color='#F1C40F', width=2, dash='dot')))
+
         fig.update_layout(
             title='Assets and Liabilities Projection',
             xaxis_title='Year',
             yaxis_title='Amount ($)',
-            template='plotly_white'
+            template='plotly_white',
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=1.05
+            )
         )
         st.plotly_chart(fig)

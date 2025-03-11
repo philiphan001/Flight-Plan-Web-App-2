@@ -46,7 +46,7 @@ class FinancialCalculator:
         cumulative_savings = 0
         for year in range(projection_years):
             # Calculate total income
-            total_income = sum(inc.calculate_income(year) for inc in self.income)
+            total_income = round(sum(inc.calculate_income(year) for inc in self.income))
             projections['total_income'].append(total_income)
 
             # Calculate expenses by category
@@ -57,9 +57,9 @@ class FinancialCalculator:
                     milestone_name = category.replace(" One-time Cost", "")
                     category = f"One-time: {milestone_name}"
                     # Only apply one-time costs in their specific year
-                    expense_amount = expense.calculate_expense(year) if expense.name.endswith(f"Year {year}") else 0
+                    expense_amount = round(expense.calculate_expense(year)) if expense.name.endswith(f"Year {year}") else 0
                 else:
-                    expense_amount = expense.calculate_expense(year)
+                    expense_amount = round(expense.calculate_expense(year))
 
                 if category not in expense_categories:
                     expense_categories[category] = [0] * projection_years
@@ -70,7 +70,7 @@ class FinancialCalculator:
             projections['expense_categories'] = expense_categories
 
             # Calculate cash flow (savings)
-            cash_flow = total_income - total_expenses
+            cash_flow = round(total_income - total_expenses)
             projections['cash_flow'].append(cash_flow)
 
             # Add cash flow to cumulative savings for investment
@@ -84,7 +84,7 @@ class FinancialCalculator:
             # Calculate asset values including investment growth
             total_asset_value = 0
             for asset in self.assets:
-                asset_value = asset.calculate_value(year)
+                asset_value = round(asset.calculate_value(year))
                 asset_type = asset.__class__.__name__
                 asset_key = f"{asset_type}: {asset.name}"
                 if asset_key not in asset_breakdown:
@@ -96,17 +96,17 @@ class FinancialCalculator:
             projections['asset_breakdown'] = asset_breakdown
 
             # Calculate investment growth
-            investment_growth = next(
+            investment_growth = round(next(
                 (asset.calculate_value(year) for asset in self.assets 
                  if isinstance(asset, Investment) and asset.name == "Savings"),
                 0
-            )
+            ))
             projections['investment_growth'].append(investment_growth)
 
             # Calculate liability values
             total_liability_value = 0
             for liability in self.liabilities:
-                liability_value = liability.get_balance(year)
+                liability_value = round(liability.get_balance(year))
                 liability_type = liability.__class__.__name__
                 liability_key = f"{liability_type}: {liability.name}"
                 if liability_key not in liability_breakdown:
@@ -118,7 +118,7 @@ class FinancialCalculator:
             projections['liability_breakdown'] = liability_breakdown
 
             # Calculate net worth
-            net_worth = total_asset_value - total_liability_value
+            net_worth = round(total_asset_value - total_liability_value)
             projections['net_worth'].append(net_worth)
 
         return projections
