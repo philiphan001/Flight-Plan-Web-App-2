@@ -52,37 +52,17 @@ class FinancialPlotter:
         fig.add_trace(
             go.Bar(x=years, y=income, 
                   name="Income", 
-                  marker_color='#27AE60',
-                  width=0.4,
-                  offset=-0.2),  # Shift left
+                  marker_color='#27AE60'),
             secondary_y=False
         )
 
-        # Sort expense categories to ensure consistent ordering
-        expense_items = sorted(expenses.items())
-
-        # Prioritize certain categories to appear at the bottom of the stack
-        priority_categories = ['Mortgage Payment', 'Rent']
-        for category in priority_categories:
-            for item in expense_items:
-                if item[0] == category:
-                    expense_items.remove(item)
-                    expense_items.insert(0, item)
-                    break
-
-        # Add stacked expense bars
-        colors = ['#E74C3C', '#F39C12', '#8E44AD', '#3498DB', '#16A085', 
-                 '#D35400', '#2C3E50', '#7F8C8D', '#C0392B']
-
-        for (category, values), color in zip(expense_items, colors):
-            fig.add_trace(
-                go.Bar(x=years, y=values, 
-                      name=category, 
-                      marker_color=color,
-                      width=0.4,
-                      offset=0.2),  # Shift right
-                secondary_y=False
-            )
+        # Add total expenses bar
+        fig.add_trace(
+            go.Bar(x=years, y=total_expenses,
+                  name="Total Expenses",
+                  marker_color='#E74C3C'),
+            secondary_y=False
+        )
 
         # Add cash flow line
         fig.add_trace(
@@ -94,7 +74,7 @@ class FinancialPlotter:
 
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
-            barmode='stack',
+            barmode='group',  # This puts bars side by side
             template='plotly_white',
             showlegend=True,
             legend=dict(
