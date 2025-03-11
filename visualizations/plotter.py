@@ -5,24 +5,46 @@ from typing import List, Dict
 
 class FinancialPlotter:
     @staticmethod
-    def plot_net_worth(years: List[int], net_worth: List[float]) -> None:
+    def plot_net_worth(years: List[int], net_worth: List[float], 
+                      assets: List[float], liabilities: List[float]) -> None:
         fig = go.Figure()
+
+        # Add assets as positive bars
+        fig.add_trace(go.Bar(x=years, y=assets,
+                            name='Assets',
+                            marker_color='#27AE60'))
+
+        # Add liabilities as negative bars
+        fig.add_trace(go.Bar(x=years, y=[-x for x in liabilities],
+                            name='Liabilities',
+                            marker_color='#E74C3C'))
+
+        # Add net worth line on top
         fig.add_trace(go.Scatter(x=years, y=net_worth,
                                 mode='lines+markers',
                                 name='Net Worth',
                                 line=dict(color='#2E86C1', width=2)))
+
         fig.update_layout(
-            title='Net Worth Projection',
+            title='Net Worth Components',
             xaxis_title='Year',
-            yaxis_title='Net Worth ($)',
-            template='plotly_white'
+            yaxis_title='Amount ($)',
+            barmode='relative',
+            template='plotly_white',
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=1.05
+            )
         )
         st.plotly_chart(fig)
 
     @staticmethod
     def plot_cash_flow(years: List[int], income: List[float], 
-                      expenses: Dict[str, List[float]], total_expenses: List[float],
-                      cash_flow: List[float]) -> None:
+                       expenses: Dict[str, List[float]], total_expenses: List[float],
+                       cash_flow: List[float]) -> None:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
         # Add income bar

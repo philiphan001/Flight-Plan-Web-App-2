@@ -450,12 +450,33 @@ def main():
             # Net Worth Tab
             with net_worth_tab:
                 FinancialPlotter.plot_net_worth(projections['years'],
-                                              projections['net_worth'])
+                                              projections['net_worth'],
+                                              projections['asset_values'],
+                                              projections['liability_values'])
                 net_worth_df = pd.DataFrame({
                     'Year': projections['years'],
+                    'Total Assets': [f"${x:,.2f}" for x in projections['asset_values']],
+                    'Total Liabilities': [f"${x:,.2f}" for x in projections['liability_values']],
                     'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
                 })
                 st.dataframe(net_worth_df)
+
+                # Add component breakdown
+                st.subheader("Asset Components")
+                assets_breakdown_df = pd.DataFrame({
+                    'Year': projections['years'],
+                    **{category: [f"${x:,.2f}" for x in values] 
+                       for category, values in projections['asset_breakdown'].items()}
+                })
+                st.dataframe(assets_breakdown_df)
+
+                st.subheader("Liability Components")
+                liabilities_breakdown_df = pd.DataFrame({
+                    'Year': projections['years'],
+                    **{category: [f"${x:,.2f}" for x in values] 
+                       for category, values in projections['liability_breakdown'].items()}
+                })
+                st.dataframe(liabilities_breakdown_df)
 
             # Cash Flow Tab
             with cash_flow_tab:
