@@ -1,7 +1,7 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
-from typing import List
+from typing import List, Dict
 
 class FinancialPlotter:
     @staticmethod
@@ -33,7 +33,7 @@ class FinancialPlotter:
             secondary_y=False
         )
         fig.add_trace(
-            go.Scatter(x=years, y=cash_flow, name="Cash Flow", 
+            go.Scatter(x=years, y=cash_flow, name="Net Savings", 
                       line=dict(color='#2E86C1', width=2)),
             secondary_y=True
         )
@@ -44,7 +44,7 @@ class FinancialPlotter:
             template='plotly_white'
         )
         fig.update_yaxes(title_text="Amount ($)", secondary_y=False)
-        fig.update_yaxes(title_text="Cash Flow ($)", secondary_y=True)
+        fig.update_yaxes(title_text="Net Savings ($)", secondary_y=True)
 
         st.plotly_chart(fig)
 
