@@ -3,6 +3,7 @@ import pandas as pd
 from utils.data_processor import DataProcessor
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
+from difflib import get_close_matches
 
 def main():
     st.set_page_config(page_title="Financial Projection App", layout="wide")
@@ -20,41 +21,52 @@ def main():
         locations = coli_df['Cost of Living'].astype(str).unique().tolist()
         occupations = occupation_df['Occupation'].astype(str).unique().tolist()
 
-        # Location input with suggestions
-        location_input = st.sidebar.text_input("Enter Location", "")
-
-        # Session state for selection
+        # Initialize session state
         if 'selected_location' not in st.session_state:
             st.session_state.selected_location = None
         if 'selected_occupation' not in st.session_state:
             st.session_state.selected_occupation = None
 
+        # Location input with suggestions
+        location_input = st.sidebar.text_input("Enter Location", "")
+
         if location_input:
+            # Find best matches using string similarity
+            matches = get_close_matches(location_input.lower(), 
+                                     [loc.lower() for loc in locations], 
+                                     n=3, cutoff=0.1)
+
+            # Get original case matches
             matching_locations = [
-                loc for loc in locations
-                if location_input.lower() in str(loc).lower()
+                loc for loc in locations 
+                if loc.lower() in matches
             ]
-            if len(matching_locations) > 0:
+
+            # Always show at least 2 options
+            if len(matching_locations) == 1:
+                # Add the next closest match
+                other_matches = [
+                    loc for loc in locations 
+                    if loc not in matching_locations
+                ][:1]
+                matching_locations.extend(other_matches)
+
+            if matching_locations:
                 st.sidebar.markdown("### Select a location:")
-                # Show at least 2 options if available
-                display_locations = matching_locations[:max(2, len(matching_locations))]
-                cols = st.sidebar.columns(len(display_locations))
-                for idx, loc in enumerate(display_locations):
-                    # Create a unique key for each button
-                    button_key = f"loc_button_{idx}"
-                    # Check if this location is selected
+                for loc in matching_locations:
+                    # Use unique key for each button
                     is_selected = st.session_state.selected_location == loc
-                    # Style based on selection state
-                    button_style = """
-                        background-color: #0066cc;
-                        color: white;
-                        """ if is_selected else ""
 
-                    if cols[idx].button(
-                        loc, key=button_key,
-                        help=f"Select {loc} as your location"):
+                    # Create a styled button
+                    if st.sidebar.button(
+                        loc,
+                        key=f"loc_{loc}",
+                        help=f"Select {loc} as your location",
+                        type="primary" if is_selected else "secondary"
+                    ):
                         st.session_state.selected_location = loc
-
+                        # Force rerun to update button states
+                        st.rerun()
             else:
                 st.sidebar.error(
                     "No matching locations found. Available locations: " +
@@ -63,32 +75,44 @@ def main():
 
         # Occupation input with suggestions
         occupation_input = st.sidebar.text_input("Enter Occupation", "")
+
         if occupation_input:
+            # Find best matches using string similarity
+            matches = get_close_matches(occupation_input.lower(), 
+                                     [occ.lower() for occ in occupations], 
+                                     n=3, cutoff=0.1)
+
+            # Get original case matches
             matching_occupations = [
-                occ for occ in occupations
-                if occupation_input.lower() in str(occ).lower()
+                occ for occ in occupations 
+                if occ.lower() in matches
             ]
-            if len(matching_occupations) > 0:
+
+            # Always show at least 2 options
+            if len(matching_occupations) == 1:
+                # Add the next closest match
+                other_matches = [
+                    occ for occ in occupations 
+                    if occ not in matching_occupations
+                ][:1]
+                matching_occupations.extend(other_matches)
+
+            if matching_occupations:
                 st.sidebar.markdown("### Select an occupation:")
-                # Show at least 2 options if available
-                display_occupations = matching_occupations[:max(2, len(matching_occupations))]
-                cols = st.sidebar.columns(len(display_occupations))
-                for idx, occ in enumerate(display_occupations):
-                    # Create a unique key for each button
-                    button_key = f"occ_button_{idx}"
-                    # Check if this occupation is selected
+                for occ in matching_occupations:
+                    # Use unique key for each button
                     is_selected = st.session_state.selected_occupation == occ
-                    # Style based on selection state
-                    button_style = """
-                        background-color: #28a745;
-                        color: white;
-                        """ if is_selected else ""
 
-                    if cols[idx].button(
-                        occ, key=button_key,
-                        help=f"Select {occ} as your occupation"):
+                    # Create a styled button
+                    if st.sidebar.button(
+                        occ,
+                        key=f"occ_{occ}",
+                        help=f"Select {occ} as your occupation",
+                        type="primary" if is_selected else "secondary"
+                    ):
                         st.session_state.selected_occupation = occ
-
+                        # Force rerun to update button states
+                        st.rerun()
             else:
                 st.sidebar.error(
                     "No matching occupations found. Available occupations: " +
@@ -149,7 +173,7 @@ def main():
             # Net Worth Section
             st.subheader("Net Worth Projection")
             FinancialPlotter.plot_net_worth(projections['years'],
-                                          projections['net_worth'])
+                                         projections['net_worth'])
             net_worth_df = pd.DataFrame({
                 'Year': projections['years'],
                 'Net Worth': [f"${x:,.2f}" for x in projections['net_worth']]
@@ -159,9 +183,9 @@ def main():
             # Cash Flow Section
             st.subheader("Income, Expenses, and Cash Flow")
             FinancialPlotter.plot_cash_flow(projections['years'],
-                                          projections['total_income'],
-                                          projections['total_expenses'],
-                                          projections['cash_flow'])
+                                         projections['total_income'],
+                                         projections['total_expenses'],
+                                         projections['cash_flow'])
             cash_flow_df = pd.DataFrame({
                 'Year': projections['years'],
                 'Total Income': [f"${x:,.2f}" for x in projections['total_income']],
