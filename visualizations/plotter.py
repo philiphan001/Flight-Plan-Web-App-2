@@ -67,3 +67,38 @@ class FinancialPlotter:
             template='plotly_white'
         )
         st.plotly_chart(fig)
+    @staticmethod
+    def plot_milestones(years: List[int], net_worth: List[float], 
+                      milestones: Dict[int, List[str]]) -> None:
+        """Create a plot showing milestones on the net worth trajectory."""
+        fig = go.Figure()
+        
+        # Add net worth line
+        fig.add_trace(go.Scatter(x=years, y=net_worth,
+                               mode='lines+markers',
+                               name='Net Worth',
+                               line=dict(color='#2E86C1', width=2)))
+        
+        # Add milestone markers
+        for year, milestone_list in milestones.items():
+            for name in milestone_list:
+                fig.add_annotation(
+                    x=year,
+                    y=net_worth[year],
+                    text=name,
+                    showarrow=True,
+                    arrowhead=2,
+                    arrowcolor="#E74C3C",
+                    arrowsize=1,
+                    arrowwidth=1,
+                    ax=-40,
+                    ay=-40
+                )
+        
+        fig.update_layout(
+            title='Net Worth with Life Milestones',
+            xaxis_title='Year',
+            yaxis_title='Net Worth ($)',
+            template='plotly_white'
+        )
+        st.plotly_chart(fig)
