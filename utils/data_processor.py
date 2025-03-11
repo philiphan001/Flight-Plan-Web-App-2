@@ -8,8 +8,8 @@ class DataProcessor:
         try:
             df = pd.read_csv(file_path)
             required_columns = ['Cost of Living', 'Housing', 'Transportation', 'Food', 'Healthcare', 
-                              'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
-                              'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
+                                  'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
+                                  'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
             if not all(col in df.columns for col in required_columns):
                 raise ValueError("COLI CSV file missing required columns")
             return df
@@ -29,7 +29,7 @@ class DataProcessor:
 
     @staticmethod
     def process_location_data(coli_df: pd.DataFrame, occupation_df: pd.DataFrame,
-                            location: str, occupation: str, investment_return_rate: float) -> Dict:
+                              location: str, occupation: str, investment_return_rate: float) -> Dict:
         # Convert location and occupation to string for comparison
         location_data = coli_df[coli_df['Cost of Living'].astype(str) == str(location)].iloc[0]
         occupation_data = occupation_df[occupation_df['Occupation'].astype(str) == str(occupation)].iloc[0]
@@ -92,32 +92,34 @@ class DataProcessor:
         elif not is_homeowner and home_purchase_year is not None:
             # Add rent expense that only applies before home purchase
             class PreHomeRentExpense(FixedExpense):
-                def __init__(self, name: str, annual_amount: float):
+                def __init__(self, name: str, annual_amount: float, trigger_year: int):
                     super().__init__(name, annual_amount)
-                    self.trigger_year = home_purchase_year
+                    self.trigger_year = trigger_year
 
                 def calculate_expense(self, year: int) -> float:
                     return super().calculate_expense(year) if year < self.trigger_year else 0
 
-            expenses.append(PreHomeRentExpense("Rent", location_data['housing'] * 12))
+            expenses.append(PreHomeRentExpense("Rent", location_data['housing'] * 12, home_purchase_year))
 
         # Add milestone-related financial objects
         if milestones:
             for milestone in milestones:
+                # Handle one-time expenses
                 if milestone.one_time_expense > 0:
                     class OneTimeExpense(FixedExpense):
-                        def __init__(self, name: str, amount: float, year: int):
+                        def __init__(self, name: str, amount: float, trigger_year: int):
                             super().__init__(name, amount, inflation_rate=0)
-                            self.trigger_year = year
+                            self.trigger_year = trigger_year
 
                         def calculate_expense(self, year: int) -> float:
                             return self.annual_amount if year == self.trigger_year else 0
 
-                    expenses.append(
-                        OneTimeExpense(f"{milestone.name} One-time Cost",
-                                     milestone.one_time_expense,
-                                     milestone.trigger_year)
+                    one_time_exp = OneTimeExpense(
+                        f"{milestone.name} Down Payment",
+                        milestone.one_time_expense,
+                        milestone.trigger_year
                     )
+                    expenses.append(one_time_exp)
 
                 # Add recurring expenses starting from milestone year
                 for expense in milestone.recurring_expenses:
@@ -131,14 +133,13 @@ class DataProcessor:
 
                     expenses.append(PostMilestoneExpense(expense, milestone.trigger_year))
 
-                # Add assets with timing
+                # Add assets and liabilities with timing
                 for asset in milestone.assets:
                     class TimedAsset(asset.__class__):
                         def __init__(self, base_asset, start_year):
                             self.name = base_asset.name
                             self.initial_value = base_asset.initial_value
                             self.start_year = start_year
-                            # Copy any additional attributes from the base asset
                             for attr, value in base_asset.__dict__.items():
                                 if attr not in ['name', 'initial_value']:
                                     setattr(self, attr, value)
@@ -150,7 +151,6 @@ class DataProcessor:
 
                     assets.append(TimedAsset(asset, milestone.trigger_year))
 
-                # Add liabilities with timing
                 for liability in milestone.liabilities:
                     class TimedLiability:
                         def __init__(self, base_liability, start_year):

@@ -205,13 +205,13 @@ class MilestoneFactory:
         mortgage = MortgageLoan(loan_amount, 0.035)  # 3.5% interest rate
         monthly_payment = mortgage.calculate_payment()
 
-        # Add the down payment as a one-time expense
+        # Add the down payment as a one-time expense with specific year
         milestone.add_one_time_expense(down_payment)
 
         # Add the home as an asset
         milestone.add_asset(Home("Primary Residence", home_price))
 
-        # Add mortgage as both a liability and a source of recurring expenses
+        # Add mortgage and recurring housing expenses
         milestone.add_liability(mortgage)
         milestone.add_recurring_expense(FixedExpense("Mortgage Payment", monthly_payment * 12))
         milestone.add_recurring_expense(FixedExpense("Property Tax", home_price * 0.015))
