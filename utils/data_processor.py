@@ -8,8 +8,8 @@ class DataProcessor:
         try:
             df = pd.read_csv(file_path)
             required_columns = ['Cost of Living', 'Housing', 'Transportation', 'Food', 'Healthcare', 
-                                  'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
-                                  'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
+                              'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
+                              'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
             if not all(col in df.columns for col in required_columns):
                 raise ValueError("COLI CSV file missing required columns")
             return df
@@ -29,7 +29,7 @@ class DataProcessor:
 
     @staticmethod
     def process_location_data(coli_df: pd.DataFrame, occupation_df: pd.DataFrame,
-                              location: str, occupation: str, investment_return_rate: float) -> Dict:
+                            location: str, occupation: str, investment_return_rate: float) -> Dict:
         # Convert location and occupation to string for comparison
         location_data = coli_df[coli_df['Cost of Living'].astype(str) == str(location)].iloc[0]
         occupation_data = occupation_df[occupation_df['Occupation'].astype(str) == str(occupation)].iloc[0]
@@ -68,6 +68,13 @@ class DataProcessor:
                     home_purchase_year = milestone.trigger_year
                     break
 
+        # Find car purchase milestone years if they exist
+        car_purchase_years = []
+        if milestones:
+            for milestone in milestones:
+                if milestone.name == "Car Purchase":
+                    car_purchase_years.append(milestone.trigger_year)
+
         # Create Income objects
         base_salary = Salary(location_data['base_income'], location_data['location_adjustment'])
         income.append(base_salary)
@@ -77,7 +84,19 @@ class DataProcessor:
         assets.append(investment)
 
         # Add basic living expenses
-        expenses.append(FixedExpense("Transportation", location_data['transportation'] * 12))
+        # Transportation expense adjusted for car ownership
+        class AdjustedTransportationExpense(FixedExpense):
+            def __init__(self, name: str, annual_amount: float, car_purchase_years: List[int]):
+                super().__init__(name, annual_amount)
+                self.car_purchase_years = car_purchase_years
+
+            def calculate_expense(self, year: int) -> float:
+                # Check if there's an active car in this year
+                has_car = any(year >= purchase_year and year < purchase_year + 5 for purchase_year in self.car_purchase_years)
+                base_expense = super().calculate_expense(year)
+                return base_expense * 0.2 if has_car else base_expense
+
+        expenses.append(AdjustedTransportationExpense("Transportation", location_data['transportation'] * 12, car_purchase_years))
         expenses.append(VariableExpense("Food", location_data['food'] * 12))
         expenses.append(FixedExpense("Healthcare", location_data['healthcare'] * 12))
         expenses.append(FixedExpense("Insurance", location_data['insurance'] * 12))
