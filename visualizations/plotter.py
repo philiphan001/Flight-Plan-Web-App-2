@@ -86,7 +86,7 @@ class FinancialPlotter:
 
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
-            barmode='relative',  # Stack the income bars while keeping expenses separate
+            barmode='group',  # Place the bar groups side by side
             template='plotly_white',
             showlegend=True,
             legend=dict(
