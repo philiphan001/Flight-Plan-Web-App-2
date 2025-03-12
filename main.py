@@ -729,21 +729,28 @@ def main():
             with home_tab:
                 # Check if there's a home purchase milestone
                 home_milestone = next((m for m in st.session_state.milestones 
-                                    if m.name == "Home Purchase"), None)
+                                        if m.name == "Home Purchase"), None)
                 if home_milestone:
                     # Get the home asset and mortgage
                     home = next((asset for asset in home_milestone.assets 
                                if isinstance(asset, Home)), None)
                     mortgage = next((liability for liability in home_milestone.liabilities 
-                                   if isinstance(liability, MortgageLoan)), None)
+                                      if isinstance(liability, MortgageLoan)), None)
 
                     if home and mortgage:
                         # Calculate home values over time
                         home_values = []
                         mortgage_balances = []
                         for year in range(projection_years):
-                            home_values.append(home.calculate_value(year))
-                            mortgage_balances.append(mortgage.get_balance(year))
+                            if year < home_milestone.trigger_year:
+                                # Before purchase, all values are 0
+                                home_values.append(0)
+                                mortgage_balances.append(0)
+                            else:
+                                # Calculate values relative to purchase year
+                                years_since_purchase = year - home_milestone.trigger_year
+                                home_values.append(home.calculate_value(years_since_purchase))
+                                mortgage_balances.append(mortgage.get_balance(years_since_purchase))
 
                         # Plot home value breakdown
                         FinancialPlotter.plot_home_value_breakdown(
