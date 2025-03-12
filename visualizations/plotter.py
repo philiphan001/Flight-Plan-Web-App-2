@@ -88,7 +88,7 @@ class FinancialPlotter:
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
             yaxis_title='Amount ($)',
-            barmode='group',
+            barmode='relative',  # Stack income bars
             template='plotly_white',
             showlegend=True,
             legend=dict(
