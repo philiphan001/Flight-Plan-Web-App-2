@@ -8,11 +8,141 @@ from models.financial_models import (
     MilestoneFactory, Home, MortgageLoan, Vehicle, CarLoan,
     SpouseIncome as ModelSpouseIncome
 )
+from datetime import datetime
+
+def show_landing_page():
+    st.title("Welcome to Financial Life Planner")
+    st.write("Let's start by getting to know you better")
+
+    # Calculate valid birth year range (18-70 years old)
+    current_year = datetime.now().year
+    min_year = current_year - 70
+    max_year = current_year - 18
+
+    # Initialize session state for landing page
+    if 'birth_year' not in st.session_state:
+        st.session_state.birth_year = None
+    if 'selected_college' not in st.session_state:
+        st.session_state.selected_college = None
+    if 'selected_field' not in st.session_state:
+        st.session_state.selected_field = None
+    if 'setup_complete' not in st.session_state:
+        st.session_state.setup_complete = False
+
+    # Birth year input
+    birth_year = st.number_input(
+        "What year were you born?",
+        min_value=min_year,
+        max_value=max_year,
+        value=st.session_state.birth_year if st.session_state.birth_year else max_year,
+        help="Enter your birth year to help us customize your financial projections"
+    )
+
+    # Sample college list (can be replaced with actual data)
+    colleges = [
+        "Harvard University",
+        "Stanford University",
+        "MIT",
+        "Yale University",
+        "Princeton University",
+        "Columbia University",
+        "UC Berkeley",
+        "University of Michigan",
+        "Georgia Tech",
+        "UCLA"
+    ]
+
+    # College selection with search
+    college_input = st.text_input(
+        "Enter College Name",
+        value=st.session_state.selected_college if st.session_state.selected_college else "",
+        key="college_input"
+    )
+
+    # Clear selection if user starts typing something new
+    if (st.session_state.selected_college and 
+        college_input != st.session_state.selected_college):
+        st.session_state.selected_college = None
+
+    if college_input and not st.session_state.selected_college:
+        matches = get_close_matches(college_input.lower(), 
+                                  [college.lower() for college in colleges], 
+                                  n=3, cutoff=0.1)
+
+        matching_colleges = [
+            college for college in colleges 
+            if college.lower() in matches
+        ]
+
+        if matching_colleges:
+            st.write("Select your college:")
+            for college in matching_colleges:
+                if st.button(college, key=f"college_{college}"):
+                    st.session_state.selected_college = college
+                    st.rerun()
+
+    # Fields of study
+    fields_of_study = [
+        "Computer Science",
+        "Engineering",
+        "Business",
+        "Medicine",
+        "Law",
+        "Arts and Humanities",
+        "Natural Sciences",
+        "Social Sciences",
+        "Mathematics",
+        "Education"
+    ]
+
+    # Field of study selection with search
+    field_input = st.text_input(
+        "Enter Field of Study",
+        value=st.session_state.selected_field if st.session_state.selected_field else "",
+        key="field_input"
+    )
+
+    # Clear selection if user starts typing something new
+    if (st.session_state.selected_field and 
+        field_input != st.session_state.selected_field):
+        st.session_state.selected_field = None
+
+    if field_input and not st.session_state.selected_field:
+        matches = get_close_matches(field_input.lower(), 
+                                  [field.lower() for field in fields_of_study], 
+                                  n=3, cutoff=0.1)
+
+        matching_fields = [
+            field for field in fields_of_study 
+            if field.lower() in matches
+        ]
+
+        if matching_fields:
+            st.write("Select your field of study:")
+            for field in matching_fields:
+                if st.button(field, key=f"field_{field}"):
+                    st.session_state.selected_field = field
+                    st.rerun()
+
+    # Continue button
+    if (birth_year and 
+        st.session_state.selected_college and 
+        st.session_state.selected_field):
+
+        if st.button("Continue to Financial Planning"):
+            st.session_state.birth_year = birth_year
+            st.session_state.setup_complete = True
+            st.rerun()
 
 def main():
     st.set_page_config(page_title="Financial Projection App", layout="wide")
-    st.title("Financial Projection Application")
 
+    # Show landing page if setup is not complete
+    if not st.session_state.get('setup_complete', False):
+        show_landing_page()
+        return
+
+    st.title("Financial Projection Application")
     # Sidebar inputs
     st.sidebar.header("Input Parameters")
 
