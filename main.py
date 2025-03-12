@@ -18,11 +18,66 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS for modern, engaging design
 st.markdown("""
     <style>
         .main {
             background-color: #f0f8ff;
+        }
+        .big-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px 40px;
+            border-radius: 15px;
+            border: none;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-align: center;
+        }
+        .big-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .choice-card {
+            background-color: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin: 20px 0;
+            text-align: center;
+        }
+        h1 {
+            color: #2E86C1;
+            font-size: 3.5rem !important;
+            font-weight: 800 !important;
+            margin-bottom: 2rem !important;
+            text-align: center;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 1.5rem;
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+        .path-button {
+            background-color: #3498db;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1.1rem;
+            margin: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        .path-button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
         }
         .stButton>button {
             background-color: #4CAF50;
@@ -77,161 +132,99 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def show_landing_page():
-    # Add animated welcome message
-    st.markdown("""
-        <h1 style='text-align: center; animation: fadeIn 1s ease-in;'>
-            🎓 Welcome to Future Finance Explorer! 
-        </h1>
-        <p style='text-align: center; font-size: 1.2rem; color: #666; margin-bottom: 2rem;'>
-            Let's plan your amazing future together! 
-        </p>
-    """, unsafe_allow_html=True)
+    # Initialize session state for navigation
+    if 'page' not in st.session_state:
+        st.session_state.page = 'initial'
+    if 'path_chosen' not in st.session_state:
+        st.session_state.path_chosen = None
 
-    # Create three columns for better layout
-    col1, col2, col3 = st.columns([1,2,1])
+    if st.session_state.page == 'initial':
+        # Animated welcome message
+        st.markdown("""
+            <h1 style='animation: fadeIn 1s ease-in;'>
+                🎓 Your Future Journey Starts Here!
+            </h1>
+            <p class='subtitle'>
+                Let's explore your path after high school together
+            </p>
+        """, unsafe_allow_html=True)
 
-    with col2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
+        # Center the content using columns
+        col1, col2, col3 = st.columns([1,2,1])
 
-        # Calculate valid birth year range (18-70 years old)
-        current_year = datetime.now().year
-        min_year = current_year - 70
-        max_year = current_year - 18
+        with col2:
+            st.markdown('<div class="choice-card">', unsafe_allow_html=True)
 
-        # Initialize session state
-        if 'birth_year' not in st.session_state:
-            st.session_state.birth_year = None
-        if 'selected_college' not in st.session_state:
-            st.session_state.selected_college = None
-        if 'selected_field' not in st.session_state:
-            st.session_state.selected_field = None
-        if 'setup_complete' not in st.session_state:
-            st.session_state.setup_complete = False
+            st.markdown("### Choose Your Path 🛣️")
 
-        # Birth year input with emoji
-        st.markdown("### 📅 When were you born?")
-        birth_year = st.number_input(
-            "Birth Year",
-            min_value=min_year,
-            max_value=max_year,
-            value=st.session_state.birth_year if st.session_state.birth_year else max_year,
-            help="This helps us customize your financial projections"
-        )
+            if st.button("I Know What I Want to Do ✨", key="known_path", 
+                        help="Choose this if you have a clear idea of your next steps"):
+                st.session_state.page = 'known_path'
+                st.rerun()
 
-        # College selection with emoji
-        st.markdown("### 🎓 Where do you want to study?")
-        colleges = [
-            "Harvard University",
-            "Stanford University",
-            "MIT",
-            "Yale University",
-            "Princeton University",
-            "Columbia University",
-            "UC Berkeley",
-            "University of Michigan",
-            "Georgia Tech",
-            "UCLA"
-        ]
+            st.markdown("<br>", unsafe_allow_html=True)
 
-        college_input = st.text_input(
-            "Search for your dream college",
-            value=st.session_state.selected_college if st.session_state.selected_college else "",
-            key="college_input"
-        )
+            if st.button("Help Me Develop Some Ideas 🤔", key="explore_path",
+                        help="Choose this if you'd like to explore different possibilities"):
+                st.session_state.page = 'explore_path'
+                st.rerun()
 
-        if (st.session_state.selected_college and 
-            college_input != st.session_state.selected_college):
-            st.session_state.selected_college = None
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        if college_input and not st.session_state.selected_college:
-            matches = get_close_matches(college_input.lower(), 
-                                    [college.lower() for college in colleges], 
-                                    n=3, cutoff=0.1)
+    elif st.session_state.page == 'known_path':
+        st.markdown("""
+            <h1 style='font-size: 2.5rem !important;'>
+                Great Choice! What's Your Plan? 🎯
+            </h1>
+        """, unsafe_allow_html=True)
 
-            matching_colleges = [
-                college for college in colleges 
-                if college.lower() in matches
-            ]
+        col1, col2 = st.columns([1,1])
 
-            if matching_colleges:
-                st.markdown("#### Select your college:")
-                cols = st.columns(len(matching_colleges))
-                for idx, college in enumerate(matching_colleges):
-                    with cols[idx]:
-                        if st.button(f"🏛️ {college}", key=f"college_{college}"):
-                            st.session_state.selected_college = college
-                            st.rerun()
+        with col1:
+            st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+            if st.button("Continue My Education 📚", key="education"):
+                st.session_state.path_chosen = 'education'
+                st.session_state.page = 'education_path'
+                st.rerun()
 
-        # Field of study with emoji
-        st.markdown("### 📚 What do you want to study?")
-        fields_of_study = [
-            "Computer Science",
-            "Engineering",
-            "Business",
-            "Medicine",
-            "Law",
-            "Arts and Humanities",
-            "Natural Sciences",
-            "Social Sciences",
-            "Mathematics",
-            "Education"
-        ]
-
-        field_input = st.text_input(
-            "Search for your field of study",
-            value=st.session_state.selected_field if st.session_state.selected_field else "",
-            key="field_input"
-        )
-
-        if (st.session_state.selected_field and 
-            field_input != st.session_state.selected_field):
-            st.session_state.selected_field = None
-
-        if field_input and not st.session_state.selected_field:
-            matches = get_close_matches(field_input.lower(), 
-                                    [field.lower() for field in fields_of_study], 
-                                    n=3, cutoff=0.1)
-
-            matching_fields = [
-                field for field in fields_of_study 
-                if field.lower() in matches
-            ]
-
-            if matching_fields:
-                st.markdown("#### Select your field:")
-                cols = st.columns(len(matching_fields))
-                for idx, field in enumerate(matching_fields):
-                    with cols[idx]:
-                        if st.button(f"📖 {field}", key=f"field_{field}"):
-                            st.session_state.selected_field = field
-                            st.rerun()
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # Progress indicator
-        if birth_year or st.session_state.selected_college or st.session_state.selected_field:
-            progress = 0
-            if birth_year:
-                progress += 0.33
-            if st.session_state.selected_college:
-                progress += 0.33
-            if st.session_state.selected_field:
-                progress += 0.34
-
-            st.progress(progress)
-            st.markdown(f"<p style='text-align: center; color: #666;'>Profile completion: {int(progress * 100)}%</p>", unsafe_allow_html=True)
-
-        # Continue button
-        if (birth_year and 
-            st.session_state.selected_college and 
-            st.session_state.selected_field):
-
-            st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
-            if st.button("🚀 Start Your Financial Journey!", type="primary"):
-                st.session_state.birth_year = birth_year
-                st.session_state.setup_complete = True
+            if st.button("Join the Military 🎖️", key="military"):
+                st.session_state.path_chosen = 'military'
+                st.session_state.page = 'military_path'
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
+
+        with col2:
+            st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+            if st.button("Get a Job 💼", key="job"):
+                st.session_state.path_chosen = 'job'
+                st.session_state.page = 'job_path'
+                st.rerun()
+
+            if st.button("Take a Gap Year 🌎", key="gap_year"):
+                st.session_state.path_chosen = 'gap_year'
+                st.session_state.page = 'gap_year_path'
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # Add a back button
+        if st.button("← Back to Main Menu"):
+            st.session_state.page = 'initial'
+            st.rerun()
+
+    elif st.session_state.page == 'explore_path':
+        st.markdown("""
+            <h1 style='font-size: 2.5rem !important;'>
+                Let's Discover Your Interests! 🌟
+            </h1>
+            <p class='subtitle'>
+                We'll help you explore different paths through fun activities
+            </p>
+        """, unsafe_allow_html=True)
+
+        # Add a back button
+        if st.button("← Back to Main Menu"):
+            st.session_state.page = 'initial'
+            st.rerun()
 
 def main():
     # Show landing page if setup is not complete
