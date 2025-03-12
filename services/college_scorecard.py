@@ -5,7 +5,7 @@ import streamlit as st
 
 class CollegeScorecardAPI:
     BASE_URL = "https://api.data.gov/ed/collegescorecard/v1/schools"
-    
+
     def __init__(self):
         self.api_key = os.environ.get("ED_GOV_API_KEY")
         if not self.api_key:
@@ -13,21 +13,21 @@ class CollegeScorecardAPI:
 
     @st.cache_data(ttl=3600)  # Cache results for 1 hour
     def search_colleges(
-        self, 
+        _self,  # Changed from self to _self to make it hashable
         query: str = None,
         school_type: Optional[str] = None,
         limit: int = 5
     ) -> List[Dict]:
         """
         Search colleges using the College Scorecard API
-        
+
         Args:
             query: Search term (e.g., college name)
             school_type: Type of institution (e.g., '1,2' for 4-year, '3' for 2-year)
             limit: Maximum number of results to return
         """
         params = {
-            'api_key': self.api_key,
+            'api_key': _self.api_key,
             'per_page': limit,
             'fields': ','.join([
                 'school.name',
@@ -50,10 +50,10 @@ class CollegeScorecardAPI:
             params['school.name'] = query
 
         try:
-            response = requests.get(self.BASE_URL, params=params)
+            response = requests.get(_self.BASE_URL, params=params)
             response.raise_for_status()
             data = response.json()
-            
+
             return [
                 {
                     'name': result['school.name'],
@@ -85,7 +85,7 @@ class CollegeScorecardAPI:
             response = requests.get(self.BASE_URL, params=params)
             response.raise_for_status()
             data = response.json()
-            
+
             programs = data.get('results', [{}])[0].get('latest.programs.cip_4_digit', [])
             return [program['title'] for program in programs]
         except requests.exceptions.RequestException:
