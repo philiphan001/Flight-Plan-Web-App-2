@@ -47,7 +47,7 @@ class InterestQuiz:
                 "traits_b": ["expressive", "social"]
             }
         ]
-        
+
         self.career_mappings = {
             "analytical": ["Data Scientist", "Financial Analyst", "Research Scientist"],
             "logical": ["Software Engineer", "Mathematician", "Systems Analyst"],
@@ -73,7 +73,7 @@ class InterestQuiz:
         """, unsafe_allow_html=True)
 
         col1, col2 = st.columns(2)
-        
+
         selected_traits = []
         with col1:
             if st.button(question['option_a'], key=f"q{question['id']}_a", 
@@ -188,15 +188,15 @@ def run_quiz():
             """, unsafe_allow_html=True)
 
             quiz.show_progress(st.session_state.current_question + 1, len(quiz.questions))
-            
+
             choice, traits = quiz.show_animated_question(
                 quiz.questions[st.session_state.current_question]
             )
-            
+
             if choice:
                 st.session_state.selected_traits.extend(traits)
                 st.session_state.current_question += 1
-                st.experimental_rerun()
+                st.rerun()
 
         else:
             st.session_state.quiz_completed = True
@@ -207,4 +207,4 @@ def run_quiz():
                 st.session_state.current_question = 0
                 st.session_state.selected_traits = []
                 st.session_state.quiz_completed = False
-                st.experimental_rerun()
+                st.rerun()
