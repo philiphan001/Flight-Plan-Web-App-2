@@ -141,3 +141,58 @@ class FinancialPlotter:
             )
         )
         st.plotly_chart(fig)
+
+    @staticmethod
+    def plot_home_value_breakdown(years: List[int], home_value: List[float], 
+                                mortgage_balance: List[float]) -> None:
+        """Plot the home value components over time."""
+        fig = go.Figure()
+
+        # Calculate equity (home value minus mortgage)
+        equity = [v - m for v, m in zip(home_value, mortgage_balance)]
+
+        # Add home value bar
+        fig.add_trace(go.Bar(
+            x=years,
+            y=home_value,
+            name='Home Value',
+            marker_color='#27AE60',
+            offsetgroup='value'
+        ))
+
+        # Add mortgage balance bar
+        fig.add_trace(go.Bar(
+            x=years,
+            y=mortgage_balance,
+            name='Mortgage Balance',
+            marker_color='#E74C3C',
+            offsetgroup='mortgage'
+        ))
+
+        # Add equity bar
+        fig.add_trace(go.Bar(
+            x=years,
+            y=equity,
+            name='Home Equity',
+            marker_color='#2E86C1',
+            offsetgroup='equity'
+        ))
+
+        fig.update_layout(
+            title='Home Value Components Over Time',
+            xaxis_title='Year',
+            yaxis_title='Amount ($)',
+            barmode='group',  # Place bars side by side
+            template='plotly_white',
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=1.05
+            ),
+            bargap=0.15,
+            bargroupgap=0.1
+        )
+
+        st.plotly_chart(fig)

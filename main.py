@@ -180,7 +180,11 @@ def main():
 
                 # Spouse occupation selection
                 st.sidebar.markdown("### Spouse Information")
-                spouse_occupation_input = st.sidebar.text_input("Enter Spouse's Occupation", "")
+                spouse_occupation_input = st.sidebar.text_input(
+                    "Enter Spouse's Occupation",
+                    value=st.session_state.selected_spouse_occupation if st.session_state.selected_spouse_occupation else "",
+                    key="spouse_occupation_input"
+                )
 
                 if spouse_occupation_input:
                     # Find best matches for spouse occupation
@@ -723,64 +727,39 @@ def main():
 
             # Home Purchase Details Tab
             with home_tab:
-                # Find home purchase milestone if it exists
-                home_milestone = next(
-                    (m for m in st.session_state.milestones if m.name == "Home Purchase"),
-                    None
-                )
-
+                # Check if there's a home purchase milestone
+                home_milestone = next((m for m in st.session_state.milestones 
+                                    if m.name == "Home Purchase"), None)
                 if home_milestone:
-                    st.header("Home Purchase Details")
+                    # Get the home asset and mortgage
+                    home = next((asset for asset in home_milestone.assets 
+                               if isinstance(asset, Home)), None)
+                    mortgage = next((liability for liability in home_milestone.liabilities 
+                                   if isinstance(liability, MortgageLoan)), None)
 
-                    # Get home and mortgage details
-                    home = next((a for a in home_milestone.assets if isinstance(a, Home)), None)
-                    mortgage = next((l for l in home_milestone.liabilities if isinstance(l, MortgageLoan)), None)
+                    if home and mortgage:
+                        # Calculate home values over time
+                        home_values = []
+                        mortgage_balances = []
+                        for year in range(projection_years):
+                            home_values.append(home.calculate_value(year))
+                            mortgage_balances.append(mortgage.get_balance(year))
 
-                    # Create columns for key metrics
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Purchase Year", f"Year {home_milestone.trigger_year}")
-                    with col2:
-                        st.metric("Home Price", f"${home.initial_value:,}")
-                    with col3:
-                        st.metric("Down Payment", f"${home_milestone.one_time_expense:,}")
+                        # Plot home value breakdown
+                        FinancialPlotter.plot_home_value_breakdown(
+                            projections['years'],
+                            home_values,
+                            mortgage_balances
+                        )
 
-                    # Show mortgage details
-                    if mortgage:
-                        st.subheader("Mortgage Details")
-                        st.write(f"Principal: ${mortgage.principal:,}")
-                        st.write(f"Interest Rate: {mortgage.interest_rate*100:.1f}%")
-                        st.write(f"Term: {mortgage.term_years} years")
-                        st.write(f"Monthly Payment: ${mortgage.calculate_payment():,}")
-
-                    # Show projected home value
-                    st.subheader("Home Value Projection")
-                    home_values = []
-                    mortgage_balance = []
-                    equity = []
-                    years = list(range(projection_years))
-
-                    for year in years:
-                        if year >= home_milestone.trigger_year:
-                            adj_year = year - home_milestone.trigger_year
-                            home_value = home.calculate_value(adj_year)
-                            mort_bal = mortgage.get_balance(adj_year) if mortgage else 0
-                        else:
-                            home_value = 0
-                            mort_bal = 0
-
-                        home_values.append(home_value)
-                        mortgage_balance.append(mort_bal)
-                        equity.append(home_value - mort_bal)
-
-                    home_data = pd.DataFrame({
-                        'Year': years,
-                        'Home Value': [f"${x:,}" for x in home_values],
-                        'Mortgage Balance': [f"${x:,}" for x in mortgage_balance],
-                        'Home Equity': [f"${x:,}" for x in equity]
-                    })
-                    st.dataframe(home_data)
-
+                        # Show detailed data table
+                        home_data = pd.DataFrame({
+                            'Year': projections['years'],
+                            'Home Value': [f"${x:,}" for x in home_values],
+                            'Mortgage Balance': [f"${x:,}" for x in mortgage_balances],
+                            'Home Equity': [f"${x - y:,}" for x, y in zip(home_values, mortgage_balances)]
+                        })
+                        st.dataframe(home_data)
                 else:
                     st.info("No home purchase milestone has been added yet. Add a home purchase milestone using the sidebar to see detailed projections.")
 
