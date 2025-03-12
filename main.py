@@ -151,9 +151,7 @@ def main():
 
             # Additional inputs based on milestone type
             if milestone_type == "Marriage":
-                wedding_cost = st.sidebar.number_input("Wedding Cost", value=30000)
-
-                # Spouse occupation selection
+                # Spouse occupation input with suggestions
                 st.sidebar.markdown("### Spouse Information")
                 spouse_occupation_input = st.sidebar.text_input(
                     "Enter Spouse's Occupation",
@@ -192,7 +190,11 @@ def main():
                                 st.session_state.selected_spouse_occupation = occ
                                 st.rerun()
 
-                # Always show the Add Marriage Milestone button if spouse occupation is selected
+                # Always show the Add Marriage Milestone button and wedding cost input
+                st.sidebar.markdown("### Marriage Details")
+                wedding_cost = st.sidebar.number_input("Wedding Cost", value=30000)
+
+                # Show add milestone button if spouse occupation is selected
                 if st.session_state.selected_spouse_occupation:
                     if st.sidebar.button("Add Marriage Milestone"):
                         # Process spouse's income data
