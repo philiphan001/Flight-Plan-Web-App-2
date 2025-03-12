@@ -131,6 +131,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Update the show_education_path function to use the College Scorecard API
 def show_education_path():
     st.markdown("""
         <h1 style='font-size: 2.5rem !important;'>
@@ -141,7 +142,15 @@ def show_education_path():
         </p>
     """, unsafe_allow_html=True)
 
-    # Initialize session state for education path
+    # Initialize College Scorecard API
+    try:
+        from services.college_scorecard import CollegeScorecardAPI
+        college_api = CollegeScorecardAPI()
+    except Exception as e:
+        st.error(f"Error initializing College Scorecard API: {str(e)}")
+        return
+
+    # Initialize session state
     if 'selected_institution_type' not in st.session_state:
         st.session_state.selected_institution_type = None
     if 'selected_institution' not in st.session_state:
@@ -157,16 +166,16 @@ def show_education_path():
 
         # Institution type selection
         st.markdown("### Type of Institution 🏛️")
-        institution_types = {
-            "4-Year College/University": ["Harvard University", "Stanford University", "MIT", "Yale University", "Princeton University"],
-            "Community College": ["Santa Monica College", "De Anza College", "Miami Dade College", "Valencia College", "Austin Community College"],
-            "Vocational/Trade School": ["Universal Technical Institute", "Lincoln Tech", "Pittsburgh Institute of Aeronautics", "Paul Mitchell Schools", "Le Cordon Bleu"],
-            "Online Programs": ["Western Governors University", "Southern New Hampshire University", "Arizona State Online", "Penn State World Campus", "Coursera Degrees"]
-        }
+        institution_types = [
+            "4-Year College/University",
+            "Community College",
+            "Vocational/Trade School",
+            "Online Programs"
+        ]
 
         institution_type = st.selectbox(
             "Select type of institution",
-            options=list(institution_types.keys()),
+            options=institution_types,
             key="institution_type"
         )
 
@@ -174,57 +183,58 @@ def show_education_path():
         st.markdown("### Search for Institution 🔍")
         institution_input = st.text_input(
             "Enter institution name",
-            value=st.session_state.selected_institution if st.session_state.selected_institution else "",
+            value=st.session_state.selected_institution['name'] if isinstance(st.session_state.selected_institution, dict) else "",
             key="institution_input"
         )
 
         # Clear selection if user starts typing something new
         if (st.session_state.selected_institution and 
-            institution_input != st.session_state.selected_institution):
+            institution_input != (st.session_state.selected_institution['name'] if isinstance(st.session_state.selected_institution, dict) else "")):
             st.session_state.selected_institution = None
 
         if institution_input and not st.session_state.selected_institution:
-            current_institutions = institution_types[institution_type]
-            matches = get_close_matches(institution_input.lower(), 
-                                        [inst.lower() for inst in current_institutions], 
-                                        n=5, cutoff=0.1)
+            # Get school type parameter for API
+            school_type = college_api.get_school_type_param(institution_type)
 
-            matching_institutions = [
-                inst for inst in current_institutions 
-                if inst.lower() in matches
-            ]
+            # Search colleges using the API
+            matching_institutions = college_api.search_colleges(
+                query=institution_input,
+                school_type=school_type,
+                limit=5
+            )
 
             if matching_institutions:
                 st.markdown("#### Select your institution:")
                 for inst in matching_institutions:
-                    if st.button(f"🏛️ {inst}", key=f"inst_{inst}"):
+                    # Create a formatted button label with college details
+                    label = (f"🏛️ {inst['name']}\n"
+                            f"📍 {inst['city']}, {inst['state']}\n"
+                            f"💰 In-State: ${inst['in_state_tuition']:,}" if inst['in_state_tuition'] != 'N/A' else 'N/A')
+
+                    if st.button(label, key=f"inst_{inst['name']}"):
                         st.session_state.selected_institution = inst
                         st.rerun()
+            else:
+                st.info("No matching institutions found. Try a different search term.")
 
-        # Fields of study
-        fields_of_study = {
-            "4-Year College/University": [
-                "Computer Science", "Engineering", "Business", "Medicine", 
-                "Law", "Arts and Humanities", "Natural Sciences", "Social Sciences"
-            ],
-            "Community College": [
-                "Liberal Arts", "Business Administration", "Nursing", "Computer Science",
-                "Engineering Technology", "Early Childhood Education", "Criminal Justice"
-            ],
-            "Vocational/Trade School": [
-                "Automotive Technology", "HVAC", "Welding", "Electrical Technology",
-                "Culinary Arts", "Cosmetology", "Healthcare Technology"
-            ],
-            "Online Programs": [
-                "Business Administration", "Computer Science", "Healthcare Management",
-                "Information Technology", "Psychology", "Education", "Data Science"
-            ]
-        }
+        # Show selected institution details
+        if isinstance(st.session_state.selected_institution, dict):
+            st.markdown("### Selected Institution Details")
+            inst = st.session_state.selected_institution
+            st.markdown(f"""
+                **{inst['name']}**  
+                Location: {inst['city']}, {inst['state']}  
+                In-State Tuition: ${inst['in_state_tuition']:,}  
+                Out-of-State Tuition: ${inst['out_state_tuition']:,}  
+                Admission Rate: {inst['admission_rate']*100:.1f}%
+            """)
 
-        if st.session_state.selected_institution:
+            # Fields of study
             st.markdown("### Choose Your Field of Study 📚")
+            fields_of_study = inst.get('programs', [])
+
             field_input = st.text_input(
-                "Enter field of study",
+                "Search for your field of study",
                 value=st.session_state.selected_field if st.session_state.selected_field else "",
                 key="field_input"
             )
@@ -235,21 +245,16 @@ def show_education_path():
                 st.session_state.selected_field = None
 
             if field_input and not st.session_state.selected_field:
-                current_fields = fields_of_study[institution_type]
-                matches = get_close_matches(field_input.lower(), 
-                                            [field.lower() for field in current_fields], 
-                                            n=5, cutoff=0.1)
-
                 matching_fields = [
-                    field for field in current_fields 
-                    if field.lower() in matches
+                    field for field in fields_of_study 
+                    if field_input.lower() in field['title'].lower()
                 ]
 
                 if matching_fields:
                     st.markdown("#### Select your field:")
                     for field in matching_fields:
-                        if st.button(f"📚 {field}", key=f"field_{field}"):
-                            st.session_state.selected_field = field
+                        if st.button(f"📚 {field['title']}", key=f"field_{field['title']}"):
+                            st.session_state.selected_field = field['title']
                             st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -794,7 +799,7 @@ def main():
                         ) / 100
 
                         # Get current expense rates from the recurring expenses
-                        property_tax_exp = next((e for e in milestone.recurring_expenses if e.name == "Property Tax"), None)
+                        property_tax_exp = next((e for e in milestone.recurring_expenses if e.name == "PropertyTax"), None)
                         insurance_exp = next((e for e in milestone.recurring_expenses if e.name == "Home Insurance"), None)
                         maintenance_exp = next((e for e in milestone.recurring_expenses if e.name == "Home Maintenance"), None)
 
