@@ -221,8 +221,22 @@ def show_landing_page():
             </p>
         """, unsafe_allow_html=True)
 
+        # Import and run the interest quiz
+        from quiz.interest_quiz import run_quiz
+        run_quiz()
+
         # Add a back button
         if st.button("← Back to Main Menu"):
+            # Reset quiz state when going back
+            if 'quiz' in st.session_state:
+                del st.session_state['quiz']
+            if 'current_question' in st.session_state:
+                del st.session_state['current_question']
+            if 'selected_traits' in st.session_state:
+                del st.session_state['selected_traits']
+            if 'quiz_completed' in st.session_state:
+                del st.session_state['quiz_completed']
+
             st.session_state.page = 'initial'
             st.rerun()
 
