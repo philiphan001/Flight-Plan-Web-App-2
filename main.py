@@ -170,8 +170,8 @@ def main():
                 if spouse_occupation_input and not st.session_state.selected_spouse_occupation:
                     # Find best matches for spouse occupation
                     spouse_matches = get_close_matches(spouse_occupation_input.lower(), 
-                                                        [occ.lower() for occ in occupations], 
-                                                        n=3, cutoff=0.1)
+                                                     [occ.lower() for occ in occupations], 
+                                                     n=3, cutoff=0.1)
 
                     # Get original case matches
                     matching_spouse_occupations = [
@@ -179,21 +179,10 @@ def main():
                         if occ.lower() in spouse_matches
                     ]
 
-                    # Always show at least 2 options
-                    if len(matching_spouse_occupations) == 1:
-                        other_matches = [
-                            occ for occ in occupations 
-                            if occ not in matching_spouse_occupations
-                        ][:1]
-                        matching_spouse_occupations.extend(other_matches)
-
+                    # Show matches only if typing
                     if matching_spouse_occupations:
                         st.sidebar.markdown("### Select Spouse's Occupation:")
                         for occ in matching_spouse_occupations:
-                            # Use unique key for each button
-                            is_selected = st.session_state.selected_spouse_occupation == occ
-
-                            # Create a styled button
                             if st.sidebar.button(
                                 occ,
                                 key=f"spouse_occ_{occ}",
@@ -203,30 +192,28 @@ def main():
                                 st.session_state.selected_spouse_occupation = occ
                                 st.rerun()
 
-                        if st.session_state.selected_spouse_occupation and st.sidebar.button("Add Marriage Milestone"):
-                            # Process spouse's income data
-                            spouse_data = DataProcessor.process_location_data(
-                                coli_df, occupation_df,
-                                st.session_state.selected_location,
-                                st.session_state.selected_spouse_occupation,
-                                investment_return_rate
-                            )
-                            # Create spouse income object using the model class
-                            spouse_income = ModelSpouseIncome(
-                                spouse_data['base_income'],
-                                spouse_data['location_adjustment']
-                            )
-                            # Create marriage milestone with spouse income
-                            milestone = MilestoneFactory.create_marriage(
-                                milestone_year, wedding_cost, spouse_income)
-                            st.session_state.milestones.append(milestone)
-                            # Clear spouse occupation selection
-                            st.session_state.selected_spouse_occupation = None
-                            st.rerun()
-                    else:
-                        st.sidebar.error(
-                            "No matching occupations found for spouse. Available occupations: " +
-                            ", ".join(occupations[:3]))
+                # Always show the Add Marriage Milestone button if spouse occupation is selected
+                if st.session_state.selected_spouse_occupation:
+                    if st.sidebar.button("Add Marriage Milestone"):
+                        # Process spouse's income data
+                        spouse_data = DataProcessor.process_location_data(
+                            coli_df, occupation_df,
+                            st.session_state.selected_location,
+                            st.session_state.selected_spouse_occupation,
+                            investment_return_rate
+                        )
+                        # Create spouse income object using the model class
+                        spouse_income = ModelSpouseIncome(
+                            spouse_data['base_income'],
+                            spouse_data['location_adjustment']
+                        )
+                        # Create marriage milestone with spouse income
+                        milestone = MilestoneFactory.create_marriage(
+                            milestone_year, wedding_cost, spouse_income)
+                        st.session_state.milestones.append(milestone)
+                        # Clear spouse occupation selection
+                        st.session_state.selected_spouse_occupation = None
+                        st.rerun()
 
             elif milestone_type == "New Child":
                 if st.sidebar.button("Add Child Milestone"):
