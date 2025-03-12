@@ -55,15 +55,18 @@ class FinancialPlotter:
                        cash_flow: List[float], income_streams: Dict[str, List[float]] = None) -> None:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        # Add total income bar
-        fig.add_trace(
-            go.Bar(x=years, y=income,
-                  name="Total Income",
-                  marker_color='#27AE60'),
-            secondary_y=False
-        )
+        # Add stacked income bars in one group
+        colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71'}
+        for income_type, values in income_streams.items():
+            fig.add_trace(
+                go.Bar(x=years, y=values,
+                      name=income_type,
+                      marker_color=colors.get(income_type, '#27AE60'),
+                      offsetgroup="income"),  # Group all income bars together
+                secondary_y=False
+            )
 
-        # Add expenses bar
+        # Add expenses bar (unchanged)
         fig.add_trace(
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
@@ -73,8 +76,8 @@ class FinancialPlotter:
 
         # Add cash flow line
         fig.add_trace(
-            go.Scatter(x=years, y=cash_flow, 
-                      name="Net Savings", 
+            go.Scatter(x=years, y=cash_flow,
+                      name="Net Savings",
                       line=dict(color='#2E86C1', width=2)),
             secondary_y=True
         )
@@ -83,7 +86,7 @@ class FinancialPlotter:
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
             yaxis_title='Amount ($)',
-            barmode='group',  # Place income and expense bars side by side
+            barmode='stack',  # Stack the income bars
             template='plotly_white',
             showlegend=True,
             legend=dict(
@@ -92,7 +95,7 @@ class FinancialPlotter:
                 xanchor="left",
                 x=1.05
             ),
-            bargroupgap=0.2  # Add gap between income and expense bars
+            bargroupgap=0.2  # Add gap between income/expense groups
         )
 
         # Update axes labels
