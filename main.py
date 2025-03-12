@@ -41,7 +41,6 @@ def main():
         if 'temp_spouse_occupation' not in st.session_state:
             st.session_state.temp_spouse_occupation = None
 
-
         # Location input with suggestions
         location_input = st.sidebar.text_input(
             "Enter Location",
@@ -49,7 +48,13 @@ def main():
             key="location_input"
         )
 
-        if location_input:
+        # Clear selection if user starts typing something new
+        if (st.session_state.selected_location and 
+            location_input != st.session_state.selected_location):
+            st.session_state.selected_location = None
+            st.rerun()
+
+        if location_input and not st.session_state.selected_location:
             # Find best matches using string similarity
             matches = get_close_matches(location_input.lower(), 
                                       [loc.lower() for loc in locations], 
@@ -61,36 +66,18 @@ def main():
                 if loc.lower() in matches
             ]
 
-            # Always show at least 2 options
-            if len(matching_locations) == 1:
-                # Add the next closest match
-                other_matches = [
-                    loc for loc in locations 
-                    if loc not in matching_locations
-                ][:1]
-                matching_locations.extend(other_matches)
-
+            # Show matches only if typing
             if matching_locations:
                 st.sidebar.markdown("### Select a location:")
                 for loc in matching_locations:
-                    # Use unique key for each button
-                    is_selected = st.session_state.selected_location == loc
-
-                    # Create a styled button
                     if st.sidebar.button(
                         loc,
                         key=f"loc_{loc}",
                         help=f"Select {loc} as your location",
-                        type="primary" if is_selected else "secondary"
+                        type="secondary"
                     ):
                         st.session_state.selected_location = loc
-                        # Force rerun to update button states
                         st.rerun()
-            else:
-                st.sidebar.error(
-                    "No matching locations found. Available locations: " +
-                    ", ".join(locations[:3]))
-                st.stop()
 
         # Occupation input with suggestions
         occupation_input = st.sidebar.text_input(
@@ -99,7 +86,13 @@ def main():
             key="occupation_input"
         )
 
-        if occupation_input:
+        # Clear selection if user starts typing something new
+        if (st.session_state.selected_occupation and 
+            occupation_input != st.session_state.selected_occupation):
+            st.session_state.selected_occupation = None
+            st.rerun()
+
+        if occupation_input and not st.session_state.selected_occupation:
             # Find best matches using string similarity
             matches = get_close_matches(occupation_input.lower(), 
                                       [occ.lower() for occ in occupations], 
@@ -111,36 +104,18 @@ def main():
                 if occ.lower() in matches
             ]
 
-            # Always show at least 2 options
-            if len(matching_occupations) == 1:
-                # Add the next closest match
-                other_matches = [
-                    occ for occ in occupations 
-                    if occ not in matching_occupations
-                ][:1]
-                matching_occupations.extend(other_matches)
-
+            # Show matches only if typing
             if matching_occupations:
                 st.sidebar.markdown("### Select an occupation:")
                 for occ in matching_occupations:
-                    # Use unique key for each button
-                    is_selected = st.session_state.selected_occupation == occ
-
-                    # Create a styled button
                     if st.sidebar.button(
                         occ,
                         key=f"occ_{occ}",
                         help=f"Select {occ} as your occupation",
-                        type="primary" if is_selected else "secondary"
+                        type="secondary"
                     ):
                         st.session_state.selected_occupation = occ
-                        # Force rerun to update button states
                         st.rerun()
-            else:
-                st.sidebar.error(
-                    "No matching occupations found. Available occupations: " +
-                    ", ".join(occupations[:3]))
-                st.stop()
 
         # Only proceed if both selections are valid
         if st.session_state.selected_location and st.session_state.selected_occupation:
@@ -186,11 +161,17 @@ def main():
                     key="spouse_occupation_input"
                 )
 
-                if spouse_occupation_input:
+                # Clear selection if user starts typing something new
+                if (st.session_state.selected_spouse_occupation and 
+                    spouse_occupation_input != st.session_state.selected_spouse_occupation):
+                    st.session_state.selected_spouse_occupation = None
+                    st.rerun()
+
+                if spouse_occupation_input and not st.session_state.selected_spouse_occupation:
                     # Find best matches for spouse occupation
                     spouse_matches = get_close_matches(spouse_occupation_input.lower(), 
-                                                     [occ.lower() for occ in occupations], 
-                                                     n=3, cutoff=0.1)
+                                                        [occ.lower() for occ in occupations], 
+                                                        n=3, cutoff=0.1)
 
                     # Get original case matches
                     matching_spouse_occupations = [
@@ -217,7 +198,7 @@ def main():
                                 occ,
                                 key=f"spouse_occ_{occ}",
                                 help=f"Select {occ} as spouse's occupation",
-                                type="primary" if is_selected else "secondary"
+                                type="secondary"
                             ):
                                 st.session_state.selected_spouse_occupation = occ
                                 st.rerun()
@@ -324,8 +305,8 @@ def main():
                         if new_spouse_occupation_input:
                             # Find best matches for spouse occupation
                             spouse_matches = get_close_matches(new_spouse_occupation_input.lower(), 
-                                                             [occ.lower() for occ in occupations], 
-                                                             n=3, cutoff=0.1)
+                                                              [occ.lower() for occ in occupations], 
+                                                              n=3, cutoff=0.1)
 
                             # Get original case matches
                             matching_spouse_occupations = [
@@ -340,7 +321,7 @@ def main():
                                         occ,
                                         key=f"edit_spouse_occ_{idx}_{occ}",
                                         help=f"Select {occ} as new spouse's occupation",
-                                        type="primary" if is_selected else "secondary"
+                                        type="secondary"
                                     ):
                                         st.session_state.selected_spouse_occupation = occ
                                         st.rerun()
