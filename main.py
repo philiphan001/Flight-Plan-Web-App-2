@@ -131,6 +131,155 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+def show_education_path():
+    st.markdown("""
+        <h1 style='font-size: 2.5rem !important;'>
+            Let's Plan Your Education Journey 🎓
+        </h1>
+        <p class='subtitle'>
+            Explore all your post-secondary education options
+        </p>
+    """, unsafe_allow_html=True)
+
+    # Initialize session state for education path
+    if 'selected_institution_type' not in st.session_state:
+        st.session_state.selected_institution_type = None
+    if 'selected_institution' not in st.session_state:
+        st.session_state.selected_institution = None
+    if 'selected_field' not in st.session_state:
+        st.session_state.selected_field = None
+
+    # Center the content
+    col1, col2, col3 = st.columns([1,2,1])
+
+    with col2:
+        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+
+        # Institution type selection
+        st.markdown("### Type of Institution 🏛️")
+        institution_types = {
+            "4-Year College/University": ["Harvard University", "Stanford University", "MIT", "Yale University", "Princeton University"],
+            "Community College": ["Santa Monica College", "De Anza College", "Miami Dade College", "Valencia College", "Austin Community College"],
+            "Vocational/Trade School": ["Universal Technical Institute", "Lincoln Tech", "Pittsburgh Institute of Aeronautics", "Paul Mitchell Schools", "Le Cordon Bleu"],
+            "Online Programs": ["Western Governors University", "Southern New Hampshire University", "Arizona State Online", "Penn State World Campus", "Coursera Degrees"]
+        }
+
+        institution_type = st.selectbox(
+            "Select type of institution",
+            options=list(institution_types.keys()),
+            key="institution_type"
+        )
+
+        # Institution search
+        st.markdown("### Search for Institution 🔍")
+        institution_input = st.text_input(
+            "Enter institution name",
+            value=st.session_state.selected_institution if st.session_state.selected_institution else "",
+            key="institution_input"
+        )
+
+        # Clear selection if user starts typing something new
+        if (st.session_state.selected_institution and 
+            institution_input != st.session_state.selected_institution):
+            st.session_state.selected_institution = None
+
+        if institution_input and not st.session_state.selected_institution:
+            current_institutions = institution_types[institution_type]
+            matches = get_close_matches(institution_input.lower(), 
+                                    [inst.lower() for inst in current_institutions], 
+                                    n=5, cutoff=0.1)
+
+            matching_institutions = [
+                inst for inst in current_institutions 
+                if inst.lower() in matches
+            ]
+
+            if matching_institutions:
+                st.markdown("#### Select your institution:")
+                for inst in matching_institutions:
+                    if st.button(f"🏛️ {inst}", key=f"inst_{inst}"):
+                        st.session_state.selected_institution = inst
+                        st.rerun()
+
+        # Fields of study
+        fields_of_study = {
+            "4-Year College/University": [
+                "Computer Science", "Engineering", "Business", "Medicine", 
+                "Law", "Arts and Humanities", "Natural Sciences", "Social Sciences"
+            ],
+            "Community College": [
+                "Liberal Arts", "Business Administration", "Nursing", "Computer Science",
+                "Engineering Technology", "Early Childhood Education", "Criminal Justice"
+            ],
+            "Vocational/Trade School": [
+                "Automotive Technology", "HVAC", "Welding", "Electrical Technology",
+                "Culinary Arts", "Cosmetology", "Healthcare Technology"
+            ],
+            "Online Programs": [
+                "Business Administration", "Computer Science", "Healthcare Management",
+                "Information Technology", "Psychology", "Education", "Data Science"
+            ]
+        }
+
+        if st.session_state.selected_institution:
+            st.markdown("### Choose Your Field of Study 📚")
+            field_input = st.text_input(
+                "Enter field of study",
+                value=st.session_state.selected_field if st.session_state.selected_field else "",
+                key="field_input"
+            )
+
+            # Clear selection if user starts typing something new
+            if (st.session_state.selected_field and 
+                field_input != st.session_state.selected_field):
+                st.session_state.selected_field = None
+
+            if field_input and not st.session_state.selected_field:
+                current_fields = fields_of_study[institution_type]
+                matches = get_close_matches(field_input.lower(), 
+                                        [field.lower() for field in current_fields], 
+                                        n=5, cutoff=0.1)
+
+                matching_fields = [
+                    field for field in current_fields 
+                    if field.lower() in matches
+                ]
+
+                if matching_fields:
+                    st.markdown("#### Select your field:")
+                    for field in matching_fields:
+                        if st.button(f"📚 {field}", key=f"field_{field}"):
+                            st.session_state.selected_field = field
+                            st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Progress indicator
+        if st.session_state.selected_institution or st.session_state.selected_field:
+            progress = 0
+            if st.session_state.selected_institution:
+                progress += 0.5
+            if st.session_state.selected_field:
+                progress += 0.5
+
+            st.progress(progress)
+            st.markdown(f"<p style='text-align: center; color: #666;'>Progress: {int(progress * 100)}%</p>", 
+                        unsafe_allow_html=True)
+
+        # Continue button
+        if (st.session_state.selected_institution and 
+            st.session_state.selected_field):
+            if st.button("Continue to Financial Planning ➡️"):
+                st.session_state.setup_complete = True
+                st.rerun()
+
+    # Back button
+    if st.button("← Back to Previous Page"):
+        st.session_state.page = 'known_path'
+        st.session_state.selected_institution = None
+        st.session_state.selected_field = None
+        st.rerun()
+
 def show_landing_page():
     # Initialize session state for navigation
     if 'page' not in st.session_state:
@@ -239,6 +388,9 @@ def show_landing_page():
 
             st.session_state.page = 'initial'
             st.rerun()
+    elif st.session_state.page == 'education_path':
+        show_education_path()
+
 
 def main():
     # Show landing page if setup is not complete
