@@ -66,7 +66,7 @@ class FinancialPlotter:
                 secondary_y=False
             )
 
-        # Add expenses bar
+        # Add expenses bar (in a different group)
         fig.add_trace(
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
@@ -87,7 +87,7 @@ class FinancialPlotter:
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
             yaxis_title='Amount ($)',
-            barmode='group',  # Stack bars within groups
+            barmode='relative',  # Stack bars within groups, but keep groups separate
             template='plotly_white',
             showlegend=True,
             legend=dict(
@@ -96,7 +96,8 @@ class FinancialPlotter:
                 xanchor="left",
                 x=1.05
             ),
-            bargroupgap=0.2  # Add gap between income/expense groups
+            bargap=0.15,  # Gap between bars in the same group
+            bargroupgap=0.25  # Gap between different groups
         )
 
         # Update axes labels
