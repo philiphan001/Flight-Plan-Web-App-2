@@ -66,11 +66,12 @@ class FinancialPlotter:
                 secondary_y=False
             )
 
-        # Add expenses bar (unchanged)
+        # Add expenses bar
         fig.add_trace(
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
-                  marker_color='#E74C3C'),
+                  marker_color='#E74C3C',
+                  offsetgroup="expenses"),  # Different group for expenses
             secondary_y=False
         )
 
@@ -86,7 +87,7 @@ class FinancialPlotter:
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
             yaxis_title='Amount ($)',
-            barmode='stack',  # Stack the income bars
+            barmode='relative',  # Stack bars within groups
             template='plotly_white',
             showlegend=True,
             legend=dict(
