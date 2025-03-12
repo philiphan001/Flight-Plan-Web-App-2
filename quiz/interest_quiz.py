@@ -91,7 +91,11 @@ class InterestQuiz:
 
     def show_progress(self, current: int, total: int):
         progress = current / total
-        st.progress(progress)
+        st.markdown(f"""
+        <div class="progress-bar">
+            <div class="progress-bar-fill" style="width: {progress * 100}%;"></div>
+        </div>
+        """, unsafe_allow_html=True)
         st.markdown(f"Question {current} of {total}")
 
     def calculate_results(self, traits: List[str]) -> Dict[str, int]:
@@ -153,15 +157,58 @@ def run_quiz():
                 opacity: 1;
             }
         }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
         .quiz-question {
             animation: fadeIn 1s ease-in;
+            margin-bottom: 2rem;
+        }
+        .quiz-question h2 {
+            color: #2E86C1;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        .stButton>button {
+            width: 100%;
+            padding: 20px;
+            font-size: 1.2rem;
+            border-radius: 15px;
+            border: none;
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+        .stButton>button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
         }
         .career-suggestion {
             transition: all 0.3s ease;
+            animation: float 4s ease-in-out infinite;
         }
         .career-suggestion:hover {
             transform: translateY(-5px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .progress-bar {
+            height: 10px;
+            background-color: #BCE6FF;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #2E86C1;
+            border-radius: 5px;
+            transition: width 0.5s ease-in-out;
         }
     </style>
     """, unsafe_allow_html=True)
