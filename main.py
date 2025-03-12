@@ -43,13 +43,17 @@ def main():
 
 
         # Location input with suggestions
-        location_input = st.sidebar.text_input("Enter Location", "")
+        location_input = st.sidebar.text_input(
+            "Enter Location",
+            value=st.session_state.selected_location if st.session_state.selected_location else "",
+            key="location_input"
+        )
 
         if location_input:
             # Find best matches using string similarity
             matches = get_close_matches(location_input.lower(), 
-                                        [loc.lower() for loc in locations], 
-                                        n=3, cutoff=0.1)
+                                      [loc.lower() for loc in locations], 
+                                      n=3, cutoff=0.1)
 
             # Get original case matches
             matching_locations = [
@@ -89,13 +93,17 @@ def main():
                 st.stop()
 
         # Occupation input with suggestions
-        occupation_input = st.sidebar.text_input("Enter Occupation", "")
+        occupation_input = st.sidebar.text_input(
+            "Enter Occupation",
+            value=st.session_state.selected_occupation if st.session_state.selected_occupation else "",
+            key="occupation_input"
+        )
 
         if occupation_input:
             # Find best matches using string similarity
             matches = get_close_matches(occupation_input.lower(), 
-                                        [occ.lower() for occ in occupations], 
-                                        n=3, cutoff=0.1)
+                                      [occ.lower() for occ in occupations], 
+                                      n=3, cutoff=0.1)
 
             # Get original case matches
             matching_occupations = [
@@ -774,7 +782,7 @@ def main():
                     st.dataframe(home_data)
 
                 else:
-                    st.info("No home purchase milestone hasbeen added yet. Add a home purchase milestone using the sidebar to see detailed projections.")
+                    st.info("No home purchase milestone has been added yet. Add a home purchase milestone using the sidebar to see detailed projections.")
 
     except Exception as e:
         st.error(f"Error processing data: {str(e)}")
