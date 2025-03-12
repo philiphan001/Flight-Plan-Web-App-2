@@ -186,8 +186,8 @@ def show_education_path():
         if institution_input and not st.session_state.selected_institution:
             current_institutions = institution_types[institution_type]
             matches = get_close_matches(institution_input.lower(), 
-                                    [inst.lower() for inst in current_institutions], 
-                                    n=5, cutoff=0.1)
+                                        [inst.lower() for inst in current_institutions], 
+                                        n=5, cutoff=0.1)
 
             matching_institutions = [
                 inst for inst in current_institutions 
@@ -237,8 +237,8 @@ def show_education_path():
             if field_input and not st.session_state.selected_field:
                 current_fields = fields_of_study[institution_type]
                 matches = get_close_matches(field_input.lower(), 
-                                        [field.lower() for field in current_fields], 
-                                        n=5, cutoff=0.1)
+                                            [field.lower() for field in current_fields], 
+                                            n=5, cutoff=0.1)
 
                 matching_fields = [
                     field for field in current_fields 
@@ -399,6 +399,13 @@ def main():
         return
 
     st.title("Financial Projection Application")
+
+    # Add back button at the top
+    if st.button("← Back to Education Selection"):
+        st.session_state.setup_complete = False
+        st.session_state.page = 'education_path'
+        st.rerun()
+
     # Sidebar inputs
     st.sidebar.header("Input Parameters")
 
@@ -443,8 +450,8 @@ def main():
         if location_input and not st.session_state.selected_location:
             # Find best matches using string similarity
             matches = get_close_matches(location_input.lower(), 
-                                      [loc.lower() for loc in locations], 
-                                      n=3, cutoff=0.1)
+                                        [loc.lower() for loc in locations], 
+                                        n=3, cutoff=0.1)
 
             # Get original case matches
             matching_locations = [
@@ -481,8 +488,8 @@ def main():
         if occupation_input and not st.session_state.selected_occupation:
             # Find best matches using string similarity
             matches = get_close_matches(occupation_input.lower(), 
-                                      [occ.lower() for occ in occupations], 
-                                      n=3, cutoff=0.1)
+                                        [occ.lower() for occ in occupations], 
+                                        n=3, cutoff=0.1)
 
             # Get original case matches
             matching_occupations = [
@@ -554,8 +561,8 @@ def main():
                 if spouse_occupation_input and not st.session_state.selected_spouse_occupation:
                     # Find best matches for spouse occupation
                     spouse_matches = get_close_matches(spouse_occupation_input.lower(), 
-                                                     [occ.lower() for occ in occupations], 
-                                                     n=3, cutoff=0.1)
+                                                        [occ.lower() for occ in occupations], 
+                                                        n=3, cutoff=0.1)
 
                     # Get original case matches
                     matching_spouse_occupations = [
@@ -680,8 +687,8 @@ def main():
                         if new_spouse_occupation_input:
                             # Find best matches for spouse occupation
                             spouse_matches = get_close_matches(new_spouse_occupation_input.lower(), 
-                                                              [occ.lower() for occ in occupations], 
-                                                              n=3, cutoff=0.1)
+                                                                [occ.lower() for occ in occupations], 
+                                                                n=3, cutoff=0.1)
 
                             # Get original case matches
                             matching_spouse_occupations = [
@@ -976,10 +983,10 @@ def main():
             # Net Worth Tab
             with net_worth_tab:
                 FinancialPlotter.plot_net_worth(projections['years'],
-                                              projections['net_worth'],
-                                              projections['asset_values'],
-                                              projections['liability_values'],
-                                              projections['investment_growth'])
+                                               projections['net_worth'],
+                                               projections['asset_values'],
+                                               projections['liability_values'],
+                                               projections['investment_growth'])
                 net_worth_df = pd.DataFrame({
                     'Year': projections['years'],
                     'Total Assets': [f"${x:,}" for x in projections['asset_values']],
