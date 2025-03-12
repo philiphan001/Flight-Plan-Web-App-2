@@ -53,7 +53,6 @@ class DataProcessor:
 
     @staticmethod
     def create_financial_objects(location_data: Dict, 
-                               is_homeowner: bool,
                                milestones: Optional[List[Milestone]] = None) -> Tuple[List[Asset], List[Liability], List[Income], List[Expense]]:
         assets = []
         liabilities = []
@@ -111,11 +110,8 @@ class DataProcessor:
         expenses.append(VariableExpense("Entertainment", location_data['entertainment'] * 12))
         expenses.append(VariableExpense("Other", location_data['other'] * 12))
 
-        # Add rent only if not a homeowner from start and no home purchase milestone
-        if not is_homeowner and home_purchase_year is None:
-            expenses.append(FixedExpense("Rent", location_data['housing'] * 12))
-        elif not is_homeowner and home_purchase_year is not None:
-            # Add rent expense that only applies before home purchase
+        # Add rent expense that only applies before home purchase (if applicable)
+        if home_purchase_year is not None:
             class PreHomeRentExpense(FixedExpense):
                 def __init__(self, name: str, annual_amount: float, trigger_year: int):
                     super().__init__(name, annual_amount)
@@ -125,6 +121,9 @@ class DataProcessor:
                     return super().calculate_expense(year) if year < self.trigger_year else 0
 
             expenses.append(PreHomeRentExpense("Rent", location_data['housing'] * 12, home_purchase_year))
+        else:
+            # If no home purchase milestone, add regular rent expense
+            expenses.append(FixedExpense("Rent", location_data['housing'] * 12))
 
         # Add milestone-related financial objects
         if milestones:

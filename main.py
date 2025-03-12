@@ -136,9 +136,6 @@ def main():
                 help="Annual rate of return for invested savings"
             ) / 100.0
 
-            # Housing choice
-            is_homeowner = st.sidebar.checkbox("Are you a homeowner?")
-
             # Projection years
             projection_years = st.sidebar.slider("Projection Years", 1, 30, 10)
 
@@ -419,7 +416,6 @@ def main():
             # Create financial objects with milestones
             assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
                 location_data,
-                is_homeowner,
                 st.session_state.milestones
             )
 
