@@ -52,27 +52,22 @@ class FinancialPlotter:
     @staticmethod
     def plot_cash_flow(years: List[int], income: List[float], 
                        expenses: Dict[str, List[float]], total_expenses: List[float],
-                       cash_flow: List[float], income_streams: Dict[str, List[float]]) -> None:
+                       cash_flow: List[float], income_streams: Dict[str, List[float]] = None) -> None:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        # Create stacked income bars
-        colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71'}
-        for income_type, values in income_streams.items():
-            fig.add_trace(
-                go.Bar(x=years, y=values,
-                      name=income_type,
-                      marker_color=colors.get(income_type, '#27AE60'),
-                      offsetgroup=0,  # Group all income bars together
-                      showlegend=True),
-                secondary_y=False
-            )
+        # Add total income bar
+        fig.add_trace(
+            go.Bar(x=years, y=income,
+                  name="Total Income",
+                  marker_color='#27AE60'),
+            secondary_y=False
+        )
 
-        # Add expenses bar with different offset group
+        # Add expenses bar
         fig.add_trace(
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
-                  marker_color='#E74C3C',
-                  offsetgroup=1),  # Separate group for expenses
+                  marker_color='#E74C3C'),
             secondary_y=False
         )
 
