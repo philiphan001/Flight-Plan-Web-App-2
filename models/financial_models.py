@@ -116,25 +116,29 @@ class StudentLoan(Loan):
         super().__init__("Student Loan", principal, interest_rate, term_years)
 
 class Income(ABC):
-    def __init__(self, name: str, annual_amount: float, growth_rate: float = 0.03):
+    def __init__(self, name: str, annual_amount: float, growth_rate: float = 0.03, start_year: int = 0):
         self.name = name
         self.annual_amount = annual_amount
         self.growth_rate = growth_rate
+        self.start_year = start_year
 
     def calculate_income(self, year: int) -> float:
-        return self.annual_amount * (1 + self.growth_rate) ** year
+        if year < self.start_year:
+            return 0
+        adjusted_year = year - self.start_year
+        return self.annual_amount * (1 + self.growth_rate) ** adjusted_year
 
 class Salary(Income):
     def __init__(self, annual_amount: float, location_adjustment: float = 1.0):
-        super().__init__("Salary", annual_amount)
+        super().__init__("Primary Income", annual_amount)
         self.location_adjustment = location_adjustment
 
     def calculate_income(self, year: int) -> float:
         return super().calculate_income(year) * self.location_adjustment
 
 class SpouseIncome(Income):
-    def __init__(self, annual_amount: float, location_adjustment: float = 1.0):
-        super().__init__("Spouse Income", annual_amount)
+    def __init__(self, annual_amount: float, location_adjustment: float = 1.0, start_year: int = 0):
+        super().__init__("Spouse Income", annual_amount, start_year=start_year)
         self.location_adjustment = location_adjustment
 
     def calculate_income(self, year: int) -> float:
@@ -195,6 +199,8 @@ class MilestoneFactory:
         milestone.add_one_time_expense(cost)
         milestone.add_recurring_expense(VariableExpense("Joint Living Expenses", 5000 * 12))
         if spouse_income:
+            if isinstance(spouse_income, SpouseIncome):
+                spouse_income.start_year = trigger_year
             milestone.add_income_adjustment(spouse_income)
         return milestone
 

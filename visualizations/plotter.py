@@ -52,17 +52,19 @@ class FinancialPlotter:
     @staticmethod
     def plot_cash_flow(years: List[int], income: List[float], 
                        expenses: Dict[str, List[float]], total_expenses: List[float],
-                       cash_flow: List[float]) -> None:
+                       cash_flow: List[float], income_streams: Dict[str, List[float]]) -> None:
         # Create figure with secondary y-axis
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        # Add income bar
-        fig.add_trace(
-            go.Bar(x=years, y=income, 
-                  name="Income", 
-                  marker_color='#27AE60'),
-            secondary_y=False
-        )
+        # Add stacked income bars
+        colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71'}
+        for income_type, values in income_streams.items():
+            fig.add_trace(
+                go.Bar(x=years, y=values,
+                      name=income_type,
+                      marker_color=colors.get(income_type, '#27AE60')),
+                secondary_y=False
+            )
 
         # Add total expenses bar
         fig.add_trace(
@@ -82,7 +84,7 @@ class FinancialPlotter:
 
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
-            barmode='group',  # This puts bars side by side
+            barmode='stack',  # Stack the income bars
             template='plotly_white',
             showlegend=True,
             legend=dict(

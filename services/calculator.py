@@ -15,6 +15,7 @@ class FinancialCalculator:
             'net_worth': [],
             'cash_flow': [],
             'total_income': [],
+            'income_streams': {},  # New: track individual income streams
             'total_expenses': [],
             'expense_categories': {},
             'asset_values': [],
@@ -23,6 +24,11 @@ class FinancialCalculator:
             'liability_breakdown': {},
             'investment_growth': []
         }
+
+        # Initialize income streams
+        income_streams = {}
+        for inc in self.income:
+            income_streams[inc.name] = []
 
         # Initialize expense categories
         expense_categories = {}
@@ -45,9 +51,15 @@ class FinancialCalculator:
 
         cumulative_savings = 0
         for year in range(projection_years):
+            # Calculate income streams
+            for inc in self.income:
+                income_amount = round(inc.calculate_income(year))
+                income_streams[inc.name].append(income_amount)
+
             # Calculate total income
             total_income = round(sum(inc.calculate_income(year) for inc in self.income))
             projections['total_income'].append(total_income)
+            projections['income_streams'] = income_streams
 
             # Calculate expenses by category
             total_expenses = 0
@@ -56,7 +68,6 @@ class FinancialCalculator:
                 if "One-time Cost" in category:
                     milestone_name = category.replace(" One-time Cost", "")
                     category = f"One-time: {milestone_name}"
-                    # Only apply one-time costs in their specific year
                     expense_amount = round(expense.calculate_expense(year)) if expense.name.endswith(f"Year {year}") else 0
                 else:
                     expense_amount = round(expense.calculate_expense(year))

@@ -639,14 +639,18 @@ def main():
                     projections['total_income'],
                     projections['expense_categories'],
                     projections['total_expenses'],
-                    projections['cash_flow']
+                    projections['cash_flow'],
+                    projections['income_streams']  # Add income streams to the plot
                 )
 
                 # Create detailed cash flow DataFrame
                 cash_flow_data = {
                     'Year': projections['years'],
-                    'Total Income': [f"${x:,}" for x in projections['total_income']],
                 }
+
+                # Add income streams
+                for stream, values in projections['income_streams'].items():
+                    cash_flow_data[stream] = [f"${x:,}" for x in values]
 
                 # Add expense categories
                 for category, values in projections['expense_categories'].items():
