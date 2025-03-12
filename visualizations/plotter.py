@@ -87,7 +87,7 @@ class FinancialPlotter:
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
             yaxis_title='Amount ($)',
-            barmode='overlay',  # This allows stacking within groups while keeping groups side by side
+            barmode='relative',  # Stack bars within groups, but keep groups separate
             template='plotly_white',
             showlegend=True,
             legend=dict(
