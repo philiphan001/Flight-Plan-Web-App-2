@@ -38,6 +38,9 @@ def main():
             st.session_state.milestones = []
         if 'editing_marriage' not in st.session_state:
             st.session_state.editing_marriage = None
+        if 'temp_spouse_occupation' not in st.session_state:
+            st.session_state.temp_spouse_occupation = None
+
 
         # Location input with suggestions
         location_input = st.sidebar.text_input("Enter Location", "")
@@ -275,6 +278,11 @@ def main():
                     if milestone.name == "Marriage":
                         if st.sidebar.button("Edit Marriage", key=f"edit_marriage_{idx}"):
                             st.session_state.editing_marriage = idx
+                            # Store current spouse occupation temporarily
+                            current_spouse_income = next((inc for inc in milestone.income_adjustments 
+                                                        if inc.name == "Spouse Income"), None)
+                            if current_spouse_income:
+                                st.session_state.temp_spouse_occupation = current_spouse_income
 
                     # Show edit form if this milestone is being edited
                     if getattr(st.session_state, 'editing_marriage', None) == idx:
@@ -313,36 +321,32 @@ def main():
                                 if occ.lower() in spouse_matches
                             ]
 
-                            # Always show at least 2 options
-                            if len(matching_spouse_occupations) == 1:
-                                other_matches = [
-                                    occ for occ in occupations 
-                                    if occ not in matching_spouse_occupations
-                                ] [:1]
-                                matching_spouse_occupations.extend(other_matches)
-
                             if matching_spouse_occupations:
-                                selected_new_spouse_occupation = None
                                 for occ in matching_spouse_occupations:
+                                    is_selected = st.session_state.selected_spouse_occupation == occ
                                     if st.sidebar.button(
                                         occ,
                                         key=f"edit_spouse_occ_{idx}_{occ}",
-                                        help=f"Select {occ} as new spouse's occupation"
+                                        help=f"Select {occ} as new spouse's occupation",
+                                        type="primary" if is_selected else "secondary"
                                     ):
-                                        selected_new_spouse_occupation = occ
+                                        st.session_state.selected_spouse_occupation = occ
+                                        st.rerun()
 
-                                if selected_new_spouse_occupation:
+                                if st.session_state.selected_spouse_occupation:
                                     # Process new spouse's income data
                                     new_spouse_data = DataProcessor.process_location_data(
                                         coli_df, occupation_df,
                                         st.session_state.selected_location,
-                                        selected_new_spouse_occupation,
+                                        st.session_state.selected_spouse_occupation,
                                         investment_return_rate
                                     )
-                                    # Create new spouse income object
+
+                                    # Create new spouse income object with marriage year as start year
                                     new_spouse_income = ModelSpouseIncome(
                                         new_spouse_data['base_income'],
-                                        new_spouse_data['location_adjustment']
+                                        new_spouse_data['location_adjustment'],
+                                        start_year=new_year  # Set start year to marriage year
                                     )
 
                                     if st.sidebar.button("Save Changes", key=f"save_marriage_{idx}"):
@@ -353,10 +357,12 @@ def main():
                                         st.session_state.milestones[idx] = new_milestone
                                         # Clear editing state
                                         st.session_state.editing_marriage = None
+                                        st.session_state.selected_spouse_occupation = None
                                         st.rerun()
 
                         if st.sidebar.button("Cancel", key=f"cancel_marriage_{idx}"):
                             st.session_state.editing_marriage = None
+                            st.session_state.selected_spouse_occupation = None
                             st.rerun()
 
                     # Add edit button for home purchase milestone
@@ -768,7 +774,7 @@ def main():
                     st.dataframe(home_data)
 
                 else:
-                    st.info("No home purchase milestone has been added yet. Add a home purchase milestone using the sidebar to see detailed projections.")
+                    st.info("No home purchase milestone hasbeen added yet. Add a home purchase milestone using the sidebar to see detailed projections.")
 
     except Exception as e:
         st.error(f"Error processing data: {str(e)}")

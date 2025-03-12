@@ -62,15 +62,17 @@ class FinancialPlotter:
             fig.add_trace(
                 go.Bar(x=years, y=values,
                       name=income_type,
-                      marker_color=colors.get(income_type, '#27AE60')),
+                      marker_color=colors.get(income_type, '#27AE60'),
+                      offsetgroup=0),  # Group all income bars together
                 secondary_y=False
             )
 
-        # Add total expenses bar
+        # Add total expenses bar separately
         fig.add_trace(
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
-                  marker_color='#E74C3C'),
+                  marker_color='#E74C3C',
+                  offsetgroup=1),  # Separate group for expenses
             secondary_y=False
         )
 
@@ -84,7 +86,7 @@ class FinancialPlotter:
 
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
-            barmode='stack',  # Stack the income bars
+            barmode='group',  # This puts the bar groups side by side
             template='plotly_white',
             showlegend=True,
             legend=dict(
