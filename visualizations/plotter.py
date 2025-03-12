@@ -53,21 +53,21 @@ class FinancialPlotter:
     def plot_cash_flow(years: List[int], income: List[float], 
                        expenses: Dict[str, List[float]], total_expenses: List[float],
                        cash_flow: List[float], income_streams: Dict[str, List[float]]) -> None:
-        # Create figure with secondary y-axis
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        # Add stacked income bars
+        # Create stacked income bars
         colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71'}
         for income_type, values in income_streams.items():
             fig.add_trace(
                 go.Bar(x=years, y=values,
                       name=income_type,
                       marker_color=colors.get(income_type, '#27AE60'),
-                      offsetgroup=0),  # Group all income bars together
+                      offsetgroup=0,  # Group all income bars together
+                      showlegend=True),
                 secondary_y=False
             )
 
-        # Add total expenses bar separately
+        # Add total expenses bar
         fig.add_trace(
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
@@ -86,7 +86,9 @@ class FinancialPlotter:
 
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
-            barmode='group',  # Place the bar groups side by side
+            xaxis_title='Year',
+            yaxis_title='Amount ($)',
+            barmode='relative',  # Stack income bars
             template='plotly_white',
             showlegend=True,
             legend=dict(
@@ -94,8 +96,11 @@ class FinancialPlotter:
                 y=0.99,
                 xanchor="left",
                 x=1.05
-            )
+            ),
+            bargroupgap=0.2  # Add gap between income and expense bars
         )
+
+        # Update axes labels
         fig.update_yaxes(title_text="Amount ($)", secondary_y=False)
         fig.update_yaxes(title_text="Net Savings ($)", secondary_y=True)
 
