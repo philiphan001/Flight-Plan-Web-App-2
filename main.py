@@ -6,6 +6,11 @@ from visualizations.plotter import FinancialPlotter
 from difflib import get_close_matches
 from models.financial_models import MilestoneFactory, Home, MortgageLoan, Vehicle, CarLoan
 
+class SpouseIncome:
+    def __init__(self, base_income, location_adjustment):
+        self.base_income = base_income
+        self.location_adjustment = location_adjustment
+
 def main():
     st.set_page_config(page_title="Financial Projection App", layout="wide")
     st.title("Financial Projection Application")
@@ -159,10 +164,66 @@ def main():
             # Additional inputs based on milestone type
             if milestone_type == "Marriage":
                 wedding_cost = st.sidebar.number_input("Wedding Cost", value=30000)
-                if st.sidebar.button("Add Marriage Milestone"):
-                    milestone = MilestoneFactory.create_marriage(milestone_year, wedding_cost)
-                    st.session_state.milestones.append(milestone)
-                    st.rerun()
+
+                # Spouse occupation selection
+                st.sidebar.markdown("### Spouse Information")
+                spouse_occupation_input = st.sidebar.text_input("Enter Spouse's Occupation", "")
+
+                if spouse_occupation_input:
+                    # Find best matches for spouse occupation
+                    spouse_matches = get_close_matches(spouse_occupation_input.lower(), 
+                                                     [occ.lower() for occ in occupations], 
+                                                     n=3, cutoff=0.1)
+
+                    # Get original case matches
+                    matching_spouse_occupations = [
+                        occ for occ in occupations 
+                        if occ.lower() in spouse_matches
+                    ]
+
+                    # Always show at least 2 options
+                    if len(matching_spouse_occupations) == 1:
+                        other_matches = [
+                            occ for occ in occupations 
+                            if occ not in matching_spouse_occupations
+                        ][:1]
+                        matching_spouse_occupations.extend(other_matches)
+
+                    if matching_spouse_occupations:
+                        st.sidebar.markdown("### Select Spouse's Occupation:")
+                        selected_spouse_occupation = None
+                        for occ in matching_spouse_occupations:
+                            if st.sidebar.button(
+                                occ,
+                                key=f"spouse_occ_{occ}",
+                                help=f"Select {occ} as spouse's occupation",
+                                type="secondary"
+                            ):
+                                selected_spouse_occupation = occ
+                                st.rerun()
+
+                        if selected_spouse_occupation and st.sidebar.button("Add Marriage Milestone"):
+                            # Process spouse's income data
+                            spouse_data = DataProcessor.process_location_data(
+                                coli_df, occupation_df,
+                                st.session_state.selected_location,
+                                selected_spouse_occupation,
+                                investment_return_rate
+                            )
+                            # Create spouse income object
+                            spouse_income = SpouseIncome(
+                                spouse_data['base_income'],
+                                spouse_data['location_adjustment']
+                            )
+                            # Create marriage milestone with spouse income
+                            milestone = MilestoneFactory.create_marriage(
+                                milestone_year, wedding_cost, spouse_income)
+                            st.session_state.milestones.append(milestone)
+                            st.rerun()
+                    else:
+                        st.sidebar.error(
+                            "No matching occupations found for spouse. Available occupations: " +
+                            ", ".join(occupations[:3]))
 
             elif milestone_type == "New Child":
                 if st.sidebar.button("Add Child Milestone"):

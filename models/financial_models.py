@@ -132,6 +132,15 @@ class Salary(Income):
     def calculate_income(self, year: int) -> float:
         return super().calculate_income(year) * self.location_adjustment
 
+class SpouseIncome(Income):
+    def __init__(self, annual_amount: float, location_adjustment: float = 1.0):
+        super().__init__("Spouse Income", annual_amount)
+        self.location_adjustment = location_adjustment
+
+    def calculate_income(self, year: int) -> float:
+        return super().calculate_income(year) * self.location_adjustment
+
+
 class Expense(ABC):
     def __init__(self, name: str, annual_amount: float, inflation_rate: float = 0.02):
         self.name = name
@@ -181,10 +190,12 @@ class Milestone:
 
 class MilestoneFactory:
     @staticmethod
-    def create_marriage(trigger_year: int, cost: float = 30000) -> Milestone:
+    def create_marriage(trigger_year: int, cost: float = 30000, spouse_income: Optional[Income] = None) -> Milestone:
         milestone = Milestone("Marriage", trigger_year, "Family")
         milestone.add_one_time_expense(cost)
         milestone.add_recurring_expense(VariableExpense("Joint Living Expenses", 5000 * 12))
+        if spouse_income:
+            milestone.add_income_adjustment(spouse_income)
         return milestone
 
     @staticmethod
