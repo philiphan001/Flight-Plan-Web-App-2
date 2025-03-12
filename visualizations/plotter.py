@@ -88,7 +88,7 @@ class FinancialPlotter:
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
             yaxis_title='Amount ($)',
-            barmode='relative',  # Stack bars within groups, but keep groups separate
+            barmode='stack',  # Stack the income bars only
             template='plotly_white',
             showlegend=True,
             legend=dict(
@@ -97,8 +97,8 @@ class FinancialPlotter:
                 xanchor="left",
                 x=1.05
             ),
-            bargap=0.15,  # Gap between bars in the same group
-            bargroupgap=0.25  # Gap between different groups
+            bargap=0.15,  # Gap between bars
+            bargroupgap=0.2  # Gap between bar groups (income vs expenses)
         )
 
         # Update axes labels
