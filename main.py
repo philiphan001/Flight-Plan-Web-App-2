@@ -10,133 +10,230 @@ from models.financial_models import (
 )
 from datetime import datetime
 
+# Set page configuration with custom theme
+st.set_page_config(
+    page_title="Future Finance Explorer 🚀",
+    page_icon="💰",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS
+st.markdown("""
+    <style>
+        .main {
+            background-color: #f0f8ff;
+        }
+        .stButton>button {
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 20px;
+            padding: 10px 25px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .stButton>button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2E86C1;
+            font-size: 3rem !important;
+            font-weight: 800 !important;
+            margin-bottom: 2rem !important;
+        }
+        h2 {
+            color: #1ABC9C;
+            font-weight: 600 !important;
+        }
+        .stTextInput>div>div>input {
+            border-radius: 15px;
+            border: 2px solid #BCE6FF;
+            padding: 10px 15px;
+        }
+        .stTextInput>div>div>input:focus {
+            border-color: #2E86C1;
+            box-shadow: 0 0 0 2px rgba(46,134,193,0.2);
+        }
+        .sidebar .sidebar-content {
+            background-color: #f8f9fa;
+        }
+        .stProgress > div > div > div > div {
+            background-color: #4CAF50;
+        }
+        [data-testid="stMetricValue"] {
+            font-size: 2rem !important;
+            color: #2E86C1 !important;
+        }
+        .card {
+            padding: 20px;
+            border-radius: 15px;
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 def show_landing_page():
-    st.title("Welcome to Financial Life Planner")
-    st.write("Let's start by getting to know you better")
+    # Add animated welcome message
+    st.markdown("""
+        <h1 style='text-align: center; animation: fadeIn 1s ease-in;'>
+            🎓 Welcome to Future Finance Explorer! 
+        </h1>
+        <p style='text-align: center; font-size: 1.2rem; color: #666; margin-bottom: 2rem;'>
+            Let's plan your amazing future together! 
+        </p>
+    """, unsafe_allow_html=True)
 
-    # Calculate valid birth year range (18-70 years old)
-    current_year = datetime.now().year
-    min_year = current_year - 70
-    max_year = current_year - 18
+    # Create three columns for better layout
+    col1, col2, col3 = st.columns([1,2,1])
 
-    # Initialize session state for landing page
-    if 'birth_year' not in st.session_state:
-        st.session_state.birth_year = None
-    if 'selected_college' not in st.session_state:
-        st.session_state.selected_college = None
-    if 'selected_field' not in st.session_state:
-        st.session_state.selected_field = None
-    if 'setup_complete' not in st.session_state:
-        st.session_state.setup_complete = False
+    with col2:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    # Birth year input
-    birth_year = st.number_input(
-        "What year were you born?",
-        min_value=min_year,
-        max_value=max_year,
-        value=st.session_state.birth_year if st.session_state.birth_year else max_year,
-        help="Enter your birth year to help us customize your financial projections"
-    )
+        # Calculate valid birth year range (18-70 years old)
+        current_year = datetime.now().year
+        min_year = current_year - 70
+        max_year = current_year - 18
 
-    # Sample college list (can be replaced with actual data)
-    colleges = [
-        "Harvard University",
-        "Stanford University",
-        "MIT",
-        "Yale University",
-        "Princeton University",
-        "Columbia University",
-        "UC Berkeley",
-        "University of Michigan",
-        "Georgia Tech",
-        "UCLA"
-    ]
+        # Initialize session state
+        if 'birth_year' not in st.session_state:
+            st.session_state.birth_year = None
+        if 'selected_college' not in st.session_state:
+            st.session_state.selected_college = None
+        if 'selected_field' not in st.session_state:
+            st.session_state.selected_field = None
+        if 'setup_complete' not in st.session_state:
+            st.session_state.setup_complete = False
 
-    # College selection with search
-    college_input = st.text_input(
-        "Enter College Name",
-        value=st.session_state.selected_college if st.session_state.selected_college else "",
-        key="college_input"
-    )
+        # Birth year input with emoji
+        st.markdown("### 📅 When were you born?")
+        birth_year = st.number_input(
+            "Birth Year",
+            min_value=min_year,
+            max_value=max_year,
+            value=st.session_state.birth_year if st.session_state.birth_year else max_year,
+            help="This helps us customize your financial projections"
+        )
 
-    # Clear selection if user starts typing something new
-    if (st.session_state.selected_college and 
-        college_input != st.session_state.selected_college):
-        st.session_state.selected_college = None
-
-    if college_input and not st.session_state.selected_college:
-        matches = get_close_matches(college_input.lower(), 
-                                  [college.lower() for college in colleges], 
-                                  n=3, cutoff=0.1)
-
-        matching_colleges = [
-            college for college in colleges 
-            if college.lower() in matches
+        # College selection with emoji
+        st.markdown("### 🎓 Where do you want to study?")
+        colleges = [
+            "Harvard University",
+            "Stanford University",
+            "MIT",
+            "Yale University",
+            "Princeton University",
+            "Columbia University",
+            "UC Berkeley",
+            "University of Michigan",
+            "Georgia Tech",
+            "UCLA"
         ]
 
-        if matching_colleges:
-            st.write("Select your college:")
-            for college in matching_colleges:
-                if st.button(college, key=f"college_{college}"):
-                    st.session_state.selected_college = college
-                    st.rerun()
+        college_input = st.text_input(
+            "Search for your dream college",
+            value=st.session_state.selected_college if st.session_state.selected_college else "",
+            key="college_input"
+        )
 
-    # Fields of study
-    fields_of_study = [
-        "Computer Science",
-        "Engineering",
-        "Business",
-        "Medicine",
-        "Law",
-        "Arts and Humanities",
-        "Natural Sciences",
-        "Social Sciences",
-        "Mathematics",
-        "Education"
-    ]
+        if (st.session_state.selected_college and 
+            college_input != st.session_state.selected_college):
+            st.session_state.selected_college = None
 
-    # Field of study selection with search
-    field_input = st.text_input(
-        "Enter Field of Study",
-        value=st.session_state.selected_field if st.session_state.selected_field else "",
-        key="field_input"
-    )
+        if college_input and not st.session_state.selected_college:
+            matches = get_close_matches(college_input.lower(), 
+                                    [college.lower() for college in colleges], 
+                                    n=3, cutoff=0.1)
 
-    # Clear selection if user starts typing something new
-    if (st.session_state.selected_field and 
-        field_input != st.session_state.selected_field):
-        st.session_state.selected_field = None
+            matching_colleges = [
+                college for college in colleges 
+                if college.lower() in matches
+            ]
 
-    if field_input and not st.session_state.selected_field:
-        matches = get_close_matches(field_input.lower(), 
-                                  [field.lower() for field in fields_of_study], 
-                                  n=3, cutoff=0.1)
+            if matching_colleges:
+                st.markdown("#### Select your college:")
+                cols = st.columns(len(matching_colleges))
+                for idx, college in enumerate(matching_colleges):
+                    with cols[idx]:
+                        if st.button(f"🏛️ {college}", key=f"college_{college}"):
+                            st.session_state.selected_college = college
+                            st.rerun()
 
-        matching_fields = [
-            field for field in fields_of_study 
-            if field.lower() in matches
+        # Field of study with emoji
+        st.markdown("### 📚 What do you want to study?")
+        fields_of_study = [
+            "Computer Science",
+            "Engineering",
+            "Business",
+            "Medicine",
+            "Law",
+            "Arts and Humanities",
+            "Natural Sciences",
+            "Social Sciences",
+            "Mathematics",
+            "Education"
         ]
 
-        if matching_fields:
-            st.write("Select your field of study:")
-            for field in matching_fields:
-                if st.button(field, key=f"field_{field}"):
-                    st.session_state.selected_field = field
-                    st.rerun()
+        field_input = st.text_input(
+            "Search for your field of study",
+            value=st.session_state.selected_field if st.session_state.selected_field else "",
+            key="field_input"
+        )
 
-    # Continue button
-    if (birth_year and 
-        st.session_state.selected_college and 
-        st.session_state.selected_field):
+        if (st.session_state.selected_field and 
+            field_input != st.session_state.selected_field):
+            st.session_state.selected_field = None
 
-        if st.button("Continue to Financial Planning"):
-            st.session_state.birth_year = birth_year
-            st.session_state.setup_complete = True
-            st.rerun()
+        if field_input and not st.session_state.selected_field:
+            matches = get_close_matches(field_input.lower(), 
+                                    [field.lower() for field in fields_of_study], 
+                                    n=3, cutoff=0.1)
+
+            matching_fields = [
+                field for field in fields_of_study 
+                if field.lower() in matches
+            ]
+
+            if matching_fields:
+                st.markdown("#### Select your field:")
+                cols = st.columns(len(matching_fields))
+                for idx, field in enumerate(matching_fields):
+                    with cols[idx]:
+                        if st.button(f"📖 {field}", key=f"field_{field}"):
+                            st.session_state.selected_field = field
+                            st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Progress indicator
+        if birth_year or st.session_state.selected_college or st.session_state.selected_field:
+            progress = 0
+            if birth_year:
+                progress += 0.33
+            if st.session_state.selected_college:
+                progress += 0.33
+            if st.session_state.selected_field:
+                progress += 0.34
+
+            st.progress(progress)
+            st.markdown(f"<p style='text-align: center; color: #666;'>Profile completion: {int(progress * 100)}%</p>", unsafe_allow_html=True)
+
+        # Continue button
+        if (birth_year and 
+            st.session_state.selected_college and 
+            st.session_state.selected_field):
+
+            st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+            if st.button("🚀 Start Your Financial Journey!", type="primary"):
+                st.session_state.birth_year = birth_year
+                st.session_state.setup_complete = True
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
 
 def main():
-    st.set_page_config(page_title="Financial Projection App", layout="wide")
-
     # Show landing page if setup is not complete
     if not st.session_state.get('setup_complete', False):
         show_landing_page()
@@ -697,24 +794,24 @@ def main():
             calculator = FinancialCalculator(assets, liabilities, income, expenses)
             projections = calculator.calculate_yearly_projection(projection_years)
 
-            # Display summary metrics
+            # Display summary metrics with emojis and styling
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Initial Net Worth",
+                st.metric("Initial Net Worth 💰",
                        f"${projections['net_worth'][0]:,}")
             with col2:
-                st.metric("Final Net Worth",
+                st.metric("Final Net Worth 🚀",
                        f"${projections['net_worth'][-1]:,}")
             with col3:
-                st.metric("Average Annual Cash Flow", 
+                st.metric("Average Annual Cash Flow 💵", 
                           f"${int(sum(projections['cash_flow'])/len(projections['cash_flow'])):,}")
 
-            # Create tabs for different projections
+            # Create tabs for different projections with emojis
             net_worth_tab, cash_flow_tab, assets_tab, home_tab = st.tabs([
-                "Net Worth Projection", 
-                "Income & Expenses", 
-                "Assets & Liabilities",
-                "Home Purchase Details"
+                "Net Worth Projection 📈", 
+                "Income & Expenses 📊", 
+                "Assets & Liabilities ⚖️",
+                "Home Purchase Details 🏠"
             ])
 
             # Net Worth Tab
