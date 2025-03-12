@@ -66,7 +66,7 @@ class FinancialPlotter:
                 secondary_y=False
             )
 
-        # Add expenses bar (in a different group)
+        # Add expenses bar
         fig.add_trace(
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
@@ -83,6 +83,7 @@ class FinancialPlotter:
             secondary_y=True
         )
 
+        # Update layout
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
