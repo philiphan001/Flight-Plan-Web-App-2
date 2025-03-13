@@ -226,8 +226,10 @@ class FinancialPlotter:
                          "Salary: $%{z:,.0f}<extra></extra>",
             colorscale='Viridis',
             colorbar=dict(
-                title='Annual Salary ($)',
-                titleside='right',
+                title=dict(
+                    text='Annual Salary ($)',
+                    side='right'
+                ),
                 thickness=20,
                 tickformat='$,.0f'
             )
