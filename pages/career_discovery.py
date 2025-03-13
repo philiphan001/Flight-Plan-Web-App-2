@@ -5,7 +5,7 @@ from services.bls_api import BLSApi
 from models.user_favorites import UserFavorites
 from typing import Dict, List
 
-def show_career_details(career: Dict, bls_api: BLSApi):
+def show_career_details(career: Dict, bls_api: BLSApi, prefix: str = ""):
     """Display detailed information for a career"""
     st.markdown(f"### {career['title']} 💼")
 
@@ -36,13 +36,13 @@ def show_career_details(career: Dict, bls_api: BLSApi):
             st.write(employment_proj.get('outlook_summary', 'Data not available'))
 
     with col2:
-        # Favorite button
+        # Favorite button with unique keys using prefix
         if UserFavorites.is_favorite_career(career):
-            if st.button("❌ Remove from Favorites", key=f"remove_{career['code']}"):
+            if st.button("❌ Remove from Favorites", key=f"{prefix}remove_{career['code']}"):
                 UserFavorites.remove_favorite_career(career)
                 st.rerun()
         else:
-            if st.button("⭐ Add to Favorites", key=f"add_{career['code']}"):
+            if st.button("⭐ Add to Favorites", key=f"{prefix}add_{career['code']}"):
                 UserFavorites.add_favorite_career(career)
                 st.rerun()
 
@@ -83,7 +83,7 @@ def show_career_discovery():
                 st.markdown("### Matching Careers")
                 for career in matching_careers:
                     with st.expander(f"🔍 {career['title']}", expanded=False):
-                        show_career_details(career, bls_api)
+                        show_career_details(career, bls_api, prefix="search_")
             else:
                 st.info("No matching careers found. Try different keywords.")
 
@@ -94,7 +94,7 @@ def show_career_discovery():
         if favorite_careers:
             for career in favorite_careers:
                 with st.expander(f"⭐ {career['title']}", expanded=False):
-                    show_career_details(career, bls_api)
+                    show_career_details(career, bls_api, prefix="fav_")
         else:
             st.info("No favorite careers yet. Add some by clicking the star!")
 
