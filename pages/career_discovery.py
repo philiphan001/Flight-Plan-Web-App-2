@@ -8,27 +8,33 @@ from typing import Dict, List
 def show_career_details(career: Dict, bls_api: BLSApi):
     """Display detailed information for a career"""
     st.markdown(f"### {career['title']} 💼")
-    
+
     # Create columns for layout
     col1, col2 = st.columns([2, 1])
-    
+
     with col1:
         # Salary and employment data
         salary_data = bls_api.get_salary_by_location(career['code'], "0000000")  # National data
         employment_proj = bls_api.get_employment_projection(career['code'])
-        
+
         st.markdown("""
         #### Salary Information 💰
         """)
-        if salary_data:
-            st.metric("Median Annual Salary", f"${salary_data.get('annual_mean_wage', 'N/A'):,.2f}")
-        
+        if salary_data and 'annual_mean_wage' in salary_data:
+            try:
+                salary_value = float(salary_data['annual_mean_wage'])
+                st.metric("Median Annual Salary", f"${salary_value:,.2f}")
+            except (ValueError, TypeError):
+                st.metric("Median Annual Salary", "Data not available")
+        else:
+            st.metric("Median Annual Salary", "Data not available")
+
         st.markdown("""
         #### Employment Outlook 📈
         """)
         if employment_proj:
             st.write(employment_proj.get('outlook_summary', 'Data not available'))
-            
+
     with col2:
         # Favorite button
         if UserFavorites.is_favorite_career(career):
@@ -84,7 +90,7 @@ def show_career_discovery():
     with favorites_col:
         st.markdown("### Your Favorite Careers ⭐")
         favorite_careers = UserFavorites.get_favorite_careers()
-        
+
         if favorite_careers:
             for career in favorite_careers:
                 with st.expander(f"⭐ {career['title']}", expanded=False):
