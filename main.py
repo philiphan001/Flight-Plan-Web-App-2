@@ -449,9 +449,15 @@ def show_landing_page():
                 st.session_state.page = 'explore_path'
                 st.rerun()
 
-            if st.button("Explore Salary Data 💰", key="salary_explorer", help="Compare salaries across different locations and occupations"):
+            if st.button("Explore Careers 💼", key="career_discovery", 
+                        help="Browse and learn about different careers"):
+                st.session_state.page = 'career_discovery'
+                st.rerun()
+
+            if st.button("Explore Salary Data 💰", key="salary_explorer", 
+                        help="Compare salaries across different locations and occupations"):
                 st.session_state.page = 'salary_explorer'
-                st.rerun() # Added rerunning for salary explorer
+                st.rerun()
 
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -528,6 +534,9 @@ def show_landing_page():
 
     elif st.session_state.page == 'salary_explorer':
         show_salary_heatmap()
+    elif st.session_state.page == 'career_discovery':
+        from pages.career_discovery import show_career_discovery
+        show_career_discovery()
 
 
 def main():
