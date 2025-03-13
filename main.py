@@ -9,6 +9,8 @@ from models.financial_models import (
     SpouseIncome as ModelSpouseIncome
 )
 from datetime import datetime
+from services.bls_api import BLSApi # Added import
+
 
 # Set page configuration with custom theme
 st.set_page_config(
@@ -285,6 +287,130 @@ def show_education_path():
         st.session_state.selected_field = None
         st.rerun()
 
+def show_salary_heatmap():
+    st.markdown("""
+        <h1 style='font-size: 2.5rem !important;'>
+            Salary Explorer 💰
+        </h1>
+        <p class='subtitle'>
+            Compare salaries across different locations and occupations
+        </p>
+    """, unsafe_allow_html=True)
+
+    try:
+        bls_api = BLSApi()
+    except Exception as e:
+        st.error(f"Error initializing BLS API: {str(e)}")
+        return
+
+    # Create filters in the sidebar
+    st.sidebar.markdown("### Salary Explorer Filters")
+
+    # Location selection
+    st.sidebar.markdown("#### Select Locations")
+    available_locations = ["New York", "California", "Texas", "Florida", "Illinois"]  # Example locations
+    selected_locations = st.sidebar.multiselect(
+        "Choose locations to compare",
+        options=available_locations,
+        default=available_locations[:3]
+    )
+
+    # Occupation selection
+    st.sidebar.markdown("#### Select Occupations")
+    occupation_search = st.sidebar.text_input(
+        "Search for occupations",
+        placeholder="e.g., Software Developer"
+    )
+
+    if occupation_search:
+        matching_occupations = bls_api.search_occupations(occupation_search)
+        if matching_occupations:
+            selected_occupations = st.sidebar.multiselect(
+                "Choose occupations to compare",
+                options=[occ['title'] for occ in matching_occupations],
+                default=[matching_occupations[0]['title']] if matching_occupations else []
+            )
+        else:
+            st.sidebar.info("No matching occupations found")
+            return
+    else:
+        st.sidebar.info("Enter an occupation to search")
+        return
+
+    if selected_locations and selected_occupations:
+        # Create a progress bar for data loading
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+
+        try:
+            # Fetch salary data for each combination
+            salary_data = []
+            total_combinations = len(selected_locations) * len(selected_occupations)
+            current_progress = 0
+
+            for occupation in selected_occupations:
+                occupation_data = []
+                for location in selected_locations:
+                    status_text.text(f"Fetching data for {occupation} in {location}...")
+
+                    # Get occupation code
+                    occ_matches = bls_api.search_occupations(occupation, limit=1)
+                    if occ_matches:
+                        occ_code = occ_matches[0]['code']
+                        # Get salary data
+                        salary_info = bls_api.get_salary_by_location(occ_code, location)
+                        # Extract median salary (example value for now)
+                        median_salary = 75000  # Replace with actual data extraction
+                        occupation_data.append(median_salary)
+
+                    current_progress += 1
+                    progress_bar.progress(current_progress / total_combinations)
+
+                salary_data.append(occupation_data)
+
+            # Create DataFrame for the heatmap
+            df_salary = pd.DataFrame(
+                salary_data,
+                index=selected_occupations,
+                columns=selected_locations
+            )
+
+            # Clear progress indicators
+            progress_bar.empty()
+            status_text.empty()
+
+            # Display the heatmap
+            st.markdown("### Salary Distribution Heatmap")
+            FinancialPlotter.plot_salary_heatmap(
+                df_salary,
+                selected_locations,
+                selected_occupations
+            )
+
+            # Add some analysis
+            st.markdown("### Key Insights")
+
+            # Highest paying location-occupation combination
+            max_salary = df_salary.max().max()
+            max_loc = df_salary.max().idxmax()
+            max_occ = df_salary.max(axis=1).idxmax()
+
+            st.markdown(f"""
+            - Highest salary: ${max_salary:,.2f} ({max_occ} in {max_loc})
+            - Average salary across all selected combinations: ${df_salary.mean().mean():,.2f}
+            - Salary range: ${df_salary.min().min():,.2f} - ${max_salary:,.2f}
+            """)
+
+        except Exception as e:
+            st.error(f"Error fetching salary data: {str(e)}")
+            return
+
+    # Add a back button
+    if st.button("← Back to Main Menu"):
+        st.session_state.page = 'initial'
+        st.rerun()
+
+
 def show_landing_page():
     # Initialize session state for navigation
     if 'page' not in st.session_state:
@@ -322,6 +448,10 @@ def show_landing_page():
                         help="Choose this if you'd like to explore different possibilities"):
                 st.session_state.page = 'explore_path'
                 st.rerun()
+
+            if st.button("Explore Salary Data 💰", key="salary_explorer", help="Compare salaries across different locations and occupations"):
+                st.session_state.page = 'salary_explorer'
+                st.rerun() # Added rerunning for salary explorer
 
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -395,6 +525,9 @@ def show_landing_page():
             st.rerun()
     elif st.session_state.page == 'education_path':
         show_education_path()
+
+    elif st.session_state.page == 'salary_explorer':
+        show_salary_heatmap()
 
 
 def main():

@@ -2,6 +2,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 from typing import List, Dict
+import pandas as pd
+import numpy as np
 
 class FinancialPlotter:
     @staticmethod
@@ -196,3 +198,79 @@ class FinancialPlotter:
         )
 
         st.plotly_chart(fig)
+
+    @staticmethod
+    def plot_salary_heatmap(
+        salary_data: pd.DataFrame,
+        locations: List[str],
+        occupations: List[str],
+        title: str = "Salary Distribution by Location and Occupation"
+    ) -> None:
+        """
+        Create an interactive heatmap showing salary distribution across locations and occupations.
+
+        Args:
+            salary_data: DataFrame with salary values
+            locations: List of location names
+            occupations: List of occupation titles
+            title: Title for the plot
+        """
+        # Create the heatmap
+        fig = go.Figure(data=go.Heatmap(
+            z=salary_data.values,
+            x=locations,
+            y=occupations,
+            hoverongaps=False,
+            hovertemplate="Location: %{x}<br>" +
+                         "Occupation: %{y}<br>" +
+                         "Salary: $%{z:,.0f}<extra></extra>",
+            colorscale='Viridis',
+            colorbar=dict(
+                title='Annual Salary ($)',
+                titleside='right',
+                thickness=20,
+                tickformat='$,.0f'
+            )
+        ))
+
+        # Update layout
+        fig.update_layout(
+            title=dict(
+                text=title,
+                x=0.5,
+                xanchor='center'
+            ),
+            xaxis=dict(
+                title='Location',
+                tickangle=45,
+                side='bottom'
+            ),
+            yaxis=dict(
+                title='Occupation',
+                autorange='reversed'  # Reverse y-axis to match traditional heatmap layout
+            ),
+            height=600,
+            margin=dict(t=80, r=50, b=100, l=150),  # Adjust margins for better layout
+            template='plotly_white'
+        )
+
+        # Add annotations for salary values
+        annotations = []
+        for i, occupation in enumerate(occupations):
+            for j, location in enumerate(locations):
+                annotations.append(
+                    dict(
+                        text=f"${salary_data.iloc[i, j]:,.0f}",
+                        x=location,
+                        y=occupation,
+                        showarrow=False,
+                        font=dict(
+                            color='white' if salary_data.iloc[i, j] > salary_data.values.mean() else 'black',
+                            size=10
+                        )
+                    )
+                )
+        fig.update_layout(annotations=annotations)
+
+        # Display in Streamlit
+        st.plotly_chart(fig, use_container_width=True)
