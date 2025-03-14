@@ -444,6 +444,11 @@ def show_landing_page():
                 st.session_state.page = 'career_discovery'
                 st.rerun()
 
+            if st.button("Search Colleges 🔍", key="college_search",
+                        help="Search and explore educational institutions"):
+                st.session_state.page = 'college_search'
+                st.rerun()
+
             if st.button("Explore Salary Data 💰", key="salary_explorer", 
                         help="Compare salaries across different locations and occupations"):
                 st.session_state.page = 'salary_explorer'
@@ -527,7 +532,142 @@ def show_landing_page():
     elif st.session_state.page == 'career_discovery':
         from pages.career_discovery import show_career_discovery
         show_career_discovery()
+    elif st.session_state.page == 'college_search':
+        show_college_search()
 
+
+def show_college_search():
+    """Dedicated college search page"""
+    st.markdown("""
+        <h1 style='font-size: 2.5rem !important;'>
+            College Search 🔍
+        </h1>
+        <p class='subtitle'>
+            Find and explore educational institutions
+        </p>
+    """, unsafe_allow_html=True)
+
+    try:
+        from services.firebase_service import FirebaseService
+        firebase_service = FirebaseService()
+    except Exception as e:
+        st.error(f"Error initializing Firebase service: {str(e)}")
+        return
+
+    # Center the content
+    col1, col2, col3 = st.columns([1,2,1])
+
+    with col2:
+        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+
+        # Search box
+        search_term = st.text_input("🔍 Search Institutions by Name",
+                                  placeholder="Enter institution name (e.g., Harvard)")
+
+        search_button = st.button("Search")
+
+        if search_button and search_term:
+            with st.spinner("Searching..."):
+                matching_institutions = firebase_service.search_institutions_by_name(search_term)
+
+                if matching_institutions:
+                    st.success(f"Found {len(matching_institutions)} matching institutions")
+
+                    # Display results in a clean format
+                    for inst in matching_institutions:
+                        st.markdown(f"""
+                        <div style='padding: 15px; border-radius: 10px; background-color: white; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                            <h3>{inst['name']} 🏛️</h3>
+                            <p>📍 {inst['city']}, {inst['state']}</p>
+                            <p>💰 In-State Tuition: ${inst.get('in_state_tuition', 'N/A'):,}</p>
+                            <p>📊 Admission Rate: {inst.get('admission_rate', 0)*100:.1f}%</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info("No matching institutions found. Try a different search term.")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Add a back button
+    if st.button("← Back to Main Menu"):
+        st.session_state.page = 'initial'
+        st.rerun()
+
+
+
+def show_known_path():
+    st.markdown("""
+        <h1 style='font-size: 2.5rem !important;'>
+            Great Choice! What's Your Plan? 🎯
+        </h1>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([1,1])
+
+    with col1:
+        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+        if st.button("Continue My Education 📚", key="education"):
+            st.session_state.path_chosen = 'education'
+            st.session_state.page = 'education_path'
+            st.rerun()
+
+        if st.button("Join the Military 🎖️", key="military"):
+            st.session_state.path_chosen = 'military'
+            st.session_state.page = 'military_path'
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+        if st.button("Get a Job 💼", key="job"):
+            st.session_state.path_chosen = 'job'
+            st.session_state.page = 'job_path'
+            st.rerun()
+
+        if st.button("Take a Gap Year 🌎", key="gap_year"):
+            st.session_state.path_chosen = 'gap_year'
+            st.session_state.page = 'gap_year_path'
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Add a back button
+    if st.button("← Back to Main Menu"):
+        st.session_state.page = 'initial'
+        st.rerun()
+
+
+def show_explore_path():
+    st.markdown("""
+        <h1 style='font-size: 2.5rem !important;'>
+            Let's Discover Your Interests! 🌟
+        </h1>
+        <p class='subtitle'>
+            We'll help you explore different paths through fun activities
+        </p>
+    """, unsafe_allow_html=True)
+
+    # Import and run the interest quiz
+    from quiz.interest_quiz import run_quiz
+    run_quiz()
+
+    # Add a back button
+    if st.button("← Back to Main Menu"):
+        # Reset quiz state when going back
+        if 'quiz' in st.session_state:
+            del st.session_state['quiz']
+        if 'current_question' in st.session_state:
+            del st.session_state['current_question']
+        if 'selected_traits' in st.session_state:
+            del st.session_state['selected_traits']
+        if 'quiz_completed' in st.session_state:
+            del st.session_state['quiz_completed']
+
+        st.session_state.page = 'initial'
+        st.rerun()
+
+def show_career_discovery():
+    from pages.career_discovery import show_career_discovery
+    show_career_discovery()
 
 
 def main():
@@ -835,7 +975,7 @@ def main():
                             ]
 
                             if matching_spouse_occupations:
-                                for occ in matchingspouse_occupations:
+                                for occ in matching_spouse_occupations:
                                     is_selected = st.session_state.selected_spouse_occupation == occ
                                     if st.sidebar.button(
                                         occ,
