@@ -29,9 +29,25 @@ def init_firebase():
                     st.error(f"Firebase credentials missing required fields: {', '.join(missing_fields)}")
                     return None
 
+                # Fix private key formatting
+                if 'private_key' in cred_dict:
+                    cred_dict['private_key'] = cred_dict['private_key'].replace('\\n', '\n')
+
                 # Log non-sensitive credential info for debugging
                 st.info(f"Firebase credentials loaded with keys: {', '.join(cred_dict.keys())}")
-                st.info(f"Initializing Firebase for project: {cred_dict.get('project_id')}")
+                st.info(f"Project ID: {cred_dict.get('project_id')}")
+                st.info(f"Client Email: {cred_dict.get('client_email')}")
+
+                # Extra validation for OAuth2 fields
+                oauth2_fields = ['client_id', 'auth_uri', 'token_uri', 'auth_provider_x509_cert_url', 'client_x509_cert_url']
+                missing_oauth2 = [field for field in oauth2_fields if field not in cred_dict]
+                if missing_oauth2:
+                    st.warning(f"Some optional OAuth2 fields are missing: {', '.join(missing_oauth2)}")
+
+                # Verify credential type
+                if cred_dict.get('type') != 'service_account':
+                    st.error("Invalid credential type. Must be 'service_account'")
+                    return None
 
                 cred = credentials.Certificate(cred_dict)
                 return firebase_admin.initialize_app(cred, name='educational-institutions')
