@@ -61,20 +61,37 @@ try:
         db = firestore.client(app=firebase_app)
 
         # Sidebar filters
-        st.sidebar.header("Filters")
+        st.sidebar.header("Search & Filters")
+
+        # Search box in sidebar
+        search_term = st.sidebar.text_input("🔍 Search Institutions by Name")
 
         # Get all states for filter
         states_query = db.collection('institutions').select(['state']).stream()
         states = sorted(list(set(doc.to_dict().get('state') for doc in states_query if doc.to_dict().get('state'))))
 
         # State filter
-        selected_state = st.sidebar.selectbox("Select State", ["All States"] + states)
+        selected_state = st.sidebar.selectbox("📍 Filter by State", ["All States"] + states)
 
-        # Get data based on filters
-        if selected_state == "All States":
-            query = db.collection('institutions').limit(100)
-        else:
-            query = db.collection('institutions').where('state', '==', selected_state)
+        # Initialize query based on filters
+        query = db.collection('institutions')
+
+        # Apply state filter if selected
+        if selected_state != "All States":
+            query = query.where('state', '==', selected_state)
+            st.sidebar.info(f"Showing institutions in {selected_state}")
+
+        # Apply search if entered
+        if search_term:
+            query = query.order_by('name').start_at({
+                'name': search_term
+            }).end_at({
+                'name': search_term + '\uf8ff'
+            })
+            st.sidebar.info(f"Searching for: {search_term}")
+
+        # Limit results for performance
+        query = query.limit(100)
 
         # Execute query
         docs = list(query.stream())
@@ -98,27 +115,8 @@ try:
                 st.header("Gender Distribution")
                 st.bar_chart(df[['men', 'women']].mean())
         else:
-            st.write("No data found for the selected filters.")
-
-        # Search functionality
-        st.header("Search Institutions")
-        search_term = st.text_input("Enter institution name:")
-
-        if search_term:
-            # Firestore search
-            results = db.collection('institutions').order_by('name').start_at({
-                'name': search_term
-            }).end_at({
-                'name': search_term + '\uf8ff'
-            }).stream()
-
-            search_data = [doc.to_dict() for doc in results]
-            if search_data:
-                search_df = pd.DataFrame(search_data)
-                search_df = search_df[search_df.columns.intersection(COLUMNS)]
-                st.dataframe(search_df[['name', 'city', 'state']])
-            else:
-                st.write("No matching institutions found.")
+            st.info("No institutions found matching your search criteria")
+            st.sidebar.warning("Try adjusting your filters or search terms")
 
     else:
         st.error("Firebase is not initialized. Please check your credentials and try again.")
