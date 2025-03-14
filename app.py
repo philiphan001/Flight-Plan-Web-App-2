@@ -59,11 +59,9 @@ search_term = st.text_input("Search for an institution:")
 if search_term:
     results = query_data(
         """
-        SELECT i.unitid, i.name, i.city, i.state, 
-               d.men, d.women
-        FROM institutions i
-        LEFT JOIN demographics d ON i.unitid = d.unitid
-        WHERE i.name ILIKE :search
+        SELECT unitid, name, city, state
+        FROM institutions
+        WHERE name ILIKE :search
         LIMIT 10
         """,
         {"search": f"%{search_term}%"}
