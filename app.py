@@ -111,8 +111,20 @@ def init_firebase():
         st.error(f"Error in Firebase initialization: {str(e)}")
         return None
 
-# App title
+# App title and description
 st.title("Educational Institutions Explorer")
+
+# Create navigation links for financial projections
+st.sidebar.title("📊 Financial Projections")
+st.sidebar.markdown("""
+### Explore Financial Tools
+- [Career Salary Projections](/Career_Salary_Projections)
+- [Student Loan Calculator](/Student_Loan_Calculator)
+- [ROI Analysis by Major](/ROI_Analysis)
+- [Cost Comparison Tool](/Cost_Comparison)
+""")
+
+st.sidebar.markdown("---")  # Add a visual separator
 
 try:
     # Initialize Firebase
