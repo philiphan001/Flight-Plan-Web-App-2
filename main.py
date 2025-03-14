@@ -130,6 +130,28 @@ st.markdown("""
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
+        .results-container {
+            height: 600px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .results-container::-webkit-scrollbar {
+            width: 12px;
+        }
+        .results-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .results-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .results-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -545,6 +567,30 @@ def show_college_search():
         <p class='subtitle'>
             Find and explore educational institutions
         </p>
+        <style>
+            .results-container {
+                height: 600px;
+                overflow-y: auto;
+                padding: 10px;
+                background-color: #f8f9fa;
+                border-radius: 10px;
+                margin: 10px 0;
+            }
+            .results-container::-webkit-scrollbar {
+                width: 12px;
+            }
+            .results-container::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 10px;
+            }
+            .results-container::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 10px;
+            }
+            .results-container::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
+        </style>
     """, unsafe_allow_html=True)
 
     try:
@@ -588,7 +634,6 @@ def show_college_search():
     with results_col:
         if search_button:
             with st.spinner("Searching..."):
-                # Get institutions based on search and filters
                 if search_term:
                     # Search by name first
                     matching_institutions = firebase_service.search_institutions_by_name(search_term)
@@ -621,9 +666,12 @@ def show_college_search():
                                 filtered_institutions.append(inst)
                     matching_institutions = filtered_institutions
 
-                # Display results
+                # Display results in scrollable container
                 if matching_institutions:
                     st.success(f"Found {len(matching_institutions)} matching institutions")
+
+                    # Start scrollable container
+                    st.markdown('<div class="results-container">', unsafe_allow_html=True)
 
                     for inst in matching_institutions:
                         # Calculate gender ratio if available
@@ -651,6 +699,9 @@ def show_college_search():
                             <p>{gender_ratio_text}</p>
                         </div>
                         """, unsafe_allow_html=True)
+
+                    # End scrollable container
+                    st.markdown('</div>', unsafe_allow_html=True)
                 else:
                     st.info("No institutions found matching your criteria")
 
