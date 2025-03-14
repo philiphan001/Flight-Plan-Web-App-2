@@ -554,46 +554,104 @@ def show_college_search():
         st.error(f"Error initializing Firebase service: {str(e)}")
         return
 
-    # Center the content
-    col1, col2, col3 = st.columns([1,2,1])
+    # Get states for filtering
+    states = firebase_service.get_institution_states()
 
-    with col2:
+    # Create two columns for search/filters and results
+    search_col, results_col = st.columns([1, 2])
+
+    with search_col:
+        st.markdown("### Search & Filters")
         st.markdown('<div class="choice-card">', unsafe_allow_html=True)
 
         # Search box
-        search_term = st.text_input("🔍 Search Institutions by Name",
+        search_term = st.text_input("🔍 Institution Name",
                                   placeholder="Enter institution name (e.g., Harvard)")
 
-        search_button = st.button("Search")
+        # State filter
+        selected_state = st.selectbox(
+            "📍 Filter by State",
+            ["All States"] + states if states else ["All States"]
+        )
 
-        if search_button and search_term:
+        # Gender ratio filter
+        gender_filter = st.selectbox(
+            "👥 Gender Ratio",
+            ["No Filter", "Women > 50%", "Men > 50%"]
+        )
+
+        # Search button
+        search_button = st.button("🔍 Search & Apply Filters")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with results_col:
+        if search_button:
             with st.spinner("Searching..."):
-                matching_institutions = firebase_service.search_institutions_by_name(search_term)
+                # Get institutions based on search and filters
+                institutions = []
 
+                if search_term:
+                    # Search by name first
+                    matching_institutions = firebase_service.search_institutions_by_name(search_term)
+
+                    # Apply state filter if selected
+                    if selected_state != "All States":
+                        matching_institutions = [
+                            inst for inst in matching_institutions
+                            if inst.get('state') == selected_state
+                        ]
+                else:
+                    # If no search term, get institutions by state
+                    if selected_state != "All States":
+                        matching_institutions = firebase_service.get_institutions_by_state(selected_state)
+                    else:
+                        matching_institutions = []
+                        st.info("Please enter a search term or select a state")
+
+                # Apply gender ratio filter
+                if matching_institutions and gender_filter != "No Filter":
+                    filtered_institutions = []
+                    for inst in matching_institutions:
+                        men = float(inst.get('men', 0))
+                        women = float(inst.get('women', 0))
+                        total = men + women
+                        if total > 0:
+                            women_ratio = women / total
+                            if (gender_filter == "Women > 50%" and women_ratio > 0.5) or \
+                               (gender_filter == "Men > 50%" and women_ratio < 0.5):
+                                filtered_institutions.append(inst)
+                    matching_institutions = filtered_institutions
+
+                # Display results
                 if matching_institutions:
                     st.success(f"Found {len(matching_institutions)} matching institutions")
 
-                    # Display results in a clean format
                     for inst in matching_institutions:
+                        # Calculate gender ratio if available
+                        gender_ratio_text = ""
+                        if 'men' in inst and 'women' in inst:
+                            total = float(inst['men'] + inst['women'])
+                            if total > 0:
+                                women_ratio = (float(inst['women']) / total) * 100
+                                gender_ratio_text = f"👥 Women: {women_ratio:.1f}%"
+
                         st.markdown(f"""
                         <div style='padding: 15px; border-radius: 10px; background-color: white; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
                             <h3>{inst['name']} 🏛️</h3>
                             <p>📍 {inst['city']}, {inst['state']}</p>
                             <p>💰 In-State Tuition: ${inst.get('in_state_tuition', 'N/A'):,}</p>
                             <p>📊 Admission Rate: {inst.get('admission_rate', 0)*100:.1f}%</p>
+                            <p>{gender_ratio_text}</p>
                         </div>
                         """, unsafe_allow_html=True)
                 else:
-                    st.info("No matching institutions found. Try a different search term.")
-
-        st.markdown("</div>", unsafe_allow_html=True)
+                    st.info("No institutions found matching your criteria")
 
     # Add a back button
     if st.button("← Back to Main Menu"):
         st.session_state.page = 'initial'
         st.rerun()
-
-
 
 def show_known_path():
     st.markdown("""
@@ -788,7 +846,7 @@ def main():
                         st.session_state.selected_occupation = occ
                         st.rerun()
 
-        # Only proceed if both selections are valid
+        # Onlyproceed if both selections are valid
         if st.session_state.selected_location and st.session_state.selected_occupation:
             # Investment return rate slider
             investment_return_rate = st.sidebar.slider(
