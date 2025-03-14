@@ -166,26 +166,30 @@ def main():
         st.header("Summary Statistics")
         col1, col2, col3 = st.columns(3)
 
-        with col1:
-            st.metric("Total Institutions", len(df['name'].unique()))
-        with col2:
-            st.metric("States Represented", len(df['state'].unique()))
-        with col3:
-            avg_tuition = df['tuition_in_state'].mean()
-            st.metric("Avg In-State Tuition", f"${avg_tuition:,.2f}" if pd.notnull(avg_tuition) else "N/A")
+        # Check if DataFrame is empty
+        if df.empty:
+            st.warning("No data found with the current filters. Try adjusting your search criteria.")
+        else:
+            with col1:
+                st.metric("Total Institutions", df['name'].nunique())
+            with col2:
+                st.metric("States Represented", df['state'].nunique())
+            with col3:
+                avg_tuition = df['tuition_in_state'].mean()
+                st.metric("Avg In-State Tuition", f"${avg_tuition:,.2f}" if pd.notnull(avg_tuition) else "N/A")
 
-        # Display the data
-        st.header("Institutions Data")
-        st.dataframe(df)
+            # Display the data
+            st.header("Institutions Data")
+            st.dataframe(df)
 
-        # Add download button
-        csv = df.to_csv(index=False)
-        st.download_button(
-            label="Download data as CSV",
-            data=csv,
-            file_name="educational_institutions.csv",
-            mime="text/csv",
-        )
+            # Add download button
+            csv = df.to_csv(index=False)
+            st.download_button(
+                label="Download data as CSV",
+                data=csv,
+                file_name="educational_institutions.csv",
+                mime="text/csv",
+            )
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
