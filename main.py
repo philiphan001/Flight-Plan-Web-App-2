@@ -10,7 +10,7 @@ from models.financial_models import (
 )
 from datetime import datetime
 from services.bls_api import BLSApi # Added import
-from pages.database_explorer import show_database_explorer
+
 
 # Set page configuration with custom theme
 st.set_page_config(
@@ -458,11 +458,6 @@ def show_landing_page():
                         help="Compare salaries across different locations and occupations"):
                 st.session_state.page = 'salary_explorer'
                 st.rerun()
-            
-            if st.button("Educational Database Explorer 🎓", key="database_explorer", 
-                        help="Explore and search educational institutions"):
-                st.session_state.page = 'database_explorer'
-                st.rerun()
 
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -542,8 +537,6 @@ def show_landing_page():
     elif st.session_state.page == 'career_discovery':
         from pages.career_discovery import show_career_discovery
         show_career_discovery()
-    elif st.session_state.page == 'database_explorer':
-        show_database_explorer()
 
 
 def main():
