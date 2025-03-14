@@ -133,7 +133,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Update the show_education_path function to use the College Scorecard API
+# Update the show_education_path function to use the new Firebase service
 def show_education_path():
     st.markdown("""
         <h1 style='font-size: 2.5rem !important;'>
@@ -144,21 +144,13 @@ def show_education_path():
         </p>
     """, unsafe_allow_html=True)
 
-    # Initialize College Scorecard API
+    # Initialize Firebase service
     try:
-        from services.college_scorecard import CollegeScorecardAPI
-        college_api = CollegeScorecardAPI()
+        from services.firebase_service import FirebaseService
+        firebase_service = FirebaseService()
     except Exception as e:
-        st.error(f"Error initializing College Scorecard API: {str(e)}")
+        st.error(f"Error initializing Firebase service: {str(e)}")
         return
-
-    # Initialize session state
-    if 'selected_institution_type' not in st.session_state:
-        st.session_state.selected_institution_type = None
-    if 'selected_institution' not in st.session_state:
-        st.session_state.selected_institution = None
-    if 'selected_field' not in st.session_state:
-        st.session_state.selected_field = None
 
     # Center the content
     col1, col2, col3 = st.columns([1,2,1])
@@ -189,75 +181,73 @@ def show_education_path():
             key="institution_input"
         )
 
-        # Clear selection if user starts typing something new
-        if (st.session_state.selected_institution and 
-            institution_input != (st.session_state.selected_institution['name'] if isinstance(st.session_state.selected_institution, dict) else "")):
-            st.session_state.selected_institution = None
+        search_button = st.button("Search Institution")
 
-        if institution_input and not st.session_state.selected_institution:
-            # Get school type parameter for API
-            school_type = college_api.get_school_type_param(institution_type)
+        if search_button and institution_input:
+            with st.spinner("Searching..."):
+                matching_institutions = firebase_service.search_institutions_by_name(institution_input)
 
-            # Search colleges using the API
-            matching_institutions = college_api.search_colleges(
-                query=institution_input,
-                school_type=school_type,
-                limit=5
-            )
+                if matching_institutions:
+                    st.success(f"Found {len(matching_institutions)} matching institutions")
 
-            if matching_institutions:
-                st.markdown("#### Select your institution:")
-                for inst in matching_institutions:
-                    # Create a formatted button label with college details
-                    label = (f"🏛️ {inst['name']}\n"
-                            f"📍 {inst['city']}, {inst['state']}\n"
-                            f"💰 In-State: ${inst['in_state_tuition']:,}" if inst['in_state_tuition'] != 'N/A' else 'N/A')
+                    for inst in matching_institutions:
+                        # Create a formatted button label with college details
+                        label = (f"🏛️ {inst['name']}\n"
+                                f"📍 {inst['city']}, {inst['state']}\n"
+                                f"💰 In-State: ${inst.get('in_state_tuition', 'N/A'):,}" 
+                                if isinstance(inst.get('in_state_tuition'), (int, float)) 
+                                else f"💰 In-State: N/A")
 
-                    if st.button(label, key=f"inst_{inst['name']}"):
-                        st.session_state.selected_institution = inst
-                        st.rerun()
-            else:
-                st.info("No matching institutions found. Try a different search term.")
+                        if st.button(label, key=f"inst_{inst['name']}"):
+                            st.session_state.selected_institution = inst
+                            st.rerun()
+                else:
+                    st.info("No matching institutions found. Try a different search term.")
 
         # Show selected institution details
         if isinstance(st.session_state.selected_institution, dict):
             st.markdown("### Selected Institution Details")
             inst = st.session_state.selected_institution
+
+            # Display institution details
             st.markdown(f"""
                 **{inst['name']}**  
                 Location: {inst['city']}, {inst['state']}  
-                In-State Tuition: ${inst['in_state_tuition']:,}  
-                Out-of-State Tuition: ${inst['out_state_tuition']:,}  
-                Admission Rate: {inst['admission_rate']*100:.1f}%
+                In-State Tuition: ${inst.get('in_state_tuition', 'N/A'):,}  
+                Out-of-State Tuition: ${inst.get('out_state_tuition', 'N/A'):,}  
+                Admission Rate: {inst.get('admission_rate', 0)*100:.1f}%
             """)
 
-            # Fields of study
+            # Field of study selection
             st.markdown("### Choose Your Field of Study 📚")
             fields_of_study = inst.get('programs', [])
 
-            field_input = st.text_input(
-                "Search for your field of study",
-                value=st.session_state.selected_field if st.session_state.selected_field else "",
-                key="field_input"
-            )
+            if fields_of_study:
+                field_input = st.text_input(
+                    "Search for your field of study",
+                    value=st.session_state.selected_field if st.session_state.selected_field else "",
+                    key="field_input"
+                )
 
-            # Clear selection if user starts typing something new
-            if (st.session_state.selected_field and 
-                field_input != st.session_state.selected_field):
-                st.session_state.selected_field = None
+                # Clear selection if user starts typing something new
+                if (st.session_state.selected_field and 
+                    field_input != st.session_state.selected_field):
+                    st.session_state.selected_field = None
 
-            if field_input and not st.session_state.selected_field:
-                matching_fields = [
-                    field for field in fields_of_study 
-                    if field_input.lower() in field['title'].lower()
-                ]
+                if field_input and not st.session_state.selected_field:
+                    matching_fields = [
+                        field for field in fields_of_study 
+                        if field_input.lower() in field['title'].lower()
+                    ]
 
-                if matching_fields:
-                    st.markdown("#### Select your field:")
-                    for field in matching_fields:
-                        if st.button(f"📚 {field['title']}", key=f"field_{field['title']}"):
-                            st.session_state.selected_field = field['title']
-                            st.rerun()
+                    if matching_fields:
+                        st.markdown("#### Select your field:")
+                        for field in matching_fields:
+                            if st.button(f"📚 {field['title']}", key=f"field_{field['title']}"):
+                                st.session_state.selected_field = field['title']
+                                st.rerun()
+            else:
+                st.info("No fields of study information available for this institution")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -537,6 +527,7 @@ def show_landing_page():
     elif st.session_state.page == 'career_discovery':
         from pages.career_discovery import show_career_discovery
         show_career_discovery()
+
 
 
 def main():
@@ -844,7 +835,7 @@ def main():
                             ]
 
                             if matching_spouse_occupations:
-                                for occ in matching_spouse_occupations:
+                                for occ in matchingspouse_occupations:
                                     is_selected = st.session_state.selected_spouse_occupation == occ
                                     if st.sidebar.button(
                                         occ,
