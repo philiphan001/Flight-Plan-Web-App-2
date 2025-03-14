@@ -5,75 +5,68 @@ from firebase_admin import credentials, firestore
 import os
 import json
 
-# Initialize Firebase with proper error handling
 def init_firebase():
     try:
-        # Clean up any existing app first
+        # Clean up existing default app if it exists
         try:
-            existing_app = firebase_admin.get_app('educational-institutions')
-            firebase_admin.delete_app(existing_app)
+            default_app = firebase_admin.get_app()
+            firebase_admin.delete_app(default_app)
         except ValueError:
-            pass  # App doesn't exist, which is fine
+            # No default app exists
+            pass
 
-        # Now create new app
+        # Get credentials from environment
         cred_json = os.environ.get('FIREBASE_CREDENTIALS')
         if not cred_json:
             st.error("Firebase credentials not found in environment variables")
             return None
 
-        try:
-            cred_dict = json.loads(cred_json)
-            cred = credentials.Certificate(cred_dict)
-            firebase_app = firebase_admin.initialize_app(cred, name='educational-institutions')
-            st.success(f"Firebase initialized successfully for project: {cred_dict['project_id']}")
-            return firebase_app
+        # Initialize Firebase with default app
+        cred_dict = json.loads(cred_json)
+        cred = credentials.Certificate(cred_dict)
+        firebase_app = firebase_admin.initialize_app(cred)
+        st.success(f"Firebase initialized successfully for project: {cred_dict['project_id']}")
+        return firebase_app
 
-        except Exception as e:
-            st.error(f"Failed to initialize Firebase: {str(e)}")
-            return None
     except Exception as e:
-        st.error(f"Error accessing Firebase: {str(e)}")
+        st.error(f"Error in Firebase initialization: {str(e)}")
         return None
-
-# Initialize Firebase
-firebase_app = init_firebase()
 
 # App title
 st.title("Educational Institutions Explorer")
 
 try:
+    # Initialize Firebase
+    firebase_app = init_firebase()
+
     if firebase_app:
         # Initialize Firestore client
-        db = firestore.client(app=firebase_app)
+        db = firestore.client()
         st.success("Connected to Firestore database")
 
-        # Debug: Check if collection exists
+        # Sidebar filters
+        st.sidebar.header("Search & Filters")
+
+        # Search box in sidebar
+        search_term = st.sidebar.text_input("🔍 Search Institutions by Name")
+
+        # Check if collection exists and has data
         collection_ref = db.collection('institutions')
-        st.info("Attempting to access institutions collection...")
-
-        # Test query to check data
         test_docs = list(collection_ref.limit(1).stream())
+
         if not test_docs:
-            st.warning("No data found in the institutions collection. The database appears to be empty.")
-            st.info("Please add some data to the institutions collection in Firebase.")
+            st.warning("No data found in the institutions collection. Please add some data to Firebase first.")
         else:
-            st.success(f"Successfully accessed institutions collection. Found data.")
-
-            # Sidebar filters
-            st.sidebar.header("Search & Filters")
-
-            # Search box in sidebar
-            search_term = st.sidebar.text_input("🔍 Search Institutions by Name")
-
             # Get unique states
-            states = []
             states_query = collection_ref.select(['state']).stream()
+            states = []
             for doc in states_query:
                 state = doc.to_dict().get('state')
                 if state:
                     states.append(state)
 
             states = sorted(list(set(states)))
+
             if states:
                 st.success(f"Found {len(states)} states in the database")
 
@@ -81,12 +74,21 @@ try:
                 selected_state = st.sidebar.selectbox("📍 Filter by State", ["All States"] + states)
 
                 # Build query
+                query = collection_ref
                 if selected_state != "All States":
-                    docs = list(collection_ref.where('state', '==', selected_state).limit(100).stream())
-                else:
-                    docs = list(collection_ref.limit(100).stream())
+                    query = query.where('state', '==', selected_state)
 
-                # Process results
+                # Apply search if entered
+                if search_term:
+                    query = query.order_by('name').start_at({
+                        'name': search_term
+                    }).end_at({
+                        'name': search_term + '\uf8ff'
+                    })
+
+                # Execute query
+                docs = list(query.limit(100).stream())
+
                 if docs:
                     institutions = [doc.to_dict() for doc in docs]
                     df = pd.DataFrame(institutions)
@@ -110,5 +112,4 @@ except Exception as e:
     st.error(f"Application error: {str(e)}")
     st.exception(e)
 
-# Columns we expect in our data
-COLUMNS = ['id', 'name', 'city', 'state', 'men', 'women', 'roomboard_oncampus']
+# COLUMNS = ['id', 'name', 'city', 'state', 'men', 'women', 'roomboard_oncampus'] #This line is not needed here.
