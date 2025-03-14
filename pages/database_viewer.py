@@ -1,17 +1,47 @@
 import streamlit as st
 import pandas as pd
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, pool
 from sqlalchemy.orm import sessionmaker
 import os
 from models.database import Institution, Program, AdmissionDetail
+from sqlalchemy.exc import OperationalError
+import time
 
 def init_connection():
     database_url = os.environ.get('DATABASE_URL')
     if not database_url:
         raise ValueError("DATABASE_URL environment variable is not set")
+
+    # Handle special case for postgresql:// URLs
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
-    return create_engine(database_url)
+
+    # Add SSL requirements and connection pooling
+    if '?' not in database_url:
+        database_url += '?'
+    if 'sslmode=' not in database_url:
+        database_url += '&sslmode=require'
+
+    # Create engine with connection pooling
+    return create_engine(
+        database_url,
+        poolclass=pool.QueuePool,
+        pool_size=5,
+        max_overflow=10,
+        pool_timeout=30,
+        pool_recycle=1800  # Recycle connections after 30 minutes
+    )
+
+def get_data_with_retry(engine, filters=None, sort_by=None, sort_ascending=True, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return get_data(engine, filters, sort_by, sort_ascending)
+        except OperationalError as e:
+            if attempt == max_retries - 1:  # Last attempt
+                raise
+            time.sleep(1 * (attempt + 1))  # Exponential backoff
+            st.warning(f"Retrying database connection (attempt {attempt + 2}/{max_retries})...")
+            continue
 
 def get_data(engine, filters=None, sort_by=None, sort_ascending=True):
     Session = sessionmaker(bind=engine)
@@ -85,27 +115,29 @@ def main():
         # Get unique values for filter options
         Session = sessionmaker(bind=engine)
         session = Session()
-        institution_types = [r[0] for r in session.query(Institution.institution_type).distinct()]
-        states = [r[0] for r in session.query(Institution.state).distinct()]
-        degree_levels = [r[0] for r in session.query(Program.degree_level).distinct()]
-        session.close()
+        try:
+            institution_types = [r[0] for r in session.query(Institution.institution_type).distinct()]
+            states = [r[0] for r in session.query(Institution.state).distinct()]
+            degree_levels = [r[0] for r in session.query(Program.degree_level).distinct()]
+        finally:
+            session.close()
 
         # Filter inputs
         selected_type = st.sidebar.selectbox(
             "Institution Type",
-            ["All"] + institution_types if institution_types else ["All"],
+            ["All"] + (institution_types if institution_types else ["All"]),
             index=0
         )
 
         selected_state = st.sidebar.selectbox(
             "State",
-            ["All"] + states if states else ["All"],
+            ["All"] + (states if states else ["All"]),
             index=0
         )
 
         selected_degree = st.sidebar.selectbox(
             "Degree Level",
-            ["All"] + degree_levels if degree_levels else ["All"],
+            ["All"] + (degree_levels if degree_levels else ["All"]),
             index=0
         )
 
@@ -127,8 +159,8 @@ def main():
         sort_by = st.sidebar.selectbox("Sort by", sort_columns)
         sort_ascending = st.sidebar.checkbox("Ascending order", value=True)
 
-        # Get and display data
-        df = get_data(engine, filters, sort_by, sort_ascending)
+        # Get and display data with retry mechanism
+        df = get_data_with_retry(engine, filters, sort_by, sort_ascending)
 
         # Display summary statistics
         st.header("Summary Statistics")
@@ -157,6 +189,7 @@ def main():
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
+        st.error("Please try refreshing the page. If the problem persists, contact support.")
 
 if __name__ == "__main__":
     main()
