@@ -1,56 +1,75 @@
 import streamlit as st
 import pandas as pd
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+import os
+import json
 
-# Database connection parameters
-conn_params = {
-    'dbname': 'educational_institutions',
-    'user': 'postgres',
-    'password': 'Bobbib00$',
-    'host': 'localhost',
-    'port': '5432'
-}
+# Initialize Firebase (if not already initialized)
+if not firebase_admin._apps:
+    # Get credentials from Replit secrets
+    cred_dict = json.loads(os.environ['FIREBASE_CREDENTIALS'])
+    cred = credentials.Certificate(cred_dict)
+    firebase_admin.initialize_app(cred)
 
-# Create a connection function
-def get_connection():
-    conn = psycopg2.connect(**conn_params)
-    return conn
+db = firestore.client()
 
-# Example query function
-def query_data(sql):
-    conn = get_connection()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(sql)
-            data = cur.fetchall()
-            return data
-    finally:
-        conn.close()
+# App title
+st.title("Educational Institutions Explorer")
 
-# Streamlit app
-st.title("Educational Institutions Database Explorer")
+# Sidebar filters
+st.sidebar.header("Filters")
 
-# Example: Query and display institutions
-st.header("Institutions by State")
-state_data = query_data("""
-    SELECT state, COUNT(*) as count 
-    FROM institutions 
-    GROUP BY state 
-    ORDER BY count DESC
-""")
-st.table(pd.DataFrame(state_data))
+# Get all states for filter
+states_query = db.collection('institutions').select(['state']).stream()
+states = sorted(list(set(doc.to_dict().get('state') for doc in states_query if doc.to_dict().get('state'))))
 
-# Another example: Search for institutions
-search_term = st.text_input("Search for an institution:")
-if search_term:
-    results = query_data(f"""
-        SELECT i.unitid, i.name, i.city, i.state, 
-               d.men, d.women
-        FROM institutions i
-        LEFT JOIN demographics d ON i.unitid = d.unitid
-        WHERE i.name ILIKE '%{search_term}%'
-        LIMIT 10
-    """)
-    st.table(pd.DataFrame(results))
+# State filter
+selected_state = st.sidebar.selectbox("Select State", ["All States"] + states)
+
+# Get data based on filters
+if selected_state == "All States":
+    query = db.collection('institutions').limit(100)  # Limit for performance
+else:
+    query = db.collection('institutions').where('state', '==', selected_state)
+
+# Execute query and convert to DataFrame
+docs = list(query.stream())
+institutions = [doc.to_dict() for doc in docs]
+df = pd.DataFrame(institutions)
+
+if not df.empty:
+    # Display count
+    st.write(f"Showing {len(df)} institutions")
     
+    # Display data table
+    st.dataframe(df[['name', 'city', 'state', 'men', 'women', 'roomboard_oncampus']])
+    
+    # Add more visualizations as needed
+    if len(df) > 0 and 'men' in df.columns and 'women' in df.columns:
+        st.header("Gender Distribution")
+        st.bar_chart(df[['men', 'women']].mean())
+else:
+    st.write("No data found for the selected filters.")
+
+# Search functionality
+st.header("Search Institutions")
+search_term = st.text_input("Enter institution name:")
+
+if search_term:
+    # Firestore doesn't support LIKE queries natively, so we use a workaround
+    # This gets documents where the name field starts with the search term
+    results = db.collection('institutions').order_by('name').start_at({
+        'name': search_term
+    }).end_at({
+        'name': search_term + '\uf8ff'  # High Unicode character
+    }).stream()
+    
+    search_data = [doc.to_dict() for doc in results]
+    search_df = pd.DataFrame(search_data)
+    
+    if not search_df.empty:
+        st.dataframe(search_df[['name', 'city', 'state']])
+    else:
+        st.write("No matching institutions found.")
