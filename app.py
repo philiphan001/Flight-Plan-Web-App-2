@@ -50,6 +50,42 @@ def string_similarity(search_term, institution_name):
 
     return max_word_ratio
 
+def search_institutions(search_term, docs):
+    """Search institutions with enhanced matching and known institution handling"""
+    search_results = []
+    search_term_lower = search_term.lower()
+
+    # Create a list of well-known institutions for exact matching
+    well_known_prefixes = [
+        "harvard", "yale", "stanford", "princeton", "mit", 
+        "caltech", "berkeley", "columbia", "brown", "dartmouth"
+    ]
+
+    for doc in docs:
+        data = doc.to_dict()
+        name = data.get('name', '')
+        if name:
+            name_lower = name.lower()
+            similarity = 0.0
+
+            # Check for well-known institution matches first
+            if any(prefix in name_lower for prefix in well_known_prefixes):
+                if search_term_lower in name_lower:
+                    similarity = 1.0
+                elif any(prefix.startswith(search_term_lower) for prefix in well_known_prefixes):
+                    similarity = 0.95
+
+            # If no well-known match, use general similarity
+            if similarity == 0.0:
+                similarity = string_similarity(search_term, name)
+
+            if similarity > 0.2:  # Only include reasonably good matches
+                search_results.append((similarity, data))
+
+    # Sort by similarity score and take top 5
+    search_results.sort(reverse=True, key=lambda x: x[0])
+    return [data for score, data in search_results[:5]]
+
 def init_firebase():
     try:
         # Clean up existing default app if it exists
@@ -116,35 +152,24 @@ try:
                     search_button = st.button("Search")
 
                     if search_button and search_term:
-                        # Get all documents for searching
-                        all_docs = list(collection_ref.stream())
-                        search_results = []
+                        with st.spinner("Searching..."):
+                            # Get all documents for searching
+                            all_docs = list(collection_ref.stream())
+                            top_results = search_institutions(search_term, all_docs)
 
-                        # Score each institution based on enhanced name similarity
-                        for doc in all_docs:
-                            data = doc.to_dict()
-                            name = data.get('name', '')
-                            if name:
-                                similarity = string_similarity(search_term, name)
-                                search_results.append((similarity, data))
-
-                        # Sort by similarity score and take top 5
-                        search_results.sort(reverse=True, key=lambda x: x[0])
-                        top_results = [data for score, data in search_results[:5]]
-
-                        if top_results:
-                            st.success(f"Found {len(top_results)} matching institutions")
-                            df = pd.DataFrame(top_results)
-                            st.dataframe(
-                                df[['name', 'state', 'city']],
-                                column_config={
-                                    "name": "Institution Name",
-                                    "state": "State",
-                                    "city": "City"
-                                }
-                            )
-                        else:
-                            st.info("No matching institutions found")
+                            if top_results:
+                                st.success(f"Found {len(top_results)} matching institutions")
+                                df = pd.DataFrame(top_results)
+                                st.dataframe(
+                                    df[['name', 'state', 'city']],
+                                    column_config={
+                                        "name": "Institution Name",
+                                        "state": "State",
+                                        "city": "City"
+                                    }
+                                )
+                            else:
+                                st.info("No matching institutions found")
 
                 with filter_col:
                     st.header("🎯 Filter Institutions")
