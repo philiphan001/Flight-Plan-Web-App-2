@@ -7,7 +7,7 @@ import json
 from difflib import SequenceMatcher
 
 def string_similarity(search_term, institution_name):
-    """Enhanced string similarity matching"""
+    """Enhanced string similarity matching with sophisticated scoring"""
     search_term = search_term.lower()
     institution_name = institution_name.lower()
 
@@ -15,22 +15,45 @@ def string_similarity(search_term, institution_name):
     if search_term == institution_name:
         return 1.0
 
-    # Check if search term appears at start of name
-    if institution_name.startswith(search_term):
+    # Split institution name into words
+    name_words = institution_name.split()
+    search_words = search_term.split()
+
+    # Check for exact word matches at the start of name
+    if any(name_words[0].startswith(search_word) for search_word in search_words):
+        return 0.98  # Extremely high score for matches at start
+
+    # Check for exact word matches anywhere
+    if any(search_word in name_words for search_word in search_words):
+        return 0.95  # Very high score for exact word match
+
+    # Check common institution name patterns
+    patterns = [
+        f"{search_term} university",
+        f"university of {search_term}",
+        f"{search_term} college",
+        f"college of {search_term}"
+    ]
+    if any(pattern in institution_name for pattern in patterns):
         return 0.9
 
-    # Check if search term appears anywhere in name
-    if search_term in institution_name:
-        return 0.8
+    # Use sequence matcher for fuzzy matching of each word
+    max_word_ratio = max(
+        SequenceMatcher(None, search_word, name_word).ratio()
+        for search_word in search_words
+        for name_word in name_words
+    )
 
-    # Use sequence matcher for fuzzy matching
-    ratio = SequenceMatcher(None, search_term, institution_name).ratio()
+    # Boost score if any word starts with search term
+    if any(word.startswith(search_term) for word in name_words):
+        max_word_ratio += 0.2
 
-    # Boost score if search term appears partially in name
-    if any(word.startswith(search_term) for word in institution_name.split()):
-        ratio += 0.2
+    return max_word_ratio
 
-    return ratio
+@st.cache_data
+def get_institutions(collection_ref):
+    """Cache institution data to improve search performance"""
+    return list(collection_ref.stream())
 
 def init_firebase():
     try:
@@ -39,7 +62,6 @@ def init_firebase():
             default_app = firebase_admin.get_app()
             firebase_admin.delete_app(default_app)
         except ValueError:
-            # No default app exists
             pass
 
         # Get credentials from environment
@@ -48,7 +70,6 @@ def init_firebase():
             st.error("Firebase credentials not found in environment variables")
             return None
 
-        # Initialize Firebase with default app
         cred_dict = json.loads(cred_json)
         cred = credentials.Certificate(cred_dict)
         firebase_app = firebase_admin.initialize_app(cred)
@@ -100,8 +121,8 @@ try:
                     search_button = st.button("Search")
 
                     if search_button and search_term:
-                        # Get all institutions (increase limit for better search coverage)
-                        all_docs = list(collection_ref.limit(200).stream())
+                        # Get all institutions (cached)
+                        all_docs = get_institutions(collection_ref)
                         search_results = []
 
                         # Score each institution based on enhanced name similarity
@@ -110,8 +131,7 @@ try:
                             name = data.get('name', '')
                             if name:
                                 similarity = string_similarity(search_term, name)
-                                if similarity > 0.1:  # Lower threshold to catch more potential matches
-                                    search_results.append((similarity, data))
+                                search_results.append((similarity, data))
 
                         # Sort by similarity score and take top 5
                         search_results.sort(reverse=True, key=lambda x: x[0])
@@ -145,7 +165,6 @@ try:
                     apply_filters = st.button("Apply Filters")
 
                     if apply_filters:
-                        # Build query based on filters
                         query = collection_ref
 
                         if selected_state != "All States":
@@ -199,7 +218,6 @@ try:
                                 st.info("No institutions found matching your criteria")
                         else:
                             st.info("No institutions found matching your criteria")
-
             else:
                 st.warning("No states data found in the database")
     else:
