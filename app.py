@@ -44,9 +44,6 @@ try:
         db = firestore.client()
         st.success("Connected to Firestore database")
 
-        # Sidebar filters
-        st.sidebar.header("Search & Filters")
-
         # Check if collection exists and has data
         collection_ref = db.collection('institutions')
         test_docs = list(collection_ref.limit(1).stream())
@@ -67,73 +64,120 @@ try:
             if states:
                 st.success(f"Found {len(states)} states in the database")
 
-                # Search box in sidebar (moved after state filter)
+                # Sidebar filters
+                st.sidebar.header("Search & Filters")
+
+                # State filter
                 selected_state = st.sidebar.selectbox("📍 Filter by State", ["All States"] + states)
+
+                # Search box
                 search_term = st.sidebar.text_input("🔍 Search Institutions by Name")
 
-                try:
-                    # Build query based on filters
-                    query = collection_ref
+                # Gender ratio filter
+                gender_filter = st.sidebar.selectbox(
+                    "👥 Gender Ratio Filter",
+                    ["No Filter", "Women > 50%", "Men > 50%"]
+                )
 
-                    # If both search and state filter are active, handle them separately
-                    if search_term and selected_state != "All States":
-                        # First filter by name
-                        name_query = query.order_by('name')
-                        name_query = name_query.start_at({'name': search_term}).end_at({'name': search_term + '\uf8ff'})
-                        docs = list(name_query.stream())
+                # Apply filters button
+                apply_filters = st.sidebar.button("🔍 Apply Filters")
 
-                        # Then filter results by state in memory
-                        institutions = [
-                            doc.to_dict() for doc in docs
-                            if doc.to_dict().get('state') == selected_state
-                        ]
-                    else:
-                        # Apply filters normally if only one is active
-                        if selected_state != "All States":
-                            query = query.where('state', '==', selected_state)
+                if apply_filters:
+                    try:
+                        # Build query based on filters
+                        query = collection_ref
 
-                        if search_term:
-                            query = query.order_by('name')
-                            query = query.start_at({'name': search_term}).end_at({'name': search_term + '\uf8ff'})
-
-                        # Execute query and get results
-                        docs = list(query.limit(100).stream())
-                        institutions = [doc.to_dict() for doc in docs]
-
-                    # Display results
-                    if institutions:
-                        df = pd.DataFrame(institutions)
-                        st.write(f"Showing {len(df)} institutions")
-
-                        # Reorder columns to show important info first
-                        display_columns = ['name', 'state', 'city']
-                        # Add any additional columns that exist in the data
-                        additional_columns = [col for col in df.columns if col not in display_columns]
-                        display_columns.extend(additional_columns)
-
-                        # Display the DataFrame with formatted columns
-                        st.dataframe(
-                            df[display_columns],
-                            column_config={
-                                "name": "Institution Name",
-                                "state": "State",
-                                "city": "City"
-                            }
-                        )
-
-                        # Gender distribution if data available
-                        if 'men' in df.columns and 'women' in df.columns:
-                            st.header("Gender Distribution")
-                            st.bar_chart(df[['men', 'women']].mean())
-
-                    else:
-                        st.info("No institutions found for the selected criteria")
+                        # If both search and state filter are active, handle them separately
                         if search_term and selected_state != "All States":
-                            st.sidebar.warning("Try broadening your search or changing the state filter")
+                            # First filter by name
+                            name_query = query.order_by('name')
+                            name_query = name_query.start_at({'name': search_term}).end_at({'name': search_term + '\uf8ff'})
+                            docs = list(name_query.limit(5).stream())  # Limit to top 5 matches
 
-                except Exception as query_error:
-                    st.error(f"Error executing query: {str(query_error)}")
-                    st.exception(query_error)
+                            # Then filter results by state and gender ratio in memory
+                            institutions = []
+                            for doc in docs:
+                                data = doc.to_dict()
+                                if data.get('state') == selected_state:
+                                    # Apply gender ratio filter
+                                    men = float(data.get('men', 0))
+                                    women = float(data.get('women', 0))
+                                    total = men + women
+                                    if total > 0:  # Avoid division by zero
+                                        women_ratio = women / total
+                                        if (gender_filter == "Women > 50%" and women_ratio > 0.5) or \
+                                           (gender_filter == "Men > 50%" and women_ratio < 0.5) or \
+                                           (gender_filter == "No Filter"):
+                                            institutions.append(data)
+                        else:
+                            # Apply filters normally if only one is active
+                            if selected_state != "All States":
+                                query = query.where('state', '==', selected_state)
+
+                            if search_term:
+                                query = query.order_by('name')
+                                query = query.start_at({'name': search_term}).end_at({'name': search_term + '\uf8ff'})
+
+                            # Execute query and get results
+                            docs = list(query.limit(5).stream())  # Limit to top 5 matches
+                            institutions = []
+                            for doc in docs:
+                                data = doc.to_dict()
+                                # Apply gender ratio filter
+                                men = float(data.get('men', 0))
+                                women = float(data.get('women', 0))
+                                total = men + women
+                                if total > 0:  # Avoid division by zero
+                                    women_ratio = women / total
+                                    if (gender_filter == "Women > 50%" and women_ratio > 0.5) or \
+                                       (gender_filter == "Men > 50%" and women_ratio < 0.5) or \
+                                       (gender_filter == "No Filter"):
+                                        institutions.append(data)
+
+                        # Display results
+                        if institutions:
+                            df = pd.DataFrame(institutions)
+                            st.write(f"Showing {len(df)} institutions")
+
+                            # Calculate and display gender ratios
+                            if 'men' in df.columns and 'women' in df.columns:
+                                df['women_ratio'] = df['women'] / (df['women'] + df['men'])
+                                df['women_ratio'] = df['women_ratio'].apply(lambda x: f"{x:.1%}")
+
+                            # Reorder columns to show important info first
+                            display_columns = ['name', 'state', 'city']
+                            if 'women_ratio' in df.columns:
+                                display_columns.append('women_ratio')
+
+                            # Add any additional columns that exist in the data
+                            additional_columns = [col for col in df.columns if col not in display_columns and col not in ['women_ratio']]
+                            display_columns.extend(additional_columns)
+
+                            # Display the DataFrame with formatted columns
+                            st.dataframe(
+                                df[display_columns],
+                                column_config={
+                                    "name": "Institution Name",
+                                    "state": "State",
+                                    "city": "City",
+                                    "women_ratio": "Women Ratio"
+                                }
+                            )
+
+                            # Gender distribution if data available
+                            if 'men' in df.columns and 'women' in df.columns:
+                                st.header("Gender Distribution")
+                                st.bar_chart(df[['men', 'women']].mean())
+
+                        else:
+                            st.info("No institutions found for the selected criteria")
+                            st.sidebar.warning("Try adjusting your filters or search terms")
+
+                    except Exception as query_error:
+                        st.error(f"Error executing query: {str(query_error)}")
+                        st.exception(query_error)
+                else:
+                    st.info("Click 'Apply Filters' to see results")
             else:
                 st.warning("No states data found in the database")
     else:
