@@ -6,9 +6,31 @@ import os
 import json
 from difflib import SequenceMatcher
 
-def string_similarity(a, b):
-    """Calculate string similarity ratio"""
-    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+def string_similarity(search_term, institution_name):
+    """Enhanced string similarity matching"""
+    search_term = search_term.lower()
+    institution_name = institution_name.lower()
+
+    # Direct match gets highest score
+    if search_term == institution_name:
+        return 1.0
+
+    # Check if search term appears at start of name
+    if institution_name.startswith(search_term):
+        return 0.9
+
+    # Check if search term appears anywhere in name
+    if search_term in institution_name:
+        return 0.8
+
+    # Use sequence matcher for fuzzy matching
+    ratio = SequenceMatcher(None, search_term, institution_name).ratio()
+
+    # Boost score if search term appears partially in name
+    if any(word.startswith(search_term) for word in institution_name.split()):
+        ratio += 0.2
+
+    return ratio
 
 def init_firebase():
     try:
@@ -78,17 +100,17 @@ try:
                     search_button = st.button("Search")
 
                     if search_button and search_term:
-                        # Get all institutions first (limited to a reasonable number)
-                        all_docs = list(collection_ref.limit(100).stream())
+                        # Get all institutions (increase limit for better search coverage)
+                        all_docs = list(collection_ref.limit(200).stream())
                         search_results = []
 
-                        # Score each institution based on name similarity
+                        # Score each institution based on enhanced name similarity
                         for doc in all_docs:
                             data = doc.to_dict()
                             name = data.get('name', '')
                             if name:
                                 similarity = string_similarity(search_term, name)
-                                if similarity > 0.3:  # Minimum similarity threshold
+                                if similarity > 0.1:  # Lower threshold to catch more potential matches
                                     search_results.append((similarity, data))
 
                         # Sort by similarity score and take top 5
