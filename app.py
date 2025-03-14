@@ -28,12 +28,6 @@ def init_firebase():
             st.success(f"Firebase initialized successfully for project: {cred_dict['project_id']}")
             return firebase_app
 
-        except json.JSONDecodeError as je:
-            st.error(f"Invalid Firebase credentials JSON format: {str(je)}")
-            return None
-        except ValueError as ve:
-            st.error(f"Invalid Firebase credential values: {str(ve)}")
-            return None
         except Exception as e:
             st.error(f"Failed to initialize Firebase: {str(e)}")
             return None
@@ -47,93 +41,74 @@ firebase_app = init_firebase()
 # App title
 st.title("Educational Institutions Explorer")
 
-# Columns we expect in our data
-COLUMNS = ['id', 'name', 'city', 'state', 'men', 'women', 'roomboard_oncampus']
-
 try:
     if firebase_app:
         # Initialize Firestore client
         db = firestore.client(app=firebase_app)
+        st.success("Connected to Firestore database")
 
-        # Sidebar filters
-        st.sidebar.header("Search & Filters")
+        # Debug: Check if collection exists
+        collection_ref = db.collection('institutions')
+        st.info("Attempting to access institutions collection...")
 
-        # Search box in sidebar
-        search_term = st.sidebar.text_input("🔍 Search Institutions by Name")
+        # Test query to check data
+        test_docs = list(collection_ref.limit(1).stream())
+        if not test_docs:
+            st.warning("No data found in the institutions collection. The database appears to be empty.")
+            st.info("Please add some data to the institutions collection in Firebase.")
+        else:
+            st.success(f"Successfully accessed institutions collection. Found data.")
 
-        try:
-            # Get all states for filter
-            st.info("Loading states data...")
-            states_query = db.collection('institutions').select(['state']).stream()
-            states = sorted(list(set(doc.to_dict().get('state') for doc in states_query if doc.to_dict().get('state'))))
+            # Sidebar filters
+            st.sidebar.header("Search & Filters")
 
-            if not states:
-                st.warning("No states data found in the database. Please check if there are any institutions in the database.")
-                states = []
-        except Exception as e:
-            st.error(f"Error loading states: {str(e)}")
+            # Search box in sidebar
+            search_term = st.sidebar.text_input("🔍 Search Institutions by Name")
+
+            # Get unique states
             states = []
+            states_query = collection_ref.select(['state']).stream()
+            for doc in states_query:
+                state = doc.to_dict().get('state')
+                if state:
+                    states.append(state)
 
-        # State filter
-        selected_state = st.sidebar.selectbox("📍 Filter by State", ["All States"] + states)
+            states = sorted(list(set(states)))
+            if states:
+                st.success(f"Found {len(states)} states in the database")
 
-        # Show loading message
-        st.info("Loading institutions data...")
+                # State filter
+                selected_state = st.sidebar.selectbox("📍 Filter by State", ["All States"] + states)
 
-        try:
-            # Initialize query based on filters
-            query = db.collection('institutions')
+                # Build query
+                if selected_state != "All States":
+                    docs = list(collection_ref.where('state', '==', selected_state).limit(100).stream())
+                else:
+                    docs = list(collection_ref.limit(100).stream())
 
-            # Apply state filter if selected
-            if selected_state != "All States":
-                query = query.where('state', '==', selected_state)
-                st.sidebar.info(f"Filtering by state: {selected_state}")
+                # Process results
+                if docs:
+                    institutions = [doc.to_dict() for doc in docs]
+                    df = pd.DataFrame(institutions)
 
-            # Apply search if entered
-            if search_term:
-                query = query.order_by('name').start_at({
-                    'name': search_term
-                }).end_at({
-                    'name': search_term + '\uf8ff'
-                })
-                st.sidebar.info(f"Searching for: {search_term}")
+                    # Display results
+                    st.write(f"Showing {len(df)} institutions")
+                    st.dataframe(df)
 
-            # Execute query with limit
-            docs = list(query.limit(100).stream())
-
-            if docs:
-                st.success(f"Found {len(docs)} institutions")
-                institutions = [doc.to_dict() for doc in docs]
-
-                # Convert to DataFrame
-                df = pd.DataFrame(institutions)
-
-                # Ensure we only use columns we expect
-                available_columns = df.columns.intersection(COLUMNS)
-                if len(available_columns) < len(COLUMNS):
-                    missing_columns = set(COLUMNS) - set(available_columns)
-                    st.warning(f"Some expected columns are missing: {', '.join(missing_columns)}")
-
-                df = df[available_columns]
-
-                # Display data table
-                st.dataframe(df)
-
-                # Add visualizations if we have gender data
-                if 'men' in df.columns and 'women' in df.columns:
-                    st.header("Gender Distribution")
-                    st.bar_chart(df[['men', 'women']].mean())
+                    # Gender distribution if data available
+                    if 'men' in df.columns and 'women' in df.columns:
+                        st.header("Gender Distribution")
+                        st.bar_chart(df[['men', 'women']].mean())
+                else:
+                    st.info("No institutions found for the selected criteria")
             else:
-                st.warning("No institutions found matching your criteria")
-                st.sidebar.info("Try adjusting your filters or search terms")
-
-        except Exception as e:
-            st.error(f"Error querying institutions: {str(e)}")
-            st.exception(e)  # This will show the full error trace
-
+                st.warning("No states data found in the database")
     else:
         st.error("Firebase is not initialized. Please check your credentials and try again.")
 
 except Exception as e:
     st.error(f"Application error: {str(e)}")
-    st.exception(e)  # This will show the full error trace
+    st.exception(e)
+
+# Columns we expect in our data
+COLUMNS = ['id', 'name', 'city', 'state', 'men', 'women', 'roomboard_oncampus']
