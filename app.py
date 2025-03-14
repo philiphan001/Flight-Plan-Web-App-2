@@ -1,14 +1,86 @@
 import streamlit as st
 import pandas as pd
+import firebase_admin
+from firebase_admin import credentials, firestore
 import os
+import json
 from sqlalchemy import create_engine, text
 
 # Initialize database connection
 database_url = os.environ.get('DATABASE_URL')
 engine = create_engine(database_url)
 
+# Initialize Firebase with proper error handling
+def init_firebase():
+    try:
+        # Try to get existing app first
+        try:
+            return firebase_admin.get_app('educational-institutions')
+        except ValueError:
+            # App doesn't exist, create new one
+            cred_json = os.environ.get('FIREBASE_CREDENTIALS')
+            if not cred_json:
+                st.error("Firebase credentials not found in environment variables")
+                return None
+
+            try:
+                # Parse and validate credentials
+                cred_dict = json.loads(cred_json)
+
+                # Required fields check
+                required_fields = [
+                    'type', 'project_id', 'private_key_id',
+                    'private_key', 'client_email', 'client_id',
+                    'auth_uri', 'token_uri', 'auth_provider_x509_cert_url',
+                    'client_x509_cert_url'
+                ]
+
+                missing_fields = [field for field in required_fields if field not in cred_dict]
+                if missing_fields:
+                    st.error(f"Missing required fields in Firebase credentials: {', '.join(missing_fields)}")
+                    return None
+
+                # Verify credential type
+                if cred_dict.get('type') != 'service_account':
+                    st.error("Invalid credential type. Must be 'service_account'")
+                    return None
+
+                # Fix private key formatting
+                if 'private_key' in cred_dict:
+                    cred_dict['private_key'] = cred_dict['private_key'].replace('\\n', '\n')
+                    if not cred_dict['private_key'].startswith('-----BEGIN PRIVATE KEY-----'):
+                        st.error("Invalid private key format")
+                        return None
+
+                # Initialize Firebase
+                cred = credentials.Certificate(cred_dict)
+                firebase_app = firebase_admin.initialize_app(cred, name='educational-institutions')
+
+                # Log successful initialization
+                st.success(f"Firebase initialized successfully for project: {cred_dict['project_id']}")
+                return firebase_app
+
+            except json.JSONDecodeError as je:
+                st.error(f"Invalid Firebase credentials JSON format: {str(je)}")
+                return None
+            except ValueError as ve:
+                st.error(f"Invalid Firebase credential values: {str(ve)}")
+                return None
+            except Exception as e:
+                st.error(f"Failed to initialize Firebase: {str(e)}")
+                return None
+    except Exception as e:
+        st.error(f"Error accessing Firebase: {str(e)}")
+        return None
+
+# Initialize Firebase
+firebase_app = init_firebase()
+
 # App title
 st.title("Educational Institutions Explorer")
+
+# Database schema for reference
+COLUMNS = ['id', 'name', 'city', 'state', 'men', 'women', 'roomboard_oncampus']
 
 # Initialize database table if it doesn't exist
 def init_db():
@@ -26,68 +98,128 @@ def init_db():
         """))
         conn.commit()
 
-# Initialize database
+# Initialize PostgreSQL database
 init_db()
 
 # Sidebar filters
 st.sidebar.header("Filters")
 
 try:
-    # Get all states for filter
+    # Get states data from both sources
+    states = []
+
+    # Get states from PostgreSQL
     with engine.connect() as conn:
         states_query = text("SELECT DISTINCT state FROM institutions WHERE state IS NOT NULL ORDER BY state")
-        states = [row[0] for row in conn.execute(states_query)]
+        pg_states = [row[0] for row in conn.execute(states_query)]
+        states.extend(pg_states)
+
+    # Get states from Firebase if available
+    if firebase_app:
+        db = firestore.client(app=firebase_app)
+        fb_states_query = db.collection('institutions').select(['state']).stream()
+        fb_states = [doc.to_dict().get('state') for doc in fb_states_query if doc.to_dict().get('state')]
+        states.extend(fb_states)
+
+    # Remove duplicates and sort
+    states = sorted(list(set(filter(None, states))))
 
     # State filter
     selected_state = st.sidebar.selectbox("Select State", ["All States"] + states)
 
+    # Initialize empty DataFrame
+    df = pd.DataFrame(columns=COLUMNS)
+
     # Get data based on filters
-    with engine.connect() as conn:
-        if selected_state == "All States":
-            query = text("SELECT * FROM institutions LIMIT 100")  # Limit for performance
-            institutions = conn.execute(query).fetchall()
-        else:
+    if selected_state == "All States":
+        # Get PostgreSQL data
+        with engine.connect() as conn:
+            query = text("SELECT * FROM institutions LIMIT 100")
+            pg_institutions = conn.execute(query).fetchall()
+            pg_df = pd.DataFrame(pg_institutions, columns=COLUMNS)
+            df = pd.concat([df, pg_df], ignore_index=True)
+
+        # Get Firebase data if available
+        if firebase_app:
+            fb_query = db.collection('institutions').limit(100)
+            docs = list(fb_query.stream())
+            fb_institutions = [doc.to_dict() for doc in docs]
+            if fb_institutions:
+                fb_df = pd.DataFrame(fb_institutions)
+                # Ensure Firebase data matches our schema
+                fb_df = fb_df[fb_df.columns.intersection(COLUMNS)]
+                df = pd.concat([df, fb_df], ignore_index=True)
+    else:
+        # Get PostgreSQL data
+        with engine.connect() as conn:
             query = text("SELECT * FROM institutions WHERE state = :state")
-            institutions = conn.execute(query, {"state": selected_state}).fetchall()
+            pg_institutions = conn.execute(query, {"state": selected_state}).fetchall()
+            pg_df = pd.DataFrame(pg_institutions, columns=COLUMNS)
+            df = pd.concat([df, pg_df], ignore_index=True)
 
-        # Convert to DataFrame
-        df = pd.DataFrame(institutions, columns=['id', 'name', 'city', 'state', 'men', 'women', 'roomboard_oncampus'])
+        # Get Firebase data if available
+        if firebase_app:
+            fb_query = db.collection('institutions').where('state', '==', selected_state)
+            docs = list(fb_query.stream())
+            fb_institutions = [doc.to_dict() for doc in docs]
+            if fb_institutions:
+                fb_df = pd.DataFrame(fb_institutions)
+                # Ensure Firebase data matches our schema
+                fb_df = fb_df[fb_df.columns.intersection(COLUMNS)]
+                df = pd.concat([df, fb_df], ignore_index=True)
 
-        if not df.empty:
-            # Display count
-            st.write(f"Showing {len(df)} institutions")
+    if not df.empty:
+        # Display count
+        st.write(f"Showing {len(df)} institutions")
 
-            # Display data table
-            st.dataframe(df[['name', 'city', 'state', 'men', 'women', 'roomboard_oncampus']])
+        # Display data table
+        st.dataframe(df[['name', 'city', 'state', 'men', 'women', 'roomboard_oncampus']])
 
-            # Add visualizations
-            if len(df) > 0 and 'men' in df.columns and 'women' in df.columns:
-                st.header("Gender Distribution")
-                st.bar_chart(df[['men', 'women']].mean())
-        else:
-            st.write("No data found for the selected filters.")
+        # Add visualizations
+        if len(df) > 0 and 'men' in df.columns and 'women' in df.columns:
+            st.header("Gender Distribution")
+            st.bar_chart(df[['men', 'women']].mean())
+    else:
+        st.write("No data found for the selected filters.")
 
-        # Search functionality
-        st.header("Search Institutions")
-        search_term = st.text_input("Enter institution name:")
+    # Search functionality
+    st.header("Search Institutions")
+    search_term = st.text_input("Enter institution name:")
 
-        if search_term:
+    if search_term:
+        search_results = []
+
+        # Search in PostgreSQL
+        with engine.connect() as conn:
             search_query = text("""
                 SELECT * FROM institutions 
                 WHERE name ILIKE :search_term 
                 LIMIT 10
             """)
-            search_results = conn.execute(search_query, 
+            pg_results = conn.execute(search_query, 
                 {"search_term": f"%{search_term}%"}
             ).fetchall()
+            if pg_results:
+                search_results.extend([dict(zip(COLUMNS, row)) for row in pg_results])
 
-            search_df = pd.DataFrame(search_results, 
-                columns=['id', 'name', 'city', 'state', 'men', 'women', 'roomboard_oncampus'])
+        # Search in Firebase if available
+        if firebase_app:
+            results = db.collection('institutions').order_by('name').start_at({
+                'name': search_term
+            }).end_at({
+                'name': search_term + '\uf8ff'
+            }).stream()
+            fb_results = [doc.to_dict() for doc in results]
+            if fb_results:
+                # Ensure Firebase search results match our schema
+                fb_results = [{k: v for k, v in result.items() if k in COLUMNS} for result in fb_results]
+                search_results.extend(fb_results)
 
-            if not search_df.empty:
-                st.dataframe(search_df[['name', 'city', 'state']])
-            else:
-                st.write("No matching institutions found.")
+        if search_results:
+            search_df = pd.DataFrame(search_results)
+            st.dataframe(search_df[['name', 'city', 'state']])
+        else:
+            st.write("No matching institutions found.")
 
 except Exception as e:
     st.error(f"Database error: {str(e)}")
