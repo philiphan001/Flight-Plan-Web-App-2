@@ -14,11 +14,11 @@ class College(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(255))
     city = Column(String(100))
-    state = Column(String(2))
-    type = Column(String(50))
-    tuition_in = Column(Numeric)
-    tuition_out = Column(Numeric)
-    acceptance_rate = Column(Numeric)
+    state = Column(String(50))
+    type = Column(String(100))
+    in_state_tuition = Column(Numeric)  # Changed from tuition_in
+    out_of_state_tuition = Column(Numeric)  # Changed from tuition_out
+    admission_rate = Column(Numeric)  # Changed from acceptance_rate
     enrollment = Column(Integer)
     retention_rate = Column(Numeric)
     graduation_rate = Column(Numeric)

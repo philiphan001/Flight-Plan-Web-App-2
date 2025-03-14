@@ -24,10 +24,10 @@ def show_college_explorer():
             step=1000
         )
 
-        # Acceptance rate filter
-        st.sidebar.subheader("Acceptance Rate")
+        # Admission rate filter
+        st.sidebar.subheader("Admission Rate")
         min_rate, max_rate = st.sidebar.slider(
-            "Acceptance Rate (%)",
+            "Admission Rate (%)",
             0.0, 100.0, (0.0, 100.0),
             step=1.0
         )
@@ -49,15 +49,16 @@ def show_college_explorer():
         # Sorting options
         sort_by = st.sidebar.selectbox(
             "Sort by",
-            ["name", "tuition_in", "tuition_out", "acceptance_rate", "enrollment", "graduation_rate"]
+            ["name", "in_state_tuition", "out_of_state_tuition", "admission_rate", 
+             "enrollment", "graduation_rate"]
         )
         sort_order = st.sidebar.radio("Sort order", ["Ascending", "Descending"])
 
         # Create filters dictionary
         filters = {
             "state": state if state else None,
-            "tuition_in": (min_tuition, max_tuition),
-            "acceptance_rate": (min_rate/100, max_rate/100),
+            "in_state_tuition": (min_tuition, max_tuition),
+            "admission_rate": (min_rate/100, max_rate/100),
             "enrollment": (min_enrollment, max_enrollment)
         }
 
@@ -79,9 +80,9 @@ def show_college_explorer():
                 "Name": c.name,
                 "State": c.state,
                 "Type": c.type,
-                "In-State Tuition": f"${float(c.tuition_in):,.2f}" if c.tuition_in else "N/A",
-                "Out-of-State Tuition": f"${float(c.tuition_out):,.2f}" if c.tuition_out else "N/A",
-                "Acceptance Rate": f"{float(c.acceptance_rate)*100:.1f}%" if c.acceptance_rate else "N/A",
+                "In-State Tuition": f"${float(c.in_state_tuition):,.2f}" if c.in_state_tuition else "N/A",
+                "Out-of-State Tuition": f"${float(c.out_of_state_tuition):,.2f}" if c.out_of_state_tuition else "N/A",
+                "Admission Rate": f"{float(c.admission_rate)*100:.1f}%" if c.admission_rate else "N/A",
                 "Enrollment": f"{c.enrollment:,}" if c.enrollment else "N/A",
                 "Retention Rate": f"{float(c.retention_rate)*100:.1f}%" if c.retention_rate else "N/A",
                 "Graduation Rate": f"{float(c.graduation_rate)*100:.1f}%" if c.graduation_rate else "N/A"
