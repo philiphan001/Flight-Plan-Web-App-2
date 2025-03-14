@@ -10,77 +10,49 @@ from sqlalchemy import create_engine, text
 database_url = os.environ.get('DATABASE_URL')
 engine = create_engine(database_url)
 
+# Database schema for reference
+COLUMNS = ['id', 'name', 'city', 'state', 'men', 'women', 'roomboard_oncampus']
+
 # Initialize Firebase with proper error handling
 def init_firebase():
     try:
-        # Try to get existing app first
+        # Clean up any existing app first
         try:
-            return firebase_admin.get_app('educational-institutions')
+            existing_app = firebase_admin.get_app('educational-institutions')
+            firebase_admin.delete_app(existing_app)
         except ValueError:
-            # App doesn't exist, create new one
-            cred_json = os.environ.get('FIREBASE_CREDENTIALS')
-            if not cred_json:
-                st.error("Firebase credentials not found in environment variables")
-                return None
+            pass  # App doesn't exist, which is fine
 
-            try:
-                # Parse and validate credentials
-                cred_dict = json.loads(cred_json)
+        # Now create new app
+        cred_json = os.environ.get('FIREBASE_CREDENTIALS')
+        if not cred_json:
+            st.error("Firebase credentials not found in environment variables")
+            return None
 
-                # Required fields check
-                required_fields = [
-                    'type', 'project_id', 'private_key_id',
-                    'private_key', 'client_email', 'client_id',
-                    'auth_uri', 'token_uri', 'auth_provider_x509_cert_url',
-                    'client_x509_cert_url'
-                ]
+        try:
+            cred_dict = json.loads(cred_json)
 
-                missing_fields = [field for field in required_fields if field not in cred_dict]
-                if missing_fields:
-                    st.error(f"Missing required fields in Firebase credentials: {', '.join(missing_fields)}")
-                    return None
+            # Fix private key formatting
+            if 'private_key' in cred_dict:
+                cred_dict['private_key'] = cred_dict['private_key'].replace('\\n', '\n')
 
-                # Verify credential type
-                if cred_dict.get('type') != 'service_account':
-                    st.error("Invalid credential type. Must be 'service_account'")
-                    return None
+            cred = credentials.Certificate(cred_dict)
+            firebase_app = firebase_admin.initialize_app(cred, name='educational-institutions')
+            st.success(f"Firebase initialized successfully for project: {cred_dict['project_id']}")
+            return firebase_app
 
-                # Fix private key formatting
-                if 'private_key' in cred_dict:
-                    cred_dict['private_key'] = cred_dict['private_key'].replace('\\n', '\n')
-                    if not cred_dict['private_key'].startswith('-----BEGIN PRIVATE KEY-----'):
-                        st.error("Invalid private key format")
-                        return None
-
-                # Initialize Firebase
-                cred = credentials.Certificate(cred_dict)
-                firebase_app = firebase_admin.initialize_app(cred, name='educational-institutions')
-
-                # Log successful initialization
-                st.success(f"Firebase initialized successfully for project: {cred_dict['project_id']}")
-                return firebase_app
-
-            except json.JSONDecodeError as je:
-                st.error(f"Invalid Firebase credentials JSON format: {str(je)}")
-                return None
-            except ValueError as ve:
-                st.error(f"Invalid Firebase credential values: {str(ve)}")
-                return None
-            except Exception as e:
-                st.error(f"Failed to initialize Firebase: {str(e)}")
-                return None
+        except json.JSONDecodeError as je:
+            st.error(f"Invalid Firebase credentials JSON format: {str(je)}")
+            return None
+        except ValueError as ve:
+            st.error(f"Invalid Firebase credential values: {str(ve)}")
+            return None
+        except Exception as e:
+            st.error(f"Failed to initialize Firebase: {str(e)}")
+            return None
     except Exception as e:
         st.error(f"Error accessing Firebase: {str(e)}")
         return None
-
-# Initialize Firebase
-firebase_app = init_firebase()
-
-# App title
-st.title("Educational Institutions Explorer")
-
-# Database schema for reference
-COLUMNS = ['id', 'name', 'city', 'state', 'men', 'women', 'roomboard_oncampus']
 
 # Initialize database table if it doesn't exist
 def init_db():
@@ -101,6 +73,12 @@ def init_db():
 # Initialize PostgreSQL database
 init_db()
 
+# Initialize Firebase
+firebase_app = init_firebase()
+
+# App title
+st.title("Educational Institutions Explorer")
+
 # Sidebar filters
 st.sidebar.header("Filters")
 
@@ -110,7 +88,12 @@ try:
 
     # Get states from PostgreSQL
     with engine.connect() as conn:
-        states_query = text("SELECT DISTINCT state FROM institutions WHERE state IS NOT NULL ORDER BY state")
+        states_query = text("""
+            SELECT DISTINCT state 
+            FROM institutions 
+            WHERE state IS NOT NULL 
+            ORDER BY state
+        """)
         pg_states = [row[0] for row in conn.execute(states_query)]
         states.extend(pg_states)
 
@@ -134,7 +117,11 @@ try:
     if selected_state == "All States":
         # Get PostgreSQL data
         with engine.connect() as conn:
-            query = text("SELECT * FROM institutions LIMIT 100")
+            query = text(f"""
+                SELECT {', '.join(COLUMNS)}
+                FROM institutions 
+                LIMIT 100
+            """)
             pg_institutions = conn.execute(query).fetchall()
             pg_df = pd.DataFrame(pg_institutions, columns=COLUMNS)
             df = pd.concat([df, pg_df], ignore_index=True)
@@ -152,7 +139,11 @@ try:
     else:
         # Get PostgreSQL data
         with engine.connect() as conn:
-            query = text("SELECT * FROM institutions WHERE state = :state")
+            query = text(f"""
+                SELECT {', '.join(COLUMNS)}
+                FROM institutions 
+                WHERE state = :state
+            """)
             pg_institutions = conn.execute(query, {"state": selected_state}).fetchall()
             pg_df = pd.DataFrame(pg_institutions, columns=COLUMNS)
             df = pd.concat([df, pg_df], ignore_index=True)
@@ -191,14 +182,13 @@ try:
 
         # Search in PostgreSQL
         with engine.connect() as conn:
-            search_query = text("""
-                SELECT * FROM institutions 
+            search_query = text(f"""
+                SELECT {', '.join(COLUMNS)}
+                FROM institutions 
                 WHERE name ILIKE :search_term 
                 LIMIT 10
             """)
-            pg_results = conn.execute(search_query, 
-                {"search_term": f"%{search_term}%"}
-            ).fetchall()
+            pg_results = conn.execute(search_query, {"search_term": f"%{search_term}%"}).fetchall()
             if pg_results:
                 search_results.extend([dict(zip(COLUMNS, row)) for row in pg_results])
 
