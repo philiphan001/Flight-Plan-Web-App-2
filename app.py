@@ -47,9 +47,6 @@ try:
         # Sidebar filters
         st.sidebar.header("Search & Filters")
 
-        # Search box in sidebar
-        search_term = st.sidebar.text_input("🔍 Search Institutions by Name")
-
         # Check if collection exists and has data
         collection_ref = db.collection('institutions')
         test_docs = list(collection_ref.limit(1).stream())
@@ -70,39 +67,57 @@ try:
             if states:
                 st.success(f"Found {len(states)} states in the database")
 
-                # State filter
+                # Search box in sidebar (moved after state filter)
                 selected_state = st.sidebar.selectbox("📍 Filter by State", ["All States"] + states)
+                search_term = st.sidebar.text_input("🔍 Search Institutions by Name")
 
-                # Build query
-                query = collection_ref
-                if selected_state != "All States":
-                    query = query.where('state', '==', selected_state)
+                try:
+                    # Build query based on filters
+                    query = collection_ref
 
-                # Apply search if entered
-                if search_term:
-                    query = query.order_by('name').start_at({
-                        'name': search_term
-                    }).end_at({
-                        'name': search_term + '\uf8ff'
-                    })
+                    # If both search and state filter are active, handle them separately
+                    if search_term and selected_state != "All States":
+                        # First filter by name
+                        name_query = query.order_by('name')
+                        name_query = name_query.start_at({'name': search_term}).end_at({'name': search_term + '\uf8ff'})
+                        docs = list(name_query.stream())
 
-                # Execute query
-                docs = list(query.limit(100).stream())
+                        # Then filter results by state in memory
+                        institutions = [
+                            doc.to_dict() for doc in docs 
+                            if doc.to_dict().get('state') == selected_state
+                        ]
+                    else:
+                        # Apply filters normally if only one is active
+                        if selected_state != "All States":
+                            query = query.where('state', '==', selected_state)
 
-                if docs:
-                    institutions = [doc.to_dict() for doc in docs]
-                    df = pd.DataFrame(institutions)
+                        if search_term:
+                            query = query.order_by('name')
+                            query = query.start_at({'name': search_term}).end_at({'name': search_term + '\uf8ff'})
+
+                        # Execute query and get results
+                        docs = list(query.limit(100).stream())
+                        institutions = [doc.to_dict() for doc in docs]
 
                     # Display results
-                    st.write(f"Showing {len(df)} institutions")
-                    st.dataframe(df)
+                    if institutions:
+                        df = pd.DataFrame(institutions)
+                        st.write(f"Showing {len(df)} institutions")
+                        st.dataframe(df)
 
-                    # Gender distribution if data available
-                    if 'men' in df.columns and 'women' in df.columns:
-                        st.header("Gender Distribution")
-                        st.bar_chart(df[['men', 'women']].mean())
-                else:
-                    st.info("No institutions found for the selected criteria")
+                        # Gender distribution if data available
+                        if 'men' in df.columns and 'women' in df.columns:
+                            st.header("Gender Distribution")
+                            st.bar_chart(df[['men', 'women']].mean())
+                    else:
+                        st.info("No institutions found for the selected criteria")
+                        if search_term and selected_state != "All States":
+                            st.sidebar.warning("Try broadening your search or changing the state filter")
+
+                except Exception as query_error:
+                    st.error(f"Error executing query: {str(query_error)}")
+                    st.exception(query_error)
             else:
                 st.warning("No states data found in the database")
     else:
@@ -111,5 +126,3 @@ try:
 except Exception as e:
     st.error(f"Application error: {str(e)}")
     st.exception(e)
-
-# COLUMNS = ['id', 'name', 'city', 'state', 'men', 'women', 'roomboard_oncampus'] #This line is not needed here.
