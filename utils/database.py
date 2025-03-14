@@ -16,11 +16,10 @@ class College(Base):
     city = Column(String(100))
     state = Column(String(50))
     type = Column(String(100))
-    in_state_tuition = Column(Numeric)  # Changed from tuition_in
-    out_of_state_tuition = Column(Numeric)  # Changed from tuition_out
-    admission_rate = Column(Numeric)  # Changed from acceptance_rate
+    in_state_tuition = Column(Numeric)
+    out_state_tuition = Column(Numeric)
+    admission_rate = Column(Numeric)
     enrollment = Column(Integer)
-    retention_rate = Column(Numeric)
     graduation_rate = Column(Numeric)
 
 class DatabaseConnection:

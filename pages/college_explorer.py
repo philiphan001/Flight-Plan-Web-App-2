@@ -84,7 +84,6 @@ def show_college_explorer():
                 "Out-of-State Tuition": f"${float(c.out_of_state_tuition):,.2f}" if c.out_of_state_tuition else "N/A",
                 "Admission Rate": f"{float(c.admission_rate)*100:.1f}%" if c.admission_rate else "N/A",
                 "Enrollment": f"{c.enrollment:,}" if c.enrollment else "N/A",
-                "Retention Rate": f"{float(c.retention_rate)*100:.1f}%" if c.retention_rate else "N/A",
                 "Graduation Rate": f"{float(c.graduation_rate)*100:.1f}%" if c.graduation_rate else "N/A"
             } for c in colleges])
 
