@@ -10,7 +10,7 @@ from models.financial_models import (
 )
 from datetime import datetime
 from services.bls_api import BLSApi # Added import
-from pages.college_explorer import show_college_explorer
+
 
 # Set page configuration with custom theme
 st.set_page_config(
@@ -459,11 +459,6 @@ def show_landing_page():
                 st.session_state.page = 'salary_explorer'
                 st.rerun()
 
-            if st.button("Explore College Data 🎓", key="college_explorer", 
-                        help="Browse and filter college data"):
-                st.session_state.page = 'college_explorer'
-                st.rerun()
-
             st.markdown("</div>", unsafe_allow_html=True)
 
     elif st.session_state.page == 'known_path':
@@ -542,8 +537,6 @@ def show_landing_page():
     elif st.session_state.page == 'career_discovery':
         from pages.career_discovery import show_career_discovery
         show_career_discovery()
-    elif st.session_state.page == 'college_explorer':
-        show_college_explorer()
 
 
 def main():
@@ -827,7 +820,7 @@ def main():
                         )
                         new_wedding_cost = st.sidebar.number_input(
                             "Update Wedding Cost",
-                            value=milestone.one_timeexpense,
+                            value=milestone.one_time_expense,
                             key=f"edit_wedding_cost_{idx}"
                         )
 
