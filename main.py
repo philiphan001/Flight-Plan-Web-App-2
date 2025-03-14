@@ -156,130 +156,60 @@ def show_education_path():
     col1, col2, col3 = st.columns([1,2,1])
 
     with col2:
-        # Create tabs for Search and Filter
-        search_tab, filter_tab = st.tabs(["🔍 Search", "🎯 Filter"])
+        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
 
-        with search_tab:
-            st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+        # Institution type selection
+        st.markdown("### Type of Institution 🏛️")
+        institution_types = [
+            "4-Year College/University",
+            "Community College",
+            "Vocational/Trade School",
+            "Online Programs"
+        ]
 
-            # Institution type selection
-            st.markdown("### Type of Institution 🏛️")
-            institution_types = [
-                "4-Year College/University",
-                "Community College",
-                "Vocational/Trade School",
-                "Online Programs"
-            ]
+        institution_type = st.selectbox(
+            "Select type of institution",
+            options=institution_types,
+            key="institution_type"
+        )
 
-            institution_type = st.selectbox(
-                "Select type of institution",
-                options=institution_types,
-                key="institution_type"
-            )
+        # Institution search
+        st.markdown("### Search for Institution 🔍")
+        institution_input = st.text_input(
+            "Enter institution name",
+            value=st.session_state.selected_institution['name'] if isinstance(st.session_state.selected_institution, dict) else "",
+            key="institution_input"
+        )
 
-            # Institution search
-            st.markdown("### Search for Institution 🔍")
-            institution_input = st.text_input(
-                "Enter institution name",
-                value=st.session_state.selected_institution['name'] if isinstance(st.session_state.selected_institution, dict) else "",
-                key="institution_input"
-            )
+        search_button = st.button("Search Institution")
 
-            search_button = st.button("Search Institution")
+        if search_button and institution_input:
+            with st.spinner("Searching..."):
+                matching_institutions = firebase_service.search_institutions_by_name(institution_input)
 
-            if search_button and institution_input:
-                with st.spinner("Searching..."):
-                    matching_institutions = firebase_service.search_institutions_by_name(institution_input)
+                if matching_institutions:
+                    st.success(f"Found {len(matching_institutions)} matching institutions")
 
-                    if matching_institutions:
-                        st.success(f"Found {len(matching_institutions)} matching institutions")
+                    for inst in matching_institutions:
+                        # Create a formatted button label with college details
+                        label = (f"🏛️ {inst['name']}\n"
+                                f"📍 {inst['city']}, {inst['state']}\n"
+                                f"💰 In-State: ${inst.get('in_state_tuition', 'N/A'):,}" 
+                                if isinstance(inst.get('in_state_tuition'), (int, float)) 
+                                else f"💰 In-State: N/A")
 
-                        for inst in matching_institutions:
-                            label = (f"🏛️ {inst['name']}\n"
-                                    f"📍 {inst['city']}, {inst['state']}\n"
-                                    f"💰 In-State: ${inst.get('in_state_tuition', 'N/A'):,}" 
-                                    if isinstance(inst.get('in_state_tuition'), (int, float)) 
-                                    else f"💰 In-State: N/A")
-
-                            if st.button(label, key=f"inst_{inst['name']}"):
-                                st.session_state.selected_institution = inst
-                                st.rerun()
-                    else:
-                        st.info("No matching institutions found. Try a different search term.")
-
-        with filter_tab:
-            st.markdown('<div class="choice-card">', unsafe_allow_html=True)
-
-            # State filter
-            states = firebase_service.get_institution_states()
-            selected_state = st.selectbox("📍 Filter by State", ["All States"] + states)
-
-            # Tuition range filter
-            st.markdown("### Tuition Range 💰")
-            min_tuition, max_tuition = st.slider(
-                "Select tuition range",
-                min_value=0,
-                max_value=100000,
-                value=(0, 50000),
-                step=1000,
-                format="$%d"
-            )
-
-            # Gender ratio filter
-            gender_ratio = st.selectbox(
-                "👥 Gender Ratio",
-                ["No Preference", "Women > 50%", "Men > 50%"]
-            )
-
-            if st.button("Apply Filters"):
-                with st.spinner("Filtering institutions..."):
-                    filtered_institutions = firebase_service.get_institutions_by_state(selected_state)
-
-                    if filtered_institutions:
-                        # Apply additional filters
-                        filtered_df = pd.DataFrame(filtered_institutions)
-
-                        # Filter by tuition
-                        if 'in_state_tuition' in filtered_df.columns:
-                            filtered_df = filtered_df[
-                                (filtered_df['in_state_tuition'] >= min_tuition) & 
-                                (filtered_df['in_state_tuition'] <= max_tuition)
-                            ]
-
-                        # Filter by gender ratio
-                        if gender_ratio != "No Preference" and 'men' in filtered_df.columns and 'women' in filtered_df.columns:
-                            filtered_df['women_ratio'] = filtered_df['women'] / (filtered_df['women'] + filtered_df['men'])
-                            if gender_ratio == "Women > 50%":
-                                filtered_df = filtered_df[filtered_df['women_ratio'] > 0.5]
-                            else:
-                                filtered_df = filtered_df[filtered_df['women_ratio'] <= 0.5]
-
-                        if not filtered_df.empty:
-                            st.success(f"Found {len(filtered_df)} matching institutions")
-                            st.dataframe(
-                                filtered_df[['name', 'state', 'city', 'in_state_tuition']],
-                                column_config={
-                                    "name": "Institution Name",
-                                    "state": "State",
-                                    "city": "City",
-                                    "in_state_tuition": st.column_config.NumberColumn(
-                                        "In-State Tuition",
-                                        format="$%d"
-                                    )
-                                }
-                            )
-                        else:
-                            st.info("No institutions match your filter criteria")
-                    else:
-                        st.info("No institutions found for the selected state")
-
-            st.markdown("</div>", unsafe_allow_html=True)
+                        if st.button(label, key=f"inst_{inst['name']}"):
+                            st.session_state.selected_institution = inst
+                            st.rerun()
+                else:
+                    st.info("No matching institutions found. Try a different search term.")
 
         # Show selected institution details
         if isinstance(st.session_state.selected_institution, dict):
             st.markdown("### Selected Institution Details")
             inst = st.session_state.selected_institution
 
+            # Display institution details
             st.markdown(f"""
                 **{inst['name']}**  
                 Location: {inst['city']}, {inst['state']}  
@@ -299,6 +229,11 @@ def show_education_path():
                     key="field_input"
                 )
 
+                # Clear selection if user starts typing something new
+                if (st.session_state.selected_field and 
+                    field_input != st.session_state.selected_field):
+                    st.session_state.selected_field = None
+
                 if field_input and not st.session_state.selected_field:
                     matching_fields = [
                         field for field in fields_of_study 
@@ -313,6 +248,27 @@ def show_education_path():
                                 st.rerun()
             else:
                 st.info("No fields of study information available for this institution")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Progress indicator
+        if st.session_state.selected_institution or st.session_state.selected_field:
+            progress = 0
+            if st.session_state.selected_institution:
+                progress += 0.5
+            if st.session_state.selected_field:
+                progress += 0.5
+
+            st.progress(progress)
+            st.markdown(f"<p style='text-align: center; color: #666;'>Progress: {int(progress * 100)}%</p>", 
+                        unsafe_allow_html=True)
+
+        # Continue button
+        if (st.session_state.selected_institution and 
+            st.session_state.selected_field):
+            if st.button("Continue to Financial Planning ➡️"):
+                st.session_state.setup_complete = True
+                st.rerun()
 
     # Back button
     if st.button("← Back to Previous Page"):
@@ -879,7 +835,7 @@ def main():
                             ]
 
                             if matching_spouse_occupations:
-                                for occ in matching_spouse_occupations:
+                                for occ in matchingspouse_occupations:
                                     is_selected = st.session_state.selected_spouse_occupation == occ
                                     if st.sidebar.button(
                                         occ,
