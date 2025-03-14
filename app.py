@@ -30,6 +30,7 @@ def init_firebase():
                     return None
 
                 # Log non-sensitive credential info for debugging
+                st.info(f"Firebase credentials loaded with keys: {', '.join(cred_dict.keys())}")
                 st.info(f"Initializing Firebase for project: {cred_dict.get('project_id')}")
 
                 cred = credentials.Certificate(cred_dict)
@@ -52,7 +53,8 @@ firebase_app = init_firebase()
 
 # Only proceed with Firestore operations if Firebase is initialized
 if firebase_app:
-    db = firestore.client()
+    # Initialize Firestore client with the specific app instance
+    db = firestore.client(app=firebase_app)
 
     # App title
     st.title("Educational Institutions Explorer")
