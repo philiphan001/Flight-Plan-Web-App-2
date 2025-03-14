@@ -50,11 +50,6 @@ def string_similarity(search_term, institution_name):
 
     return max_word_ratio
 
-@st.cache_data
-def get_institutions(collection_ref):
-    """Cache institution data to improve search performance"""
-    return list(collection_ref.stream())
-
 def init_firebase():
     try:
         # Clean up existing default app if it exists
@@ -121,8 +116,8 @@ try:
                     search_button = st.button("Search")
 
                     if search_button and search_term:
-                        # Get all institutions (cached)
-                        all_docs = get_institutions(collection_ref)
+                        # Get all documents for searching
+                        all_docs = list(collection_ref.stream())
                         search_results = []
 
                         # Score each institution based on enhanced name similarity
