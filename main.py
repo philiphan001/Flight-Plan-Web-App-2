@@ -589,8 +589,6 @@ def show_college_search():
         if search_button:
             with st.spinner("Searching..."):
                 # Get institutions based on search and filters
-                institutions = []
-
                 if search_term:
                     # Search by name first
                     matching_institutions = firebase_service.search_institutions_by_name(search_term)
@@ -636,12 +634,20 @@ def show_college_search():
                                 women_ratio = (float(inst['women']) / total) * 100
                                 gender_ratio_text = f"👥 Women: {women_ratio:.1f}%"
 
+                        # Format tuition value safely
+                        in_state_tuition = inst.get('in_state_tuition')
+                        tuition_display = f"${in_state_tuition:,.2f}" if isinstance(in_state_tuition, (int, float)) else "N/A"
+
+                        # Format admission rate safely
+                        admission_rate = inst.get('admission_rate', 0)
+                        admission_display = f"{admission_rate * 100:.1f}%" if admission_rate else "N/A"
+
                         st.markdown(f"""
                         <div style='padding: 15px; border-radius: 10px; background-color: white; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
                             <h3>{inst['name']} 🏛️</h3>
                             <p>📍 {inst['city']}, {inst['state']}</p>
-                            <p>💰 In-State Tuition: ${inst.get('in_state_tuition', 'N/A'):,}</p>
-                            <p>📊 Admission Rate: {inst.get('admission_rate', 0)*100:.1f}%</p>
+                            <p>💰 In-State Tuition: {tuition_display}</p>
+                            <p>📊 Admission Rate: {admission_display}</p>
                             <p>{gender_ratio_text}</p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -829,8 +835,7 @@ def main():
 
             # Get original case matches
             matching_occupations = [
-                occ for occ in occupations 
-                if occ.lower() in matches
+                occ for occ in occupations                if occ.lower() in matches
             ]
 
             # Show matches only if typing
@@ -846,7 +851,7 @@ def main():
                         st.session_state.selected_occupation = occ
                         st.rerun()
 
-        # Onlyproceed if both selections are valid
+        # Only proceed if both selections are valid
         if st.session_state.selected_location and st.session_state.selected_occupation:
             # Investment return rate slider
             investment_return_rate = st.sidebar.slider(
