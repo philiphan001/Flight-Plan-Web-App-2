@@ -84,7 +84,7 @@ try:
 
                         # Then filter results by state in memory
                         institutions = [
-                            doc.to_dict() for doc in docs 
+                            doc.to_dict() for doc in docs
                             if doc.to_dict().get('state') == selected_state
                         ]
                     else:
@@ -104,12 +104,28 @@ try:
                     if institutions:
                         df = pd.DataFrame(institutions)
                         st.write(f"Showing {len(df)} institutions")
-                        st.dataframe(df)
+
+                        # Reorder columns to show important info first
+                        display_columns = ['name', 'state', 'city']
+                        # Add any additional columns that exist in the data
+                        additional_columns = [col for col in df.columns if col not in display_columns]
+                        display_columns.extend(additional_columns)
+
+                        # Display the DataFrame with formatted columns
+                        st.dataframe(
+                            df[display_columns],
+                            column_config={
+                                "name": "Institution Name",
+                                "state": "State",
+                                "city": "City"
+                            }
+                        )
 
                         # Gender distribution if data available
                         if 'men' in df.columns and 'women' in df.columns:
                             st.header("Gender Distribution")
                             st.bar_chart(df[['men', 'women']].mean())
+
                     else:
                         st.info("No institutions found for the selected criteria")
                         if search_term and selected_state != "All States":
