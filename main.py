@@ -34,6 +34,9 @@ def main():
         st.session_state.sidebar_location_input = ""
     if 'sidebar_occupation_input' not in st.session_state:
         st.session_state.sidebar_occupation_input = ""
+    if 'selected_spouse_occ' not in st.session_state:
+        st.session_state['selected_spouse_occ'] = ""
+
 
     st.title("Financial Projection Application")
 
@@ -184,13 +187,44 @@ def main():
             with col4:
                 projection_years = st.slider("Projection Years", 1, 30, 10)
 
-            # Process data
-            location_data = DataProcessor.process_location_data(
-                coli_df, occupation_df, 
-                st.session_state.selected_location, 
-                st.session_state.selected_occupation,
-                investment_return_rate
-            )
+            try:
+                # Process data
+                location_data = DataProcessor.process_location_data(
+                    coli_df, occupation_df, 
+                    st.session_state.selected_location, 
+                    st.session_state.selected_occupation,
+                    investment_return_rate
+                )
+
+                # Create financial objects with milestones
+                assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
+                    location_data,
+                    st.session_state.milestones
+                )
+
+                # Calculate projections
+                calculator = FinancialCalculator(assets, liabilities, income, expenses)
+                current_projections = calculator.calculate_yearly_projection(projection_years)
+
+                # Display summary metrics with comparisons
+                st.markdown("### Financial Summary")
+                col5, col6, col7 = st.columns(3)
+
+            except ValueError as e:
+                st.error(str(e))
+                # Reset states to allow user to select again
+                st.session_state.show_projections = False
+                st.rerun()
+                return #added return to prevent further execution after error
+
+            except Exception as e:
+                st.error(f"Error processing data: {str(e)}")
+                st.write("Debug info:", e)
+                # Reset states to allow user to select again
+                st.session_state.show_projections = False
+                st.rerun()
+                return #added return to prevent further execution after error
+
 
             # Life Milestones Section in Sidebar
             st.sidebar.markdown("## Life Milestones 🎯")
@@ -469,108 +503,97 @@ def main():
                         st.session_state.milestones.pop(idx)
                         st.rerun()
 
-            # Create financial objects with milestones
-            assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
-                location_data,
-                st.session_state.milestones
-            )
-
-            # Calculate projections
-            calculator = FinancialCalculator(assets, liabilities, income, expenses)
-            current_projections = calculator.calculate_yearly_projection(projection_years)
-
             # Display summary metrics with comparisons
-            st.markdown("### Financial Summary")
-            col5, col6, col7 = st.columns(3)
+            if 'current_projections' in locals(): #Check if current_projections exists
+                def format_change(current, previous):
+                    if previous is None:
+                        return ""
+                    change = int(round(current - previous))
+                    color = "green" if change >= 0 else "red"
+                    sign = "+" if change >= 0 else ""
+                    return f'<p style="color: {color}; font-size: 14px; margin-top: 0;">{sign}${change:,}</p>'
 
-            def format_change(current, previous):
-                if previous is None:
-                    return ""
-                change = int(round(current - previous))
-                color = "green" if change >= 0 else "red"
-                sign = "+" if change >= 0 else ""
-                return f'<p style="color: {color}; font-size: 14px; margin-top: 0;">{sign}${change:,}</p>'
+                with col5:
+                    st.metric("Initial Net Worth 💰",
+                           f"${int(round(current_projections['net_worth'][0])):,}")
+                    if st.session_state.previous_projections:
+                        st.markdown(
+                            format_change(
+                                current_projections['net_worth'][0],
+                                st.session_state.previous_projections['net_worth'][0]
+                            ),
+                            unsafe_allow_html=True
+                        )
 
-            with col5:
-                st.metric("Initial Net Worth 💰",
-                       f"${int(round(current_projections['net_worth'][0])):,}")
-                if st.session_state.previous_projections:
-                    st.markdown(
-                        format_change(
-                            current_projections['net_worth'][0],
-                            st.session_state.previous_projections['net_worth'][0]
-                        ),
-                        unsafe_allow_html=True
+                with col6:
+                    st.metric("Final Net Worth 🚀",
+                           f"${int(round(current_projections['net_worth'][-1])):,}")
+                    if st.session_state.previous_projections:
+                        st.markdown(
+                            format_change(
+                                current_projections['net_worth'][-1],
+                                st.session_state.previous_projections['net_worth'][-1]
+                            ),
+                            unsafe_allow_html=True
+                        )
+
+                with col7:
+                    current_avg_cash_flow = int(round(sum(current_projections['cash_flow'])/len(current_projections['cash_flow'])))
+                    st.metric(
+                        "Average Annual Cash Flow 💵",
+                        f"${current_avg_cash_flow:,}"
+                    )
+                    if st.session_state.previous_projections:
+                        prev_avg_cash_flow = int(round(sum(st.session_state.previous_projections['cash_flow'])/len(st.session_state.previous_projections['cash_flow'])))
+                        st.markdown(
+                            format_change(current_avg_cash_flow, prev_avg_cash_flow),
+                            unsafe_allow_html=True
+                        )
+
+                # Create tabs for different visualizations
+                tab1, tab2, tab3 = st.tabs([
+                    "Net Worth Projection 📈",
+                    "Cash Flow Analysis 💰",
+                    "Assets & Liabilities ⚖️"
+                ])
+
+                with tab1:
+                    st.markdown("### Net Worth Over Time")
+                    FinancialPlotter.plot_net_worth(
+                        current_projections['years'],
+                        current_projections['net_worth'],
+                        current_projections['asset_values'],
+                        current_projections['liability_values']
                     )
 
-            with col6:
-                st.metric("Final Net Worth 🚀",
-                       f"${int(round(current_projections['net_worth'][-1])):,}")
-                if st.session_state.previous_projections:
-                    st.markdown(
-                        format_change(
-                            current_projections['net_worth'][-1],
-                            st.session_state.previous_projections['net_worth'][-1]
-                        ),
-                        unsafe_allow_html=True
+                with tab2:
+                    st.markdown("### Cash Flow Analysis")
+                    FinancialPlotter.plot_cash_flow(
+                        current_projections['years'],
+                        current_projections['total_income'],
+                        current_projections['expense_categories'],
+                        current_projections['total_expenses'],
+                        current_projections['cash_flow'],
+                        current_projections['income_streams']
                     )
 
-            with col7:
-                current_avg_cash_flow = int(round(sum(current_projections['cash_flow'])/len(current_projections['cash_flow'])))
-                st.metric(
-                    "Average Annual Cash Flow 💵",
-                    f"${current_avg_cash_flow:,}"
-                )
-                if st.session_state.previous_projections:
-                    prev_avg_cash_flow = int(round(sum(st.session_state.previous_projections['cash_flow'])/len(st.session_state.previous_projections['cash_flow'])))
-                    st.markdown(
-                        format_change(current_avg_cash_flow, prev_avg_cash_flow),
-                        unsafe_allow_html=True
+                with tab3:
+                    st.markdown("### Assets and Liabilities")
+                    FinancialPlotter.plot_assets_liabilities(
+                        current_projections['years'],
+                        current_projections['asset_values'],
+                        current_projections['liability_values'],
+                        current_projections['asset_breakdown'],
+                        current_projections['liability_breakdown']
                     )
 
-            # Create tabs for different visualizations
-            tab1, tab2, tab3 = st.tabs([
-                "Net Worth Projection 📈",
-                "Cash Flow Analysis 💰",
-                "Assets & Liabilities ⚖️"
-            ])
-
-            with tab1:
-                st.markdown("### Net Worth Over Time")
-                FinancialPlotter.plot_net_worth(
-                    current_projections['years'],
-                    current_projections['net_worth'],
-                    current_projections['asset_values'],
-                    current_projections['liability_values']
-                )
-
-            with tab2:
-                st.markdown("### Cash Flow Analysis")
-                FinancialPlotter.plot_cash_flow(
-                    current_projections['years'],
-                    current_projections['total_income'],
-                    current_projections['expense_categories'],
-                    current_projections['total_expenses'],
-                    current_projections['cash_flow'],
-                    current_projections['income_streams']
-                )
-
-            with tab3:
-                st.markdown("### Assets and Liabilities")
-                FinancialPlotter.plot_assets_liabilities(
-                    current_projections['years'],
-                    current_projections['asset_values'],
-                    current_projections['liability_values'],
-                    current_projections['asset_breakdown'],
-                    current_projections['liability_breakdown']
-                )
-
-            # Store current projections as previous before any new milestone is added
-            st.session_state.previous_projections = current_projections
+                # Store current projections as previous before any new milestone is added
+                st.session_state.previous_projections = current_projections
 
     except Exception as e:
-        st.error(f"Error processing data: {str(e)}")
+        st.error(f"An unexpected error occurred: {str(e)}")
         st.write("Debug info:", e)
+
 
 if __name__ == "__main__":
     main()

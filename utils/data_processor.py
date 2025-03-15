@@ -29,27 +29,48 @@ class DataProcessor:
 
     @staticmethod
     def process_location_data(coli_df: pd.DataFrame, occupation_df: pd.DataFrame,
-                            location: str, occupation: str, investment_return_rate: float) -> Dict:
-        # Convert location and occupation to string for comparison
-        location_data = coli_df[coli_df['Cost of Living'].astype(str) == str(location)].iloc[0]
-        occupation_data = occupation_df[occupation_df['Occupation'].astype(str) == str(occupation)].iloc[0]
+                        location: str, occupation: str, investment_return_rate: float) -> Dict:
+        """
+        Process location and occupation data, with proper error handling
+        """
+        try:
+            # Validate inputs
+            if not location or not occupation:
+                raise ValueError("Location and occupation must be provided")
 
-        return {
-            'housing': float(location_data['Housing']),
-            'transportation': float(location_data['Transportation']),
-            'food': float(location_data['Food']),
-            'healthcare': float(location_data['Healthcare']),
-            'insurance': float(location_data['Personal Insurance']),
-            'apparel': float(location_data['Apparel']),
-            'services': float(location_data['Services']),
-            'entertainment': float(location_data['Entertainment']),
-            'other': float(location_data['Other']),
-            'monthly_expense': float(location_data['Monthly Expense']),
-            'home_price': float(location_data['Average Price of Starter Home']),
-            'location_adjustment': float(location_data['Income Adjustment Factor']),
-            'base_income': float(occupation_data['Monthly Income']) * 12,  # Convert to annual
-            'investment_return_rate': investment_return_rate
-        }
+            # Find matching location data
+            location_matches = coli_df[coli_df['Cost of Living'].astype(str) == str(location)]
+            if location_matches.empty:
+                raise ValueError(f"Location '{location}' not found in the database")
+            location_data = location_matches.iloc[0]
+
+            # Find matching occupation data
+            occupation_matches = occupation_df[occupation_df['Occupation'].astype(str) == str(occupation)]
+            if occupation_matches.empty:
+                raise ValueError(f"Occupation '{occupation}' not found in the database")
+            occupation_data = occupation_matches.iloc[0]
+
+            # Process the data
+            return {
+                'housing': float(location_data['Housing']),
+                'transportation': float(location_data['Transportation']),
+                'food': float(location_data['Food']),
+                'healthcare': float(location_data['Healthcare']),
+                'insurance': float(location_data['Personal Insurance']),
+                'apparel': float(location_data['Apparel']),
+                'services': float(location_data['Services']),
+                'entertainment': float(location_data['Entertainment']),
+                'other': float(location_data['Other']),
+                'monthly_expense': float(location_data['Monthly Expense']),
+                'home_price': float(location_data['Average Price of Starter Home']),
+                'location_adjustment': float(location_data['Income Adjustment Factor']),
+                'base_income': float(occupation_data['Monthly Income']) * 12,  # Convert to annual
+                'investment_return_rate': investment_return_rate
+            }
+        except ValueError as e:
+            raise ValueError(str(e))
+        except Exception as e:
+            raise Exception(f"Error processing location data: {str(e)}")
 
     @staticmethod
     def create_financial_objects(location_data: Dict, 
