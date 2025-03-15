@@ -342,3 +342,90 @@ class FinancialPlotter:
 
         # Create and display salary data table
         st.dataframe(salary_data.style.format("${:,.0f}"), use_container_width=True)
+    
+    def plot_career_roadmap(self, career_data: Dict) -> None:
+        """
+        Create an interactive visualization of the career roadmap.
+
+        Args:
+            career_data: Dictionary containing career path information
+        """
+        # Create figure with secondary y-axis
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+        # Process primary path
+        primary_path = career_data.get('primary_path', {})
+        timeline = primary_path.get('timeline', [])
+
+        years = [milestone['year'] for milestone in timeline]
+        milestones = [milestone['milestone'] for milestone in timeline]
+        salaries = [milestone['estimated_salary'] for milestone in timeline]
+
+        # Add primary path as a line
+        fig.add_trace(
+            go.Scatter(
+                x=years,
+                y=range(len(years)),
+                text=milestones,
+                mode='lines+markers+text',
+                name=primary_path.get('title', 'Primary Path'),
+                line=dict(color='#2E86C1', width=3),
+                textposition="top center"
+            )
+        )
+
+        # Add alternative paths
+        alt_paths = career_data.get('alternative_paths', [])
+        colors = ['#27AE60', '#E67E22', '#8E44AD']  # Different colors for alternative paths
+
+        for idx, path in enumerate(alt_paths):
+            if 'timeline' in path:
+                alt_years = [milestone['year'] for milestone in path['timeline']]
+                alt_milestones = [milestone['milestone'] for milestone in path['timeline']]
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=alt_years,
+                        y=[i + (idx + 1) * 2 for i in range(len(alt_years))],
+                        text=alt_milestones,
+                        mode='lines+markers+text',
+                        name=path.get('title', f'Alternative Path {idx + 1}'),
+                        line=dict(color=colors[idx % len(colors)], width=2, dash='dash'),
+                        textposition="bottom center"
+                    )
+                )
+
+        # Update layout
+        fig.update_layout(
+            title='Career Path Roadmap',
+            xaxis_title='Year',
+            showlegend=True,
+            height=600,
+            template='plotly_white',
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=1.05
+            )
+        )
+
+        # Remove y-axis labels since we're using relative positioning
+        fig.update_yaxes(showticklabels=False)
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Display additional information
+        st.subheader("Primary Career Path Details")
+        st.write(primary_path.get('description', ''))
+
+        # Create a table with timeline details
+        df_timeline = pd.DataFrame(timeline)
+        st.dataframe(df_timeline, use_container_width=True)
+
+        # Display alternative paths
+        if alt_paths:
+            st.subheader("Alternative Career Paths")
+            for path in alt_paths:
+                st.write(f"**{path.get('title', 'Alternative Path')}**")
+                st.write(path.get('description', ''))
