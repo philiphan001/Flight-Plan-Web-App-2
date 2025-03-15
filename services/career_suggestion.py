@@ -103,7 +103,20 @@ class CareerSuggestionService:
         4. Salary ranges for each position (as numbers, not strings)
         5. Alternative career paths that leverage the same skill set
 
-        Remember to format your response as a valid JSON object with the exact structure specified."""
+        Remember to format your response as a valid JSON object with the exact structure specified.
+
+        Each milestone in the timeline should include:
+        - Specific job title
+        - Required skills (both technical and soft skills)
+        - Industry certifications or qualifications needed
+        - Realistic salary expectations based on experience level
+        - Key responsibilities and expected achievements
+
+        For alternative paths, provide at least 2 different options that:
+        - Leverage existing skills
+        - Offer different work-life balance options
+        - Present varied salary potential
+        - Include different industry focus"""
 
         return prompt
 
@@ -122,9 +135,23 @@ class CareerSuggestionService:
                         "technical_skills": ["skill1", "skill2"],
                         "soft_skills": ["skill1", "skill2"],
                         "certifications": ["cert1", "cert2"],
-                        "learning_resources": ["resource1", "resource2"]
+                        "learning_resources": [
+                            {
+                                "name": "resource name",
+                                "type": "course/book/platform",
+                                "url": "optional url",
+                                "estimated_duration": "time to complete"
+                            }
+                        ],
+                        "skill_development_timeline": [
+                            {
+                                "timeframe": "0-6 months",
+                                "focus_areas": ["skill1", "skill2"],
+                                "expected_outcomes": ["outcome1", "outcome2"]
+                            }
+                        ]
                     }"""},
-                    {"role": "user", "content": f"What are the most important skills to develop for a career in {career_path}? Include both technical and soft skills."}
+                    {"role": "user", "content": f"What are the most important skills to develop for a career in {career_path}? Include technical skills, soft skills, certifications, and a recommended learning timeline."}
                 ],
                 temperature=0.7
             )
