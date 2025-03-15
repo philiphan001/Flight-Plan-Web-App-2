@@ -137,12 +137,23 @@ class Salary(Income):
         return super().calculate_income(year) * self.location_adjustment
 
 class SpouseIncome(Income):
-    def __init__(self, annual_amount: float, location_adjustment: float = 1.0, start_year: int = 0):
+    def __init__(self, annual_amount: float, location_adjustment: float = 1.0,
+                 lifestyle_adjustment: float = 0.0, initial_savings: float = 0,
+                 initial_debt: float = 0, insurance_cost: float = 0,
+                 start_year: int = 0):
         super().__init__("Spouse Income", annual_amount, start_year=start_year)
         self.location_adjustment = location_adjustment
+        self.lifestyle_adjustment = lifestyle_adjustment
+        self.initial_savings = initial_savings
+        self.initial_debt = initial_debt
+        self.insurance_cost = insurance_cost
 
     def calculate_income(self, year: int) -> float:
-        return super().calculate_income(year) * self.location_adjustment
+        # Adjust income based on location and lifestyle factors
+        base_income = super().calculate_income(year)
+        adjusted_income = base_income * self.location_adjustment * (1 + self.lifestyle_adjustment)
+        # Subtract insurance cost from income
+        return adjusted_income - (self.insurance_cost if year >= self.start_year else 0)
 
 
 class Expense(ABC):
