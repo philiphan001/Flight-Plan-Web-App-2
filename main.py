@@ -8,8 +8,10 @@ from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpous
 
 def reset_financial_state():
     # Reset all financial-related session state variables
-    st.session_state.previous_projections = None
-    st.session_state.milestones = []
+    if 'previous_projections' in st.session_state:
+        del st.session_state.previous_projections
+    if 'milestones' in st.session_state:
+        del st.session_state.milestones
     st.session_state.show_projections = True
 
 def main():
@@ -28,8 +30,6 @@ def main():
         st.session_state.show_location_matches = False
     if 'show_occupation_matches' not in st.session_state:
         st.session_state.show_occupation_matches = False
-    if 'show_marriage_options' not in st.session_state:
-        st.session_state.show_marriage_options = True
     if 'sidebar_location_input' not in st.session_state:
         st.session_state.sidebar_location_input = ""
     if 'sidebar_occupation_input' not in st.session_state:
@@ -114,6 +114,7 @@ def main():
             # Back button
             if st.button("← Back to Selection"):
                 st.session_state.show_projections = False
+                reset_financial_state()
                 st.rerun()
 
             # Add location and occupation editing in sidebar
@@ -138,9 +139,9 @@ def main():
                         st.sidebar.markdown("#### Select from matches:")
                         for loc in matching_locations:
                             if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
+                                reset_financial_state()
                                 st.session_state.selected_location = loc
                                 st.session_state.sidebar_location_input = ""
-                                reset_financial_state()
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching locations found")
@@ -164,9 +165,9 @@ def main():
                         st.sidebar.markdown("#### Select from matches:")
                         for occ in matching_occupations:
                             if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
+                                reset_financial_state()
                                 st.session_state.selected_occupation = occ
                                 st.session_state.sidebar_occupation_input = ""
-                                reset_financial_state()
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
@@ -215,15 +216,14 @@ def main():
                 # Reset states to allow user to select again
                 st.session_state.show_projections = False
                 st.rerun()
-                return #added return to prevent further execution after error
-
+                return
             except Exception as e:
                 st.error(f"Error processing data: {str(e)}")
                 st.write("Debug info:", e)
                 # Reset states to allow user to select again
                 st.session_state.show_projections = False
                 st.rerun()
-                return #added return to prevent further execution after error
+                return
 
 
             # Life Milestones Section in Sidebar
@@ -272,7 +272,7 @@ def main():
                     key="spouse_occ"
                 )
 
-                if spouse_occupation_input and st.session_state.show_marriage_options: #Added conditional check and session state
+                if spouse_occupation_input and st.session_state.show_marriage_options:
                     matches = get_close_matches(spouse_occupation_input.lower(), 
                                            [occ.lower() for occ in occupations], 
                                            n=3, cutoff=0.1)
@@ -282,13 +282,13 @@ def main():
                         for occ in matching_occupations:
                             if st.button(f"💼 {occ}", key=f"spouse_occ_{occ}"):
                                 selected_spouse_occ = occ
-                                st.session_state['selected_spouse_occ'] = selected_spouse_occ #Store in session state
-                                st.session_state.show_marriage_options = False #Hide options after selection
+                                st.session_state['selected_spouse_occ'] = selected_spouse_occ
+                                st.session_state.show_marriage_options = False
                                 st.rerun()
                     else:
                         st.error("No matching occupations found")
 
-                if selected_spouse_occ and st.button("Add Marriage Milestone"): #Check if occupation is selected
+                if selected_spouse_occ and st.button("Add Marriage Milestone"):
                     # Process spouse's income data
                     spouse_data = DataProcessor.process_location_data(
                         coli_df, occupation_df,
@@ -504,7 +504,7 @@ def main():
                         st.rerun()
 
             # Display summary metrics with comparisons
-            if 'current_projections' in locals(): #Check if current_projections exists
+            if 'current_projections' in locals():
                 def format_change(current, previous):
                     if previous is None:
                         return ""
