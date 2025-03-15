@@ -15,7 +15,7 @@ class FinancialCalculator:
             'net_worth': [],
             'cash_flow': [],
             'total_income': [],
-            'income_streams': {},  # Initialize income_streams dictionary
+            'income_streams': {},
             'total_expenses': [],
             'expense_categories': {},
             'asset_values': [],
@@ -30,18 +30,31 @@ class FinancialCalculator:
         for inc in self.income:
             income_streams[inc.name] = []
 
+        # Initialize expense categories
+        expense_categories = {}
+        for expense in self.expenses:
+            category = expense.name
+            if "One-time Cost" in category:
+                milestone_name = category.replace(" One-time Cost", "")
+                category = f"One-time: {milestone_name}"
+            if category not in expense_categories:
+                expense_categories[category] = [0] * projection_years
+
+        # Initialize asset and liability breakdowns
+        asset_breakdown = {}
+        liability_breakdown = {}
+
+        cumulative_savings = 0
         for year in range(projection_years):
             # Calculate income streams for each income source
             for inc in self.income:
-                if inc.name not in income_streams:
-                    income_streams[inc.name] = []
                 income_amount = round(inc.calculate_income(year))
                 income_streams[inc.name].append(income_amount)
 
             # Calculate total income
             total_income = round(sum(inc.calculate_income(year) for inc in self.income))
             projections['total_income'].append(total_income)
-            projections['income_streams'] = income_streams  # Store income streams in projections
+            projections['income_streams'] = income_streams
 
             # Calculate expenses by category
             total_expenses = 0
@@ -50,13 +63,9 @@ class FinancialCalculator:
                 if "One-time Cost" in category:
                     milestone_name = category.replace(" One-time Cost", "")
                     category = f"One-time: {milestone_name}"
-                    expense_amount = round(expense.calculate_expense(year)) if expense.name.endswith(f"Year {year}") else 0
-                else:
-                    expense_amount = round(expense.calculate_expense(year))
 
-                if category not in expense_categories:
-                    expense_categories[category] = [0] * projection_years
-                expense_categories[category].append(expense_amount)
+                expense_amount = round(expense.calculate_expense(year))
+                expense_categories[category][year] = expense_amount
                 total_expenses += expense_amount
 
             projections['total_expenses'].append(total_expenses)
@@ -66,7 +75,7 @@ class FinancialCalculator:
             cash_flow = round(total_income - total_expenses)
             projections['cash_flow'].append(cash_flow)
 
-            # Add cash flow to cumulative savings for investment
+            # Add cash flow to cumulative savings
             cumulative_savings += cash_flow
 
             # Update the investment asset with new savings
@@ -74,7 +83,7 @@ class FinancialCalculator:
                 if isinstance(asset, Investment) and asset.name == "Savings":
                     asset.add_contribution(cash_flow)
 
-            # Calculate asset values including investment growth
+            # Calculate asset values
             total_asset_value = 0
             for asset in self.assets:
                 asset_value = round(asset.calculate_value(year))
@@ -82,7 +91,7 @@ class FinancialCalculator:
                 asset_key = f"{asset_type}: {asset.name}"
                 if asset_key not in asset_breakdown:
                     asset_breakdown[asset_key] = [0] * projection_years
-                asset_breakdown[asset_key].append(asset_value)
+                asset_breakdown[asset_key][year] = asset_value
                 total_asset_value += asset_value
 
             projections['asset_values'].append(total_asset_value)
@@ -104,7 +113,7 @@ class FinancialCalculator:
                 liability_key = f"{liability_type}: {liability.name}"
                 if liability_key not in liability_breakdown:
                     liability_breakdown[liability_key] = [0] * projection_years
-                liability_breakdown[liability_key].append(liability_value)
+                liability_breakdown[liability_key][year] = liability_value
                 total_liability_value += liability_value
 
             projections['liability_values'].append(total_liability_value)
