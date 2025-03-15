@@ -495,6 +495,11 @@ def show_landing_page():
                 st.session_state.page = 'college_search'
                 st.rerun()
 
+            if st.button("Financial Planning Calculator 💹", key="financial_calc",
+                        help="Plan your future finances based on location and career"):
+                st.session_state.page = 'financial_planning'
+                st.rerun()
+
             if st.button("Explore Salary Data 💰", key="salary_explorer", 
                         help="Compare salaries across different locations and occupations"):
                 st.session_state.page = 'salary_explorer'
@@ -503,76 +508,11 @@ def show_landing_page():
             st.markdown("</div>", unsafe_allow_html=True)
 
     elif st.session_state.page == 'known_path':
-        st.markdown("""
-            <h1 style='font-size: 2.5rem !important;'>
-                Great Choice! What's Your Plan? 🎯
-            </h1>
-        """, unsafe_allow_html=True)
-
-        col1, col2 = st.columns([1,1])
-
-        with col1:
-            st.markdown('<div class="choice-card">', unsafe_allow_html=True)
-            if st.button("Continue My Education 📚", key="education"):
-                st.session_state.path_chosen = 'education'
-                st.session_state.page = 'education_path'
-                st.rerun()
-
-            if st.button("Join the Military 🎖️", key="military"):
-                st.session_state.path_chosen = 'military'
-                st.session_state.page = 'military_path'
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        with col2:
-            st.markdown('<div class="choice-card">', unsafe_allow_html=True)
-            if st.button("Get a Job 💼", key="job"):
-                st.session_state.path_chosen = 'job'
-                st.session_state.page = 'job_path'
-                st.rerun()
-
-            if st.button("Take a Gap Year 🌎", key="gap_year"):
-                st.session_state.path_chosen = 'gap_year'
-                st.session_state.page = 'gap_year_path'
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        # Add a back button
-        if st.button("← Back to Main Menu"):
-            st.session_state.page = 'initial'
-            st.rerun()
-
+        show_known_path()
     elif st.session_state.page == 'explore_path':
-        st.markdown("""
-            <h1 style='font-size: 2.5rem !important;'>
-                Let's Discover Your Interests! 🌟
-            </h1>
-            <p class='subtitle'>
-                We'll help you explore different paths through fun activities
-            </p>
-        """, unsafe_allow_html=True)
-
-        # Import and run the interest quiz
-        from quiz.interest_quiz import run_quiz
-        run_quiz()
-
-        # Add a back button
-        if st.button("← Back to Main Menu"):
-            # Reset quiz state when going back
-            if 'quiz' in st.session_state:
-                del st.session_state['quiz']
-            if 'current_question' in st.session_state:
-                del st.session_state['current_question']
-            if 'selected_traits' in st.session_state:
-                del st.session_state['selected_traits']
-            if 'quiz_completed' in st.session_state:
-                del st.session_state['quiz_completed']
-
-            st.session_state.page = 'initial'
-            st.rerun()
+        show_explore_path()
     elif st.session_state.page == 'education_path':
         show_education_path()
-
     elif st.session_state.page == 'salary_explorer':
         show_salary_heatmap()
     elif st.session_state.page == 'career_discovery':
@@ -580,7 +520,82 @@ def show_landing_page():
         show_career_discovery()
     elif st.session_state.page == 'college_search':
         show_college_search()
+    elif st.session_state.page == 'financial_planning':
+        show_financial_planning()
 
+def show_known_path():
+    st.markdown("""
+        <h1 style='font-size: 2.5rem !important;'>
+            Great Choice! What's Your Plan? 🎯
+        </h1>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([1,1])
+
+    with col1:
+        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+        if st.button("Continue My Education 📚", key="education"):
+            st.session_state.path_chosen = 'education'
+            st.session_state.page = 'education_path'
+            st.rerun()
+
+        if st.button("Join the Military 🎖️", key="military"):
+            st.session_state.path_chosen = 'military'
+            st.session_state.page = 'military_path'
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+        if st.button("Get a Job 💼", key="job"):
+            st.session_state.path_chosen = 'job'
+            st.session_state.page = 'job_path'
+            st.rerun()
+
+        if st.button("Take a Gap Year 🌎", key="gap_year"):
+            st.session_state.path_chosen = 'gap_year'
+            st.session_state.page = 'gap_year_path'
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Add a back button
+    if st.button("← Back to Main Menu"):
+        st.session_state.page = 'initial'
+        st.rerun()
+
+
+def show_explore_path():
+    st.markdown("""
+        <h1 style='font-size: 2.5rem !important;'>
+            Let's Discover Your Interests! 🌟
+        </h1>
+        <p class='subtitle'>
+            We'll help you explore different paths through fun activities
+        </p>
+    """, unsafe_allow_html=True)
+
+    # Import and run the interest quiz
+    from quiz.interest_quiz import run_quiz
+    run_quiz()
+
+    # Add a back button
+    if st.button("← Back to Main Menu"):
+        # Reset quiz state when going back
+        if 'quiz' in st.session_state:
+            del st.session_state['quiz']
+        if 'current_question' in st.session_state:
+            del st.session_state['current_question']
+        if 'selected_traits' in st.session_state:
+            del st.session_state['selected_traits']
+        if 'quiz_completed' in st.session_state:
+            del st.session_state['quiz_completed']
+
+        st.session_state.page = 'initial'
+        st.rerun()
+
+def show_career_discovery():
+    from pages.career_discovery import show_career_discovery
+    show_career_discovery()
 
 
 def show_college_search():
@@ -719,79 +734,104 @@ def show_college_search():
         st.session_state.page = 'initial'
         st.rerun()
 
-def show_known_path():
+def show_financial_planning():
+    """Financial planning calculator page"""
     st.markdown("""
         <h1 style='font-size: 2.5rem !important;'>
-            Great Choice! What's Your Plan? 🎯
-        </h1>
-    """, unsafe_allow_html=True)
-
-    col1, col2 = st.columns([1,1])
-
-    with col1:
-        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
-        if st.button("Continue My Education 📚", key="education"):
-            st.session_state.path_chosen = 'education'
-            st.session_state.page = 'education_path'
-            st.rerun()
-
-        if st.button("Join the Military 🎖️", key="military"):
-            st.session_state.path_chosen = 'military'
-            st.session_state.page = 'military_path'
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
-        if st.button("Get a Job 💼", key="job"):
-            st.session_state.path_chosen = 'job'
-            st.session_state.page = 'job_path'
-            st.rerun()
-
-        if st.button("Take a Gap Year 🌎", key="gap_year"):
-            st.session_state.path_chosen = 'gap_year'
-            st.session_state.page = 'gap_year_path'
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # Add a back button
-    if st.button("← Back to Main Menu"):
-        st.session_state.page = 'initial'
-        st.rerun()
-
-
-def show_explore_path():
-    st.markdown("""
-        <h1 style='font-size: 2.5rem !important;'>
-            Let's Discover Your Interests! 🌟
+            Financial Planning Calculator 💹
         </h1>
         <p class='subtitle'>
-            We'll help you explore different paths through fun activities
+            Plan your future finances based on your location and career choice
         </p>
     """, unsafe_allow_html=True)
 
-    # Import and run the interest quiz
-    from quiz.interest_quiz import run_quiz
-    run_quiz()
+    # Initialize the BLS API for occupation data
+    try:
+        bls_api = BLSApi()
+    except Exception as e:
+        st.error(f"Error initializing BLS API: {str(e)}")
+        return
+
+    # Create two columns for location and occupation selection
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("### Choose Your Location 📍")
+        location_input = st.text_input(
+            "Enter location",
+            placeholder="e.g., New York, California",
+            help="Enter the state or city where you plan to work"
+        )
+
+        if location_input:
+            matching_locations = get_close_matches(
+                location_input.lower(),
+                [loc.lower() for loc in locations],
+                n=3,
+                cutoff=0.1
+            )
+
+            if matching_locations:
+                st.markdown("#### Select a location:")
+                for loc in matching_locations:
+                    if st.button(
+                        loc.title(),
+                        key=f"loc_{loc}",
+                        help=f"Select {loc} as your location"
+                    ):
+                        st.session_state.selected_location = loc
+                        st.rerun()
+
+    with col2:
+        st.markdown("### Choose Your Occupation 💼")
+        occupation_input = st.text_input(
+            "Enter occupation",
+            placeholder="e.g., Software Developer, Teacher",
+            help="Enter your desired occupation"
+        )
+
+        if occupation_input:
+            matching_occupations = bls_api.search_occupations(occupation_input)
+            if matching_occupations:
+                st.markdown("#### Select an occupation:")
+                for occ in matching_occupations:
+                    if st.button(
+                        occ['title'],
+                        key=f"occ_{occ['code']}",
+                        help=f"Select {occ['title']} as your occupation"
+                    ):
+                        st.session_state.selected_occupation = occ
+                        st.rerun()
+
+    # If both location and occupation are selected, show financial projections
+    if st.session_state.get('selected_location') and st.session_state.get('selected_occupation'):
+        st.markdown("### Your Financial Projections 📊")
+
+        # Get salary data
+        salary_data = bls_api.get_salary_by_location(
+            st.session_state.selected_occupation['code'],
+            st.session_state.selected_location
+        )
+
+        if salary_data:
+            st.metric(
+                "Expected Annual Salary",
+                f"${salary_data.get('annual_mean_wage', 0):,.2f}"
+            )
+
+            # Add more financial calculations and visualizations here
+            st.markdown("#### Monthly Budget Breakdown")
+            # Add budget visualization
+
+            st.markdown("#### Long-term Financial Projections")
+            # Add projection charts
 
     # Add a back button
     if st.button("← Back to Main Menu"):
-        # Reset quiz state when going back
-        if 'quiz' in st.session_state:
-            del st.session_state['quiz']
-        if 'current_question' in st.session_state:
-            del st.session_state['current_question']
-        if 'selected_traits' in st.session_state:
-            del st.session_state['selected_traits']
-        if 'quiz_completed' in st.session_state:
-            del st.session_state['quiz_completed']
-
         st.session_state.page = 'initial'
+        st.session_state.selected_location = None
+        st.session_state.selected_occupation = None
         st.rerun()
-
-def show_career_discovery():
-    from pages.career_discovery import show_career_discovery
-    show_career_discovery()
 
 
 def main():
@@ -825,7 +865,7 @@ def main():
         # Initialize session state
         if 'selected_location' not in st.session_state:
             st.session_state.selected_location = None
-        if 'selected_occupation' not in st.session_state:
+        if 'selected_occupation'not in st.session_state:
             st.session_state.selected_occupation = None
         if 'selected_spouse_occupation' not in st.session_state:
             st.session_state.selected_spouse_occupation = None
