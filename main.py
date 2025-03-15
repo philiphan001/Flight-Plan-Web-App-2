@@ -215,14 +215,14 @@ def main():
             def format_change(current, previous):
                 if previous is None:
                     return ""
-                change = current - previous
+                change = int(round(current - previous))
                 color = "green" if change >= 0 else "red"
                 sign = "+" if change >= 0 else ""
-                return f'<p style="color: {color}; font-size: 14px; margin-top: 0;">{sign}${change:,.2f}</p>'
+                return f'<p style="color: {color}; font-size: 14px; margin-top: 0;">{sign}${change:,}</p>'
 
             with col5:
                 st.metric("Initial Net Worth 💰",
-                       f"${current_projections['net_worth'][0]:,.2f}")
+                       f"${int(round(current_projections['net_worth'][0])):,}")
                 if st.session_state.previous_projections:
                     st.markdown(
                         format_change(
@@ -234,7 +234,7 @@ def main():
 
             with col6:
                 st.metric("Final Net Worth 🚀",
-                       f"${current_projections['net_worth'][-1]:,.2f}")
+                       f"${int(round(current_projections['net_worth'][-1])):,}")
                 if st.session_state.previous_projections:
                     st.markdown(
                         format_change(
@@ -245,13 +245,13 @@ def main():
                     )
 
             with col7:
-                current_avg_cash_flow = sum(current_projections['cash_flow'])/len(current_projections['cash_flow'])
+                current_avg_cash_flow = int(round(sum(current_projections['cash_flow'])/len(current_projections['cash_flow'])))
                 st.metric(
                     "Average Annual Cash Flow 💵",
-                    f"${current_avg_cash_flow:,.2f}"
+                    f"${current_avg_cash_flow:,}"
                 )
                 if st.session_state.previous_projections:
-                    prev_avg_cash_flow = sum(st.session_state.previous_projections['cash_flow'])/len(st.session_state.previous_projections['cash_flow'])
+                    prev_avg_cash_flow = int(round(sum(st.session_state.previous_projections['cash_flow'])/len(st.session_state.previous_projections['cash_flow'])))
                     st.markdown(
                         format_change(current_avg_cash_flow, prev_avg_cash_flow),
                         unsafe_allow_html=True
