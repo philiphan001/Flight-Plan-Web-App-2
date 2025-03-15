@@ -117,7 +117,7 @@ def main():
 
             # Location editor
             st.sidebar.markdown(f"**Current Location:** {st.session_state.selected_location}")
-            change_location = st.sidebar.checkbox("Change Location", key="change_location")
+            change_location = st.sidebar.checkbox("Change Location", key="change_location_checkbox")
             if not change_location:
                 st.session_state.show_sidebar_location_matches = False
             if change_location:
@@ -146,7 +146,7 @@ def main():
 
             # Occupation editor
             st.sidebar.markdown(f"**Current Occupation:** {st.session_state.selected_occupation}")
-            change_occupation = st.sidebar.checkbox("Change Occupation", key="change_occupation")
+            change_occupation = st.sidebar.checkbox("Change Occupation", key="change_occupation_checkbox")
             if not change_occupation:
                 st.session_state.show_sidebar_occupation_matches = False
             if change_occupation:
