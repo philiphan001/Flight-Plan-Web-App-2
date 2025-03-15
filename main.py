@@ -6,6 +6,12 @@ from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
 from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome
 
+def reset_financial_state():
+    # Reset all financial-related session state variables
+    st.session_state.previous_projections = None
+    st.session_state.milestones = []
+    st.session_state.show_projections = True
+
 def main():
     # Initialize session state variables if they don't exist
     if 'selected_location' not in st.session_state:
@@ -65,7 +71,8 @@ def main():
                                 if st.button(f"📍 {loc}", key=f"loc_{loc}"):
                                     st.session_state.selected_location = loc
                                     st.session_state.show_location_matches = False
-                                    st.rerun()
+                                    reset_financial_state()
+                                    st.experimental_rerun()
                         else:
                             st.error("No matching locations found")
 
@@ -88,7 +95,8 @@ def main():
                                 if st.button(f"💼 {occ}", key=f"occ_{occ}"):
                                     st.session_state.selected_occupation = occ
                                     st.session_state.show_occupation_matches = False
-                                    st.rerun()
+                                    reset_financial_state()
+                                    st.experimental_rerun()
                         else:
                             st.error("No matching occupations found")
 
@@ -97,13 +105,13 @@ def main():
                 st.markdown("---")
                 if st.button("Continue to Financial Projections ➡️"):
                     st.session_state.show_projections = True
-                    st.rerun()
+                    st.experimental_rerun()
 
         else:
             # Back button
             if st.button("← Back to Selection"):
                 st.session_state.show_projections = False
-                st.rerun()
+                st.experimental_rerun()
 
             # Add location and occupation editing in sidebar
             st.sidebar.markdown("## Current Selections 📍")
@@ -129,8 +137,8 @@ def main():
                             if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
                                 st.session_state.selected_location = loc
                                 st.session_state.sidebar_location_input = ""
-                                st.session_state.previous_projections = None  # Force recalculation
-                                st.experimental_rerun()  # Force complete page rerun
+                                reset_financial_state()
+                                st.experimental_rerun()
                     else:
                         st.sidebar.error("No matching locations found")
 
@@ -155,8 +163,8 @@ def main():
                             if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
                                 st.session_state.selected_occupation = occ
                                 st.session_state.sidebar_occupation_input = ""
-                                st.session_state.previous_projections = None  # Force recalculation
-                                st.experimental_rerun()  # Force complete page rerun
+                                reset_financial_state()
+                                st.experimental_rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
 
