@@ -130,56 +130,10 @@ st.markdown("""
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
-        .results-container {
-            height: 600px;
-            overflow-y: auto;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 10px;
-            margin: 10px 0;
-        }
-        .results-container::-webkit-scrollbar {
-            width: 12px;
-        }
-        .results-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        .results-container::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
-        }
-        .results-container::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-        .success-message {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .info-message {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            background-color: #cce5ff;
-            color: #004085;
-            border: 1px solid #b8daff;
-        }
-        div[data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {
-            max-height: 600px;
-            overflow-y: auto;
-            padding: 1rem;
-            background-color: #f8f9fa;
-            border-radius: 10px;
-        }
-
     </style>
 """, unsafe_allow_html=True)
 
-# Update the show_education_path function to use the new Firebase service
+# Update the show_education_path function to use the College Scorecard API
 def show_education_path():
     st.markdown("""
         <h1 style='font-size: 2.5rem !important;'>
@@ -190,13 +144,21 @@ def show_education_path():
         </p>
     """, unsafe_allow_html=True)
 
-    # Initialize Firebase service
+    # Initialize College Scorecard API
     try:
-        from services.firebase_service import FirebaseService
-        firebase_service = FirebaseService()
+        from services.college_scorecard import CollegeScorecardAPI
+        college_api = CollegeScorecardAPI()
     except Exception as e:
-        st.error(f"Error initializing Firebase service: {str(e)}")
+        st.error(f"Error initializing College Scorecard API: {str(e)}")
         return
+
+    # Initialize session state
+    if 'selected_institution_type' not in st.session_state:
+        st.session_state.selected_institution_type = None
+    if 'selected_institution' not in st.session_state:
+        st.session_state.selected_institution = None
+    if 'selected_field' not in st.session_state:
+        st.session_state.selected_field = None
 
     # Center the content
     col1, col2, col3 = st.columns([1,2,1])
@@ -227,73 +189,75 @@ def show_education_path():
             key="institution_input"
         )
 
-        search_button = st.button("Search Institution")
+        # Clear selection if user starts typing something new
+        if (st.session_state.selected_institution and 
+            institution_input != (st.session_state.selected_institution['name'] if isinstance(st.session_state.selected_institution, dict) else "")):
+            st.session_state.selected_institution = None
 
-        if search_button and institution_input:
-            with st.spinner("Searching..."):
-                matching_institutions = firebase_service.search_institutions_by_name(institution_input)
+        if institution_input and not st.session_state.selected_institution:
+            # Get school type parameter for API
+            school_type = college_api.get_school_type_param(institution_type)
 
-                if matching_institutions:
-                    st.success(f"Found {len(matching_institutions)} matching institutions")
+            # Search colleges using the API
+            matching_institutions = college_api.search_colleges(
+                query=institution_input,
+                school_type=school_type,
+                limit=5
+            )
 
-                    for inst in matching_institutions:
-                        # Create a formatted button label with college details
-                        label = (f"🏛️ {inst['name']}\n"
-                                f"📍 {inst['city']}, {inst['state']}\n"
-                                f"💰 In-State: ${inst.get('in_state_tuition', 'N/A'):,}" 
-                                if isinstance(inst.get('in_state_tuition'), (int, float)) 
-                                else f"💰 In-State: N/A")
+            if matching_institutions:
+                st.markdown("#### Select your institution:")
+                for inst in matching_institutions:
+                    # Create a formatted button label with college details
+                    label = (f"🏛️ {inst['name']}\n"
+                            f"📍 {inst['city']}, {inst['state']}\n"
+                            f"💰 In-State: ${inst['in_state_tuition']:,}" if inst['in_state_tuition'] != 'N/A' else 'N/A')
 
-                        if st.button(label, key=f"inst_{inst['name']}"):
-                            st.session_state.selected_institution = inst
-                            st.rerun()
-                else:
-                    st.info("No matching institutions found. Try a different search term.")
+                    if st.button(label, key=f"inst_{inst['name']}"):
+                        st.session_state.selected_institution = inst
+                        st.rerun()
+            else:
+                st.info("No matching institutions found. Try a different search term.")
 
         # Show selected institution details
         if isinstance(st.session_state.selected_institution, dict):
             st.markdown("### Selected Institution Details")
             inst = st.session_state.selected_institution
-
-            # Display institution details
             st.markdown(f"""
                 **{inst['name']}**  
                 Location: {inst['city']}, {inst['state']}  
-                In-State Tuition: ${inst.get('in_state_tuition', 'N/A'):,}  
-                Out-of-State Tuition: ${inst.get('out_state_tuition', 'N/A'):,}  
-                Admission Rate: {inst.get('admission_rate', 0)*100:.1f}%
+                In-State Tuition: ${inst['in_state_tuition']:,}  
+                Out-of-State Tuition: ${inst['out_state_tuition']:,}  
+                Admission Rate: {inst['admission_rate']*100:.1f}%
             """)
 
-            # Field of study selection
+            # Fields of study
             st.markdown("### Choose Your Field of Study 📚")
             fields_of_study = inst.get('programs', [])
 
-            if fields_of_study:
-                field_input = st.text_input(
-                    "Search for your field of study",
-                    value=st.session_state.selected_field if st.session_state.selected_field else "",
-                    key="field_input"
-                )
+            field_input = st.text_input(
+                "Search for your field of study",
+                value=st.session_state.selected_field if st.session_state.selected_field else "",
+                key="field_input"
+            )
 
-                # Clear selection if user starts typing something new
-                if (st.session_state.selected_field and 
-                    field_input != st.session_state.selected_field):
-                    st.session_state.selected_field = None
+            # Clear selection if user starts typing something new
+            if (st.session_state.selected_field and 
+                field_input != st.session_state.selected_field):
+                st.session_state.selected_field = None
 
-                if field_input and not st.session_state.selected_field:
-                    matching_fields = [
-                        field for field in fields_of_study 
-                        if field_input.lower() in field['title'].lower()
-                    ]
+            if field_input and not st.session_state.selected_field:
+                matching_fields = [
+                    field for field in fields_of_study 
+                    if field_input.lower() in field['title'].lower()
+                ]
 
-                    if matching_fields:
-                        st.markdown("#### Select your field:")
-                        for field in matching_fields:
-                            if st.button(f"📚 {field['title']}", key=f"field_{field['title']}"):
-                                st.session_state.selected_field = field['title']
-                                st.rerun()
-            else:
-                st.info("No fields of study information available for this institution")
+                if matching_fields:
+                    st.markdown("#### Select your field:")
+                    for field in matching_fields:
+                        if st.button(f"📚 {field['title']}", key=f"field_{field['title']}"):
+                            st.session_state.selected_field = field['title']
+                            st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -490,16 +454,6 @@ def show_landing_page():
                 st.session_state.page = 'career_discovery'
                 st.rerun()
 
-            if st.button("Search Colleges 🔍", key="college_search",
-                        help="Search and explore educational institutions"):
-                st.session_state.page = 'college_search'
-                st.rerun()
-
-            if st.button("Financial Planning Calculator 💹", key="financial_calc",
-                        help="Plan your future finances based on location and career"):
-                st.session_state.page = 'financial_planning'
-                st.rerun()
-
             if st.button("Explore Salary Data 💰", key="salary_explorer", 
                         help="Compare salaries across different locations and occupations"):
                 st.session_state.page = 'salary_explorer'
@@ -508,330 +462,81 @@ def show_landing_page():
             st.markdown("</div>", unsafe_allow_html=True)
 
     elif st.session_state.page == 'known_path':
-        show_known_path()
+        st.markdown("""
+            <h1 style='font-size: 2.5rem !important;'>
+                Great Choice! What's Your Plan? 🎯
+            </h1>
+        """, unsafe_allow_html=True)
+
+        col1, col2 = st.columns([1,1])
+
+        with col1:
+            st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+            if st.button("Continue My Education 📚", key="education"):
+                st.session_state.path_chosen = 'education'
+                st.session_state.page = 'education_path'
+                st.rerun()
+
+            if st.button("Join the Military 🎖️", key="military"):
+                st.session_state.path_chosen = 'military'
+                st.session_state.page = 'military_path'
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with col2:
+            st.markdown('<div class="choice-card">', unsafe_allow_html=True)
+            if st.button("Get a Job 💼", key="job"):
+                st.session_state.path_chosen = 'job'
+                st.session_state.page = 'job_path'
+                st.rerun()
+
+            if st.button("Take a Gap Year 🌎", key="gap_year"):
+                st.session_state.path_chosen = 'gap_year'
+                st.session_state.page = 'gap_year_path'
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # Add a back button
+        if st.button("← Back to Main Menu"):
+            st.session_state.page = 'initial'
+            st.rerun()
+
     elif st.session_state.page == 'explore_path':
-        show_explore_path()
+        st.markdown("""
+            <h1 style='font-size: 2.5rem !important;'>
+                Let's Discover Your Interests! 🌟
+            </h1>
+            <p class='subtitle'>
+                We'll help you explore different paths through fun activities
+            </p>
+        """, unsafe_allow_html=True)
+
+        # Import and run the interest quiz
+        from quiz.interest_quiz import run_quiz
+        run_quiz()
+
+        # Add a back button
+        if st.button("← Back to Main Menu"):
+            # Reset quiz state when going back
+            if 'quiz' in st.session_state:
+                del st.session_state['quiz']
+            if 'current_question' in st.session_state:
+                del st.session_state['current_question']
+            if 'selected_traits' in st.session_state:
+                del st.session_state['selected_traits']
+            if 'quiz_completed' in st.session_state:
+                del st.session_state['quiz_completed']
+
+            st.session_state.page = 'initial'
+            st.rerun()
     elif st.session_state.page == 'education_path':
         show_education_path()
+
     elif st.session_state.page == 'salary_explorer':
         show_salary_heatmap()
     elif st.session_state.page == 'career_discovery':
         from pages.career_discovery import show_career_discovery
         show_career_discovery()
-    elif st.session_state.page == 'college_search':
-        show_college_search()
-    elif st.session_state.page == 'financial_planning':
-        show_financial_planning()
-
-def show_known_path():
-    st.markdown("""
-        <h1 style='font-size: 2.5rem !important;'>
-            Great Choice! What's Your Plan? 🎯
-        </h1>
-    """, unsafe_allow_html=True)
-
-    col1, col2 = st.columns([1,1])
-
-    with col1:
-        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
-        if st.button("Continue My Education 📚", key="education"):
-            st.session_state.path_chosen = 'education'
-            st.session_state.page = 'education_path'
-            st.rerun()
-
-        if st.button("Join the Military 🎖️", key="military"):
-            st.session_state.path_chosen = 'military'
-            st.session_state.page = 'military_path'
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
-        if st.button("Get a Job 💼", key="job"):
-            st.session_state.path_chosen = 'job'
-            st.session_state.page = 'job_path'
-            st.rerun()
-
-        if st.button("Take a Gap Year 🌎", key="gap_year"):
-            st.session_state.path_chosen = 'gap_year'
-            st.session_state.page = 'gap_year_path'
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # Add a back button
-    if st.button("← Back to Main Menu"):
-        st.session_state.page = 'initial'
-        st.rerun()
-
-
-def show_explore_path():
-    st.markdown("""
-        <h1 style='font-size: 2.5rem !important;'>
-            Let's Discover Your Interests! 🌟
-        </h1>
-        <p class='subtitle'>
-            We'll help you explore different paths through fun activities
-        </p>
-    """, unsafe_allow_html=True)
-
-    # Import and run the interest quiz
-    from quiz.interest_quiz import run_quiz
-    run_quiz()
-
-    # Add a back button
-    if st.button("← Back to Main Menu"):
-        # Reset quiz state when going back
-        if 'quiz' in st.session_state:
-            del st.session_state['quiz']
-        if 'current_question' in st.session_state:
-            del st.session_state['current_question']
-        if 'selected_traits' in st.session_state:
-            del st.session_state['selected_traits']
-        if 'quiz_completed' in st.session_state:
-            del st.session_state['quiz_completed']
-
-        st.session_state.page = 'initial'
-        st.rerun()
-
-def show_career_discovery():
-    from pages.career_discovery import show_career_discovery
-    show_career_discovery()
-
-
-def show_college_search():
-    """Dedicated college search page"""
-    st.markdown("""
-        <h1 style='font-size: 2.5rem !important;'>
-            College Search 🔍
-        </h1>
-        <p class='subtitle'>
-            Find and explore educational institutions
-        </p>
-    """, unsafe_allow_html=True)
-
-    try:
-        from services.firebase_service import FirebaseService
-        firebase_service = FirebaseService()
-    except Exception as e:
-        st.error(f"Error initializing Firebase service: {str(e)}")
-        return
-
-    # Get states for filtering
-    states = firebase_service.get_institution_states()
-
-    # Create two columns for search/filters and results
-    search_col, results_col = st.columns([1, 2])
-
-    with search_col:
-        st.markdown("### Search & Filters")
-        st.markdown('<div class="choice-card">', unsafe_allow_html=True)
-
-        # Search box
-        search_term = st.text_input("🔍 Institution Name",
-                                  placeholder="Enter institution name (e.g., Harvard)")
-
-        # State filter
-        selected_state = st.selectbox(
-            "📍 Filter by State",
-            ["All States"] + states if states else ["All States"]
-        )
-
-        # Gender ratio filter
-        gender_filter = st.selectbox(
-            "👥 Gender Ratio",
-            ["No Filter", "Women > 50%", "Men > 50%"]
-        )
-
-        # Search button
-        search_button = st.button("🔍 Search & Apply Filters")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with results_col:
-        # Create a container for the results
-        results_container = st.container()
-
-        with results_container:
-            if search_button:
-                matching_institutions = []
-
-                if search_term:
-                    # Search by name first
-                    matching_institutions = firebase_service.search_institutions_by_name(search_term)
-
-                    # Apply state filter if selected
-                    if selected_state != "All States":
-                        matching_institutions = [
-                            inst for inst in matching_institutions
-                            if inst.get('state') == selected_state
-                        ]
-                elif selected_state != "All States":
-                    # If no search term, get institutions by state
-                    matching_institutions = firebase_service.get_institutions_by_state(selected_state)
-
-                # Apply gender ratio filter
-                if matching_institutions and gender_filter != "No Filter":
-                    filtered_institutions = []
-                    for inst in matching_institutions:
-                        men = float(inst.get('men', 0))
-                        women = float(inst.get('women', 0))
-                        total = men + women
-                        if total > 0:
-                            women_ratio = women / total
-                            if (gender_filter == "Women > 50%" and women_ratio > 0.5) or \
-                               (gender_filter == "Men > 50%" and women_ratio < 0.5):
-                                filtered_institutions.append(inst)
-                    matching_institutions = filtered_institutions
-
-                # Wrap results in a scrollable container with fixed height
-                st.markdown("""
-                    <style>
-                        div[data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {
-                            max-height: 600px;
-                            overflow-y: auto;
-                            padding: 1rem;
-                            background-color: #f8f9fa;
-                            border-radius: 10px;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
-
-                # Display results
-                if matching_institutions:
-                    st.success(f"Found {len(matching_institutions)} matching institutions")
-
-                    for inst in matching_institutions:
-                        # Calculate gender ratio if available
-                        gender_ratio_text = ""
-                        if 'men' in inst and 'women' in inst:
-                            total = float(inst['men'] + inst['women'])
-                            if total > 0:
-                                women_ratio = (float(inst['women']) / total) * 100
-                                gender_ratio_text = f"👥 Women: {women_ratio:.1f}%"
-
-                        # Format tuition value safely
-                        in_state_tuition = inst.get('in_state_tuition')
-                        tuition_display = f"${in_state_tuition:,.2f}" if isinstance(in_state_tuition, (int, float)) else "N/A"
-
-                        # Format admission rate safely
-                        admission_rate = inst.get('admission_rate', 0)
-                        admission_display = f"{admission_rate * 100:.1f}%" if admission_rate else "N/A"
-
-                        st.markdown(f"""
-                        <div style='padding: 15px; border-radius: 10px; background-color: white; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
-                            <h3>{inst['name']} 🏛️</h3>
-                            <p>📍 {inst['city']}, {inst['state']}</p>
-                            <p>💰 In-State Tuition: {tuition_display}</p>
-                            <p>📊 Admission Rate: {admission_display}</p>
-                            <p>{gender_ratio_text}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                else:
-                    st.info("No institutions found matching your criteria")
-
-    # Add a back button
-    if st.button("← Back to Main Menu"):
-        st.session_state.page = 'initial'
-        st.rerun()
-
-def show_financial_planning():
-    """Financial planning calculator page"""
-    st.markdown("""
-        <h1 style='font-size: 2.5rem !important;'>
-            Financial Planning Calculator 💹
-        </h1>
-        <p class='subtitle'>
-            Plan your future finances based on your location and career choice
-        </p>
-    """, unsafe_allow_html=True)
-
-    # Initialize the BLS API for occupation data
-    try:
-        bls_api = BLSApi()
-    except Exception as e:
-        st.error(f"Error initializing BLS API: {str(e)}")
-        return
-
-    # Create two columns for location and occupation selection
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("### Choose Your Location 📍")
-        location_input = st.text_input(
-            "Enter location",
-            placeholder="e.g., New York, California",
-            help="Enter the state or city where you plan to work"
-        )
-
-        if location_input:
-            matching_locations = get_close_matches(
-                location_input.lower(),
-                [loc.lower() for loc in locations],
-                n=3,
-                cutoff=0.1
-            )
-
-            if matching_locations:
-                st.markdown("#### Select a location:")
-                for loc in matching_locations:
-                    if st.button(
-                        loc.title(),
-                        key=f"loc_{loc}",
-                        help=f"Select {loc} as your location"
-                    ):
-                        st.session_state.selected_location = loc
-                        st.rerun()
-
-    with col2:
-        st.markdown("### Choose Your Occupation 💼")
-        occupation_input = st.text_input(
-            "Enter occupation",
-            placeholder="e.g., Software Developer, Teacher",
-            help="Enter your desired occupation"
-        )
-
-        if occupation_input:
-            matching_occupations = bls_api.search_occupations(occupation_input)
-            if matching_occupations:
-                st.markdown("#### Select an occupation:")
-                for occ in matching_occupations:
-                    if st.button(
-                        occ['title'],
-                        key=f"occ_{occ['code']}",
-                        help=f"Select {occ['title']} as your occupation"
-                    ):
-                        st.session_state.selected_occupation = occ
-                        st.rerun()
-
-    # If both location and occupation are selected, show financial projections
-    if st.session_state.get('selected_location') and st.session_state.get('selected_occupation'):
-        st.markdown("### Your Financial Projections 📊")
-
-        # Get salary data
-        salary_data = bls_api.get_salary_by_location(
-            st.session_state.selected_occupation['code'],
-            st.session_state.selected_location
-        )
-
-        if salary_data:
-            st.metric(
-                "Expected Annual Salary",
-                f"${salary_data.get('annual_mean_wage', 0):,.2f}"
-            )
-
-            # Add more financial calculations and visualizations here
-            st.markdown("#### Monthly Budget Breakdown")
-            # Add budget visualization
-
-            st.markdown("#### Long-term Financial Projections")
-            # Add projection charts
-
-    # Add a back button
-    if st.button("← Back to Main Menu"):
-        st.session_state.page = 'initial'
-        st.session_state.selected_location = None
-        st.session_state.selected_occupation = None
-        st.rerun()
 
 
 def main():
@@ -865,7 +570,7 @@ def main():
         # Initialize session state
         if 'selected_location' not in st.session_state:
             st.session_state.selected_location = None
-        if 'selected_occupation'not in st.session_state:
+        if 'selected_occupation' not in st.session_state:
             st.session_state.selected_occupation = None
         if 'selected_spouse_occupation' not in st.session_state:
             st.session_state.selected_spouse_occupation = None
@@ -885,8 +590,8 @@ def main():
 
         # Clear selection if user starts typing something new
         if (st.session_state.selected_location and 
-            location_input != st.session_state.selectedlocation):
-            st.sessionstate.selected_location = None
+            location_input != st.session_state.selected_location):
+            st.session_state.selected_location = None
             st.rerun()
 
         if location_input and not st.session_state.selected_location:
@@ -915,7 +620,8 @@ def main():
                         st.rerun()
 
         # Occupation input with suggestions
-        occupation_input = st.sidebar.text_input("Enter Occupation",
+        occupation_input = st.sidebar.text_input(
+            "Enter Occupation",
             value=st.session_state.selected_occupation if st.session_state.selected_occupation else "",
             key="occupation_input"
         )
@@ -934,7 +640,8 @@ def main():
 
             # Get original case matches
             matching_occupations = [
-                occ for occ in occupations                if occ.lower() in matches
+                occ for occ in occupations 
+                if occ.lower() in matches
             ]
 
             # Show matches only if typing
