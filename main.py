@@ -28,6 +28,7 @@ def main():
             loc for loc in locations
             if location_input.lower() in str(loc).lower()
         ]
+        selected_location = None
         if location_input:
             if len(matching_locations) > 0:
                 selected_location = st.sidebar.radio(
@@ -44,6 +45,7 @@ def main():
             occ for occ in occupations
             if occupation_input.lower() in str(occ).lower()
         ]
+        selected_occupation = None
         if occupation_input:
             if len(matching_occupations) > 0:
                 selected_occupation = st.sidebar.radio(
@@ -57,22 +59,29 @@ def main():
         # Only proceed if both inputs are valid
         if location_input and occupation_input and len(
                 matching_locations) > 0 and len(matching_occupations) > 0:
-            # Housing choice
-            is_homeowner = st.sidebar.checkbox("Are you a homeowner?")
+
+            # Investment return rate slider
+            investment_return_rate = st.sidebar.slider(
+                "Investment Return Rate (%)", 
+                min_value=0.0, 
+                max_value=15.0, 
+                value=7.0, 
+                step=0.5
+            ) / 100.0  # Convert percentage to decimal
 
             # Projection years
             projection_years = st.sidebar.slider("Projection Years", 1, 20, 10)
 
-            # Process data
+            # Process data with investment_return_rate
             location_data = DataProcessor.process_location_data(
-                coli_df, occupation_df, selected_location, selected_occupation)
+                coli_df, occupation_df, selected_location, selected_occupation, investment_return_rate)
 
             assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
-                location_data, is_homeowner)
+                location_data)
 
             # Calculate projections
             calculator = FinancialCalculator(assets, liabilities, income,
-                                             expenses)
+                                          expenses)
             projections = calculator.calculate_yearly_projection(
                 projection_years)
 
@@ -80,10 +89,10 @@ def main():
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Initial Net Worth",
-                          f"${projections['net_worth'][0]:,.2f}")
+                       f"${projections['net_worth'][0]:,.2f}")
             with col2:
                 st.metric("Final Net Worth",
-                          f"${projections['net_worth'][-1]:,.2f}")
+                       f"${projections['net_worth'][-1]:,.2f}")
             with col3:
                 st.metric(
                     "Average Annual Cash Flow",
@@ -93,17 +102,26 @@ def main():
             # Display visualizations
             st.header("Financial Projections")
 
-            FinancialPlotter.plot_net_worth(projections['years'],
-                                            projections['net_worth'])
+            FinancialPlotter.plot_net_worth(
+                projections['years'],
+                projections['net_worth'],
+                projections['asset_values'],
+                projections['liability_values']
+            )
 
-            FinancialPlotter.plot_cash_flow(projections['years'],
-                                            projections['total_income'],
-                                            projections['total_expenses'],
-                                            projections['cash_flow'])
+            FinancialPlotter.plot_cash_flow(
+                projections['years'],
+                projections['total_income'],
+                projections['expense_categories'],
+                projections['total_expenses'],
+                projections['cash_flow']
+            )
 
             FinancialPlotter.plot_assets_liabilities(
-                projections['years'], projections['asset_values'],
-                projections['liability_values'])
+                projections['years'],
+                projections['asset_values'],
+                projections['liability_values']
+            )
 
     except Exception as e:
         st.error(f"Error processing data: {str(e)}")
