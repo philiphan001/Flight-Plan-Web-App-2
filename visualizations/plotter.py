@@ -58,6 +58,7 @@ class FinancialPlotter:
     def plot_cash_flow(years: List[int], income: List[float], 
                       expenses: Dict[str, List[float]], total_expenses: List[float],
                       cash_flow: List[float], income_streams: Dict[str, List[float]] = None) -> None:
+        """Plot cash flow with stacked income streams and separate expenses."""
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
         # Add stacked income bars
@@ -66,8 +67,7 @@ class FinancialPlotter:
             fig.add_trace(
                 go.Bar(x=years, y=values,
                       name=income_type,
-                      marker_color=colors.get(income_type, '#27AE60'),
-                      offsetgroup="income"),  # All income streams share same offsetgroup for stacking
+                      marker_color=colors.get(income_type, '#27AE60')),
                 secondary_y=False
             )
 
@@ -75,8 +75,7 @@ class FinancialPlotter:
         fig.add_trace(
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
-                  marker_color='#E74C3C',
-                  offsetgroup="expenses"),  # Different offsetgroup for expenses
+                  marker_color='#E74C3C'),
             secondary_y=False
         )
 
@@ -91,7 +90,10 @@ class FinancialPlotter:
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
-            barmode='relative',  # This allows stacking for same offsetgroup while keeping different offsetgroups separate
+            yaxis_title='Amount ($)',
+            # Stack income bars but keep expenses separate
+            barmode='overlay',
+            barnorm=None,
             template='plotly_white',
             showlegend=True,
             legend=dict(
@@ -104,28 +106,28 @@ class FinancialPlotter:
             bargroupgap=0.1
         )
 
+        # Update axes
         fig.update_yaxes(title_text="Amount ($)", secondary_y=False)
         fig.update_yaxes(title_text="Net Cash Flow ($)", secondary_y=True)
 
         st.plotly_chart(fig)
 
-        # Create and display income streams table
-        income_data = {
+        # Create and display tables for income and expenses
+        df_income = pd.DataFrame({
             'Year': years,
             'Total Income': ['${:,.0f}'.format(x) for x in income],
             'Total Expenses': ['${:,.0f}'.format(x) for x in total_expenses],
             'Net Cash Flow': ['${:,.0f}'.format(x) for x in cash_flow],
-        }
+        })
 
         # Add individual income streams
         for stream_name, values in income_streams.items():
-            income_data[stream_name] = ['${:,.0f}'.format(x) for x in values]
+            df_income[stream_name] = ['${:,.0f}'.format(x) for x in values]
 
-        df_income = pd.DataFrame(income_data)
         st.subheader("Income and Cash Flow Details")
         st.dataframe(df_income, use_container_width=True)
 
-        # Create and display expenses table
+        # Create and display expenses breakdown
         expense_data = {'Year': years}
         for category, values in expenses.items():
             expense_data[category] = ['${:,.0f}'.format(x) for x in values]
@@ -244,7 +246,6 @@ class FinancialPlotter:
             'Home Equity': ['${:,.0f}'.format(x) for x in equity],
         })
         st.dataframe(df_home, use_container_width=True)
-
 
     @staticmethod
     def plot_salary_heatmap(

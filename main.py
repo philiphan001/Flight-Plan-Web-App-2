@@ -125,7 +125,7 @@ def main():
                 )
                 if new_location_input and not st.session_state.show_sidebar_location_matches:
                     st.session_state.show_sidebar_location_matches = True
-                    st.experimental_rerun()
+                    st.rerun()
                 elif new_location_input and st.session_state.show_sidebar_location_matches:
                     matches = get_close_matches(new_location_input.lower(), 
                                            [loc.lower() for loc in locations], 
@@ -137,7 +137,7 @@ def main():
                             if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
                                 st.session_state.selected_location = loc
                                 st.session_state.show_sidebar_location_matches = False
-                                st.experimental_rerun()
+                                st.rerun()
                     else:
                         st.sidebar.error("No matching locations found")
 
@@ -165,7 +165,7 @@ def main():
                             if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
                                 st.session_state.selected_occupation = occ
                                 st.session_state.show_sidebar_occupation_matches = False
-                                st.experimental_rerun()
+                                st.rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
 
