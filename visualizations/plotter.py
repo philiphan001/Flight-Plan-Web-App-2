@@ -61,13 +61,14 @@ class FinancialPlotter:
         """Plot cash flow with stacked income streams and separate expenses."""
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        # Add stacked income bars
+        # Add stacked income bars (all income streams in one stack)
         colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71', 'Part-Time Work': '#82E0AA'}
         for income_type, values in income_streams.items():
             fig.add_trace(
                 go.Bar(x=years, y=values,
                       name=income_type,
-                      marker_color=colors.get(income_type, '#27AE60')),
+                      marker_color=colors.get(income_type, '#27AE60'),
+                      base=0),  # Stack from zero
                 secondary_y=False
             )
 
@@ -92,8 +93,7 @@ class FinancialPlotter:
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
             yaxis_title='Amount ($)',
-            # Stack income bars but keep expenses separate
-            barmode='stack',
+            barmode='relative',  # This allows stacking for same offsetgroup while keeping different offsetgroups separate
             template='plotly_white',
             showlegend=True,
             legend=dict(
