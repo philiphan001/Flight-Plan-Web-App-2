@@ -86,10 +86,51 @@ def main():
                     st.rerun()
 
         else:
-            # Show back button
+            # Back button
             if st.button("← Back to Selection"):
                 st.session_state.show_projections = False
                 st.rerun()
+
+            # Add location and occupation editing in sidebar
+            st.sidebar.markdown("## Current Selections 📍")
+
+            # Location editor
+            st.sidebar.markdown(f"**Current Location:** {st.session_state.selected_location}")
+            if st.sidebar.checkbox("Change Location"):
+                location_input = st.sidebar.text_input("Enter New Location", key="new_location_input")
+                if location_input:
+                    matches = get_close_matches(location_input.lower(), 
+                                            [loc.lower() for loc in locations], 
+                                            n=3, cutoff=0.1)
+                    matching_locations = [loc for loc in locations if loc.lower() in matches]
+                    if matching_locations:
+                        st.sidebar.markdown("#### Select from matches:")
+                        for loc in matching_locations:
+                            if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
+                                st.session_state.selected_location = loc
+                                st.rerun()
+                    else:
+                        st.sidebar.error("No matching locations found")
+
+            # Occupation editor
+            st.sidebar.markdown(f"**Current Occupation:** {st.session_state.selected_occupation}")
+            if st.sidebar.checkbox("Change Occupation"):
+                occupation_input = st.sidebar.text_input("Enter New Occupation", key="new_occupation_input")
+                if occupation_input:
+                    matches = get_close_matches(occupation_input.lower(), 
+                                            [occ.lower() for occ in occupations], 
+                                            n=3, cutoff=0.1)
+                    matching_occupations = [occ for occ in occupations if occ.lower() in matches]
+                    if matching_occupations:
+                        st.sidebar.markdown("#### Select from matches:")
+                        for occ in matching_occupations:
+                            if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
+                                st.session_state.selected_occupation = occ
+                                st.rerun()
+                    else:
+                        st.sidebar.error("No matching occupations found")
+
+            st.sidebar.markdown("---")
 
             # Investment and projection settings
             col3, col4 = st.columns(2)
