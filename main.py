@@ -24,13 +24,17 @@ def main():
         st.session_state.show_location_matches = False
     if 'show_occupation_matches' not in st.session_state:
         st.session_state.show_occupation_matches = False
-    if 'show_marriage_options' not in st.session_state: # Added flag
+    if 'show_marriage_options' not in st.session_state:
         st.session_state.show_marriage_options = True
-    # Add new session state variables for sidebar matches
+    # Add new session state variables for sidebar matches and checkboxes
     if 'show_sidebar_location_matches' not in st.session_state:
         st.session_state.show_sidebar_location_matches = False
     if 'show_sidebar_occupation_matches' not in st.session_state:
         st.session_state.show_sidebar_occupation_matches = False
+    if 'change_location_checkbox' not in st.session_state:
+        st.session_state.change_location_checkbox = False
+    if 'change_occupation_checkbox' not in st.session_state:
+        st.session_state.change_occupation_checkbox = False
 
     st.title("Financial Projection Application")
 
@@ -113,7 +117,7 @@ def main():
 
             # Location editor
             st.sidebar.markdown(f"**Current Location:** {st.session_state.selected_location}")
-            change_location = st.sidebar.checkbox("Change Location")
+            change_location = st.sidebar.checkbox("Change Location", key="change_location")
             if not change_location:
                 st.session_state.show_sidebar_location_matches = False
             if change_location:
@@ -135,14 +139,14 @@ def main():
                             if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
                                 st.session_state.selected_location = loc
                                 st.session_state.show_sidebar_location_matches = False
-                                change_location = False
+                                st.session_state.change_location_checkbox = False
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching locations found")
 
             # Occupation editor
             st.sidebar.markdown(f"**Current Occupation:** {st.session_state.selected_occupation}")
-            change_occupation = st.sidebar.checkbox("Change Occupation")
+            change_occupation = st.sidebar.checkbox("Change Occupation", key="change_occupation")
             if not change_occupation:
                 st.session_state.show_sidebar_occupation_matches = False
             if change_occupation:
@@ -164,7 +168,7 @@ def main():
                             if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
                                 st.session_state.selected_occupation = occ
                                 st.session_state.show_sidebar_occupation_matches = False
-                                change_occupation = False
+                                st.session_state.change_occupation_checkbox = False
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
