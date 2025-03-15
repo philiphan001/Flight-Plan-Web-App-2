@@ -61,39 +61,54 @@ class FinancialPlotter:
         """Plot cash flow with stacked income streams and separate expenses."""
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        # Add stacked income bars (all income streams in one stack)
+        # Create cumulative sums for income stacking
+        cumsum = np.zeros(len(years))
         colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71', 'Part-Time Work': '#82E0AA'}
+
+        # Add income streams as stacked bars
         for income_type, values in income_streams.items():
             fig.add_trace(
-                go.Bar(x=years, y=values,
-                      name=income_type,
-                      marker_color=colors.get(income_type, '#27AE60'),
-                      base=0),  # Stack from zero
+                go.Bar(
+                    x=years,
+                    y=values,
+                    name=income_type,
+                    marker_color=colors.get(income_type, '#27AE60'),
+                    base=cumsum,  # Start from previous cumulative sum
+                    offsetgroup=0  # Same offsetgroup for stacking
+                ),
                 secondary_y=False
             )
+            cumsum += np.array(values)  # Update cumulative sum
 
-        # Add expense bar (separate from income)
+        # Add expenses as separate bar
         fig.add_trace(
-            go.Bar(x=years, y=total_expenses,
-                  name="Total Expenses",
-                  marker_color='#E74C3C',
-                  offsetgroup=1),  # Different offsetgroup for expenses
+            go.Bar(
+                x=years,
+                y=total_expenses,
+                name="Total Expenses",
+                marker_color='#E74C3C',
+                offsetgroup=1  # Different offsetgroup to prevent stacking with income
+            ),
             secondary_y=False
         )
 
         # Add net cash flow line
         fig.add_trace(
-            go.Scatter(x=years, y=cash_flow,
-                      name="Net Cash Flow",
-                      line=dict(color='#2E86C1', width=2)),
+            go.Scatter(
+                x=years,
+                y=cash_flow,
+                name="Net Cash Flow",
+                line=dict(color='#2E86C1', width=2)
+            ),
             secondary_y=True
         )
 
+        # Update layout
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
             yaxis_title='Amount ($)',
-            barmode='relative',  # This allows stacking for same offsetgroup while keeping different offsetgroups separate
+            barmode='group',  # Group bars by offsetgroup
             template='plotly_white',
             showlegend=True,
             legend=dict(
