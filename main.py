@@ -116,8 +116,7 @@ def main():
                     key="new_location_input"
                 )
 
-                if new_location != st.session_state.sidebar_location_input:
-                    st.session_state.sidebar_location_input = new_location
+                if new_location:
                     matches = get_close_matches(new_location.lower(), 
                                            [loc.lower() for loc in locations], 
                                            n=3, cutoff=0.1)
@@ -125,12 +124,19 @@ def main():
 
                     if matching_locations:
                         st.sidebar.markdown("#### Select from matches:")
-                        for loc in matching_locations:
-                            if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
-                                st.session_state.selected_location = loc
-                                st.session_state.sidebar_location_input = ""
-                                st.session_state.previous_projections = None  # Force recalculation
-                                st.rerun()
+                        cols = st.sidebar.columns(len(matching_locations))
+                        for idx, loc in enumerate(matching_locations):
+                            with cols[idx]:
+                                if st.button(f"📍 {loc}", key=f"new_loc_{loc}"):
+                                    st.session_state.selected_location = loc
+                                    st.session_state.previous_projections = None
+                                    location_data = DataProcessor.process_location_data(
+                                        coli_df, occupation_df, 
+                                        st.session_state.selected_location, 
+                                        st.session_state.selected_occupation,
+                                        investment_return_rate
+                                    )
+                                    st.rerun()
                     else:
                         st.sidebar.error("No matching locations found")
 
@@ -142,8 +148,7 @@ def main():
                     key="new_occupation_input"
                 )
 
-                if new_occupation != st.session_state.sidebar_occupation_input:
-                    st.session_state.sidebar_occupation_input = new_occupation
+                if new_occupation:
                     matches = get_close_matches(new_occupation.lower(), 
                                            [occ.lower() for occ in occupations], 
                                            n=3, cutoff=0.1)
@@ -151,12 +156,19 @@ def main():
 
                     if matching_occupations:
                         st.sidebar.markdown("#### Select from matches:")
-                        for occ in matching_occupations:
-                            if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
-                                st.session_state.selected_occupation = occ
-                                st.session_state.sidebar_occupation_input = ""
-                                st.session_state.previous_projections = None  # Force recalculation
-                                st.rerun()
+                        cols = st.sidebar.columns(len(matching_occupations))
+                        for idx, occ in enumerate(matching_occupations):
+                            with cols[idx]:
+                                if st.button(f"💼 {occ}", key=f"new_occ_{occ}"):
+                                    st.session_state.selected_occupation = occ
+                                    st.session_state.previous_projections = None
+                                    location_data = DataProcessor.process_location_data(
+                                        coli_df, occupation_df, 
+                                        st.session_state.selected_location, 
+                                        st.session_state.selected_occupation,
+                                        investment_return_rate
+                                    )
+                                    st.rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
 
