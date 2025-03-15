@@ -6,16 +6,24 @@ from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
 from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome
 
-def reset_financial_state():
-    # Reset all financial-related session state variables
-    if 'previous_projections' in st.session_state:
-        del st.session_state.previous_projections
-    if 'milestones' in st.session_state:
-        del st.session_state.milestones
-    st.session_state.show_projections = True
+def update_location(new_location: str):
+    """Callback for location updates"""
+    st.session_state.selected_location = new_location
+    st.session_state.needs_recalculation = True
+    st.session_state.previous_projections = None
+    st.session_state.milestones = []
 
-def main():
-    # Initialize session state variables if they don't exist
+def update_occupation(new_occupation: str):
+    """Callback for occupation updates"""
+    st.session_state.selected_occupation = new_occupation
+    st.session_state.needs_recalculation = True
+    st.session_state.previous_projections = None
+    st.session_state.milestones = []
+
+def initialize_session_state():
+    """Initialize all session state variables"""
+    if 'needs_recalculation' not in st.session_state:
+        st.session_state.needs_recalculation = True
     if 'selected_location' not in st.session_state:
         st.session_state.selected_location = None
     if 'selected_occupation' not in st.session_state:
@@ -37,7 +45,8 @@ def main():
     if 'selected_spouse_occ' not in st.session_state:
         st.session_state['selected_spouse_occ'] = ""
 
-
+def main():
+    initialize_session_state()
     st.title("Financial Projection Application")
 
     try:
@@ -60,9 +69,7 @@ def main():
                 if st.session_state.selected_location:
                     st.markdown(f"**Selected Location:** {st.session_state.selected_location}")
                 else:
-                    default_loc = st.session_state.selected_location if st.session_state.selected_location else ""
-                    location_input = st.text_input("Enter Location", value=default_loc)
-
+                    location_input = st.text_input("Enter Location")
                     if location_input:
                         matches = get_close_matches(location_input.lower(), 
                                                [loc.lower() for loc in locations], 
@@ -71,22 +78,15 @@ def main():
                         if matching_locations:
                             st.markdown("#### Select from matches:")
                             for loc in matching_locations:
-                                if st.button(f"📍 {loc}", key=f"loc_{loc}"):
-                                    st.session_state.selected_location = loc
-                                    st.session_state.show_location_matches = False
-                                    reset_financial_state()
+                                if st.button(f"📍 {loc}", key=f"loc_{loc}", on_click=update_location, args=(loc,)):
                                     st.rerun()
-                        else:
-                            st.error("No matching locations found")
 
             with col2:
                 st.markdown("### Select Your Occupation 💼")
                 if st.session_state.selected_occupation:
                     st.markdown(f"**Selected Occupation:** {st.session_state.selected_occupation}")
                 else:
-                    default_occ = st.session_state.selected_occupation if st.session_state.selected_occupation else ""
-                    occupation_input = st.text_input("Enter Occupation", value=default_occ)
-
+                    occupation_input = st.text_input("Enter Occupation")
                     if occupation_input:
                         matches = get_close_matches(occupation_input.lower(), 
                                                [occ.lower() for occ in occupations], 
@@ -95,13 +95,8 @@ def main():
                         if matching_occupations:
                             st.markdown("#### Select from matches:")
                             for occ in matching_occupations:
-                                if st.button(f"💼 {occ}", key=f"occ_{occ}"):
-                                    st.session_state.selected_occupation = occ
-                                    st.session_state.show_occupation_matches = False
-                                    reset_financial_state()
+                                if st.button(f"💼 {occ}", key=f"occ_{occ}", on_click=update_occupation, args=(occ,)):
                                     st.rerun()
-                        else:
-                            st.error("No matching occupations found")
 
             # Show continue button only if both selections are made
             if st.session_state.selected_location and st.session_state.selected_occupation:
@@ -114,7 +109,7 @@ def main():
             # Back button
             if st.button("← Back to Selection"):
                 st.session_state.show_projections = False
-                reset_financial_state()
+                st.session_state.needs_recalculation = True
                 st.rerun()
 
             # Add location and occupation editing in sidebar
@@ -127,24 +122,16 @@ def main():
                     "Enter New Location",
                     key="new_location_input"
                 )
-
-                if new_location != st.session_state.sidebar_location_input:
-                    st.session_state.sidebar_location_input = new_location
+                if new_location:
                     matches = get_close_matches(new_location.lower(), 
                                            [loc.lower() for loc in locations], 
                                            n=3, cutoff=0.1)
                     matching_locations = [loc for loc in locations if loc.lower() in matches]
-
                     if matching_locations:
                         st.sidebar.markdown("#### Select from matches:")
                         for loc in matching_locations:
-                            if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
-                                reset_financial_state()
-                                st.session_state.selected_location = loc
-                                st.session_state.sidebar_location_input = ""
+                            if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}", on_click=update_location, args=(loc,)):
                                 st.rerun()
-                    else:
-                        st.sidebar.error("No matching locations found")
 
             # Occupation editor
             st.sidebar.markdown(f"**Current Occupation:** {st.session_state.selected_occupation}")
@@ -153,24 +140,16 @@ def main():
                     "Enter New Occupation",
                     key="new_occupation_input"
                 )
-
-                if new_occupation != st.session_state.sidebar_occupation_input:
-                    st.session_state.sidebar_occupation_input = new_occupation
+                if new_occupation:
                     matches = get_close_matches(new_occupation.lower(), 
                                            [occ.lower() for occ in occupations], 
                                            n=3, cutoff=0.1)
                     matching_occupations = [occ for occ in occupations if occ.lower() in matches]
-
                     if matching_occupations:
                         st.sidebar.markdown("#### Select from matches:")
                         for occ in matching_occupations:
-                            if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
-                                reset_financial_state()
-                                st.session_state.selected_occupation = occ
-                                st.session_state.sidebar_occupation_input = ""
+                            if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}", on_click=update_occupation, args=(occ,)):
                                 st.rerun()
-                    else:
-                        st.sidebar.error("No matching occupations found")
 
             st.sidebar.markdown("---")
 
@@ -182,49 +161,51 @@ def main():
                     min_value=0.0, 
                     max_value=15.0, 
                     value=7.0, 
-                    step=0.5
+                    step=0.5,
+                    key="investment_rate"
                 ) / 100.0
 
             with col4:
-                projection_years = st.slider("Projection Years", 1, 30, 10)
-
-            try:
-                # Process data
-                location_data = DataProcessor.process_location_data(
-                    coli_df, occupation_df, 
-                    st.session_state.selected_location, 
-                    st.session_state.selected_occupation,
-                    investment_return_rate
+                projection_years = st.slider(
+                    "Projection Years", 
+                    1, 30, 10,
+                    key="projection_years"
                 )
 
-                # Create financial objects with milestones
-                assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
-                    location_data,
-                    st.session_state.milestones
-                )
+            # Only calculate if we need to
+            if st.session_state.needs_recalculation:
+                try:
+                    # Process data
+                    location_data = DataProcessor.process_location_data(
+                        coli_df, occupation_df, 
+                        st.session_state.selected_location, 
+                        st.session_state.selected_occupation,
+                        investment_return_rate
+                    )
 
-                # Calculate projections
-                calculator = FinancialCalculator(assets, liabilities, income, expenses)
-                current_projections = calculator.calculate_yearly_projection(projection_years)
+                    # Create financial objects with milestones
+                    assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
+                        location_data,
+                        st.session_state.milestones
+                    )
 
-                # Display summary metrics with comparisons
-                st.markdown("### Financial Summary")
-                col5, col6, col7 = st.columns(3)
+                    # Calculate projections
+                    calculator = FinancialCalculator(assets, liabilities, income, expenses)
+                    st.session_state.current_projections = calculator.calculate_yearly_projection(projection_years)
+                    st.session_state.needs_recalculation = False
 
-            except ValueError as e:
-                st.error(str(e))
-                # Reset states to allow user to select again
-                st.session_state.show_projections = False
-                st.rerun()
-                return
-            except Exception as e:
-                st.error(f"Error processing data: {str(e)}")
-                st.write("Debug info:", e)
-                # Reset states to allow user to select again
-                st.session_state.show_projections = False
-                st.rerun()
-                return
+                except ValueError as e:
+                    st.error(str(e))
+                    st.session_state.show_projections = False
+                    st.rerun()
+                    return
 
+                except Exception as e:
+                    st.error(f"Error processing data: {str(e)}")
+                    st.write("Debug info:", e)
+                    st.session_state.show_projections = False
+                    st.rerun()
+                    return
 
             # Life Milestones Section in Sidebar
             st.sidebar.markdown("## Life Milestones 🎯")
@@ -314,6 +295,7 @@ def main():
                         insurance_cost=joint_insurance_cost*12
                     )
                     st.session_state.milestones.append(milestone)
+                    st.session_state.needs_recalculation = True
                     st.rerun()
 
 
@@ -357,6 +339,7 @@ def main():
                         tax_benefit=tax_benefit
                     )
                     st.session_state.milestones.append(milestone)
+                    st.session_state.needs_recalculation = True
                     st.rerun()
 
             # Home Purchase Milestone
@@ -406,6 +389,7 @@ def main():
                         office_percentage=office_area_pct if home_office else 0
                     )
                     st.session_state.milestones.append(milestone)
+                    st.session_state.needs_recalculation = True
                     st.rerun()
 
             # Car Purchase Milestone
@@ -449,6 +433,7 @@ def main():
                         tax_incentive=tax_incentive
                     )
                     st.session_state.milestones.append(milestone)
+                    st.session_state.needs_recalculation = True
                     st.rerun()
 
             # Graduate School Milestone
@@ -492,6 +477,7 @@ def main():
                         networking_cost=networking_cost*12
                     )
                     st.session_state.milestones.append(milestone)
+                    st.session_state.needs_recalculation = True
                     st.rerun()
 
             # Display current milestones
@@ -501,10 +487,16 @@ def main():
                     st.sidebar.markdown(f"- {milestone.name} (Year {milestone.trigger_year})")
                     if st.sidebar.button(f"Remove {milestone.name}", key=f"remove_{idx}"):
                         st.session_state.milestones.pop(idx)
+                        st.session_state.needs_recalculation = True
                         st.rerun()
 
-            # Display summary metrics with comparisons
-            if 'current_projections' in locals():
+            # Display financial metrics only if we have projections
+            if hasattr(st.session_state, 'current_projections'):
+                current_projections = st.session_state.current_projections
+
+                st.markdown("### Financial Summary")
+                col5, col6, col7 = st.columns(3)
+
                 def format_change(current, previous):
                     if previous is None:
                         return ""
