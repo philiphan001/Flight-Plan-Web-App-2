@@ -33,7 +33,7 @@ class CareerSuggestionService:
                 model="gpt-4",  # Using GPT-4 for better career analysis
                 messages=[
                     {"role": "system", "content": """You are a career counselor helping to create detailed career paths. 
-                    Format your response as JSON with the following structure:
+                    You must respond with a valid JSON object containing the following structure:
                     {
                         "primary_path": {
                             "title": "Main career path title",
@@ -43,7 +43,7 @@ class CareerSuggestionService:
                                     "year": 2025,
                                     "milestone": "Start position",
                                     "skills_needed": ["skill1", "skill2"],
-                                    "estimated_salary": "salary range"
+                                    "estimated_salary": 50000
                                 }
                             ]
                         },
@@ -54,10 +54,10 @@ class CareerSuggestionService:
                                 "timeline": []
                             }
                         ]
-                    }"""},
+                    }
+                    Ensure all salary values are numbers, not strings."""},
                     {"role": "user", "content": prompt}
                 ],
-                response_format={"type": "json_object"},
                 temperature=0.7
             )
 
@@ -100,10 +100,10 @@ class CareerSuggestionService:
         1. Starting position and subsequent role advancements
         2. Required skills and certifications for each stage
         3. Estimated timeline for transitions
-        4. Salary ranges for each position
+        4. Salary ranges for each position (as numbers, not strings)
         5. Alternative career paths that leverage the same skill set
 
-        Format the response as a JSON object with a primary career path and alternative options."""
+        Remember to format your response as a valid JSON object with the exact structure specified."""
 
         return prompt
 
@@ -116,10 +116,16 @@ class CareerSuggestionService:
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are a career development expert. Provide specific, actionable skill recommendations."},
+                    {"role": "system", "content": """You are a career development expert. 
+                    Provide specific, actionable skill recommendations in JSON format like this:
+                    {
+                        "technical_skills": ["skill1", "skill2"],
+                        "soft_skills": ["skill1", "skill2"],
+                        "certifications": ["cert1", "cert2"],
+                        "learning_resources": ["resource1", "resource2"]
+                    }"""},
                     {"role": "user", "content": f"What are the most important skills to develop for a career in {career_path}? Include both technical and soft skills."}
                 ],
-                response_format={"type": "json_object"},
                 temperature=0.7
             )
 
