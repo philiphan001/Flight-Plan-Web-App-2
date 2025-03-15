@@ -7,8 +7,6 @@ from visualizations.plotter import FinancialPlotter
 from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome
 
 def main():
-    st.set_page_config(page_title="Financial Projection App", layout="wide")
-
     # Initialize session state variables if they don't exist
     if 'selected_location' not in st.session_state:
         st.session_state.selected_location = None
@@ -127,7 +125,7 @@ def main():
                 )
                 if new_location_input and not st.session_state.show_sidebar_location_matches:
                     st.session_state.show_sidebar_location_matches = True
-                    st.rerun()
+                    st.experimental_rerun()
                 elif new_location_input and st.session_state.show_sidebar_location_matches:
                     matches = get_close_matches(new_location_input.lower(), 
                                            [loc.lower() for loc in locations], 
@@ -139,7 +137,7 @@ def main():
                             if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
                                 st.session_state.selected_location = loc
                                 st.session_state.show_sidebar_location_matches = False
-                                st.rerun()
+                                st.experimental_rerun()
                     else:
                         st.sidebar.error("No matching locations found")
 
@@ -167,7 +165,7 @@ def main():
                             if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
                                 st.session_state.selected_occupation = occ
                                 st.session_state.show_sidebar_occupation_matches = False
-                                st.rerun()
+                                st.experimental_rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
 

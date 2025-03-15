@@ -67,16 +67,16 @@ class FinancialPlotter:
                 go.Bar(x=years, y=values,
                       name=income_type,
                       marker_color=colors.get(income_type, '#27AE60'),
-                      offsetgroup=0),  # All income streams share same offsetgroup for stacking
+                      offsetgroup="income"),  # All income streams share same offsetgroup for stacking
                 secondary_y=False
             )
 
-        # Add expense bar
+        # Add expense bar (separate from income)
         fig.add_trace(
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
                   marker_color='#E74C3C',
-                  offsetgroup=1),  # Different offsetgroup for expenses
+                  offsetgroup="expenses"),  # Different offsetgroup for expenses
             secondary_y=False
         )
 
@@ -91,7 +91,7 @@ class FinancialPlotter:
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
-            barmode='stack',  # Changed to stack mode for income streams
+            barmode='relative',  # This allows stacking for same offsetgroup while keeping different offsetgroups separate
             template='plotly_white',
             showlegend=True,
             legend=dict(
