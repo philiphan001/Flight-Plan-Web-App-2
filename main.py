@@ -11,14 +11,12 @@ def update_location(new_location: str):
     st.session_state.selected_location = new_location
     st.session_state.needs_recalculation = True
     st.session_state.previous_projections = None
-    st.session_state.milestones = []
 
 def update_occupation(new_occupation: str):
     """Callback for occupation updates"""
     st.session_state.selected_occupation = new_occupation
     st.session_state.needs_recalculation = True
     st.session_state.previous_projections = None
-    st.session_state.milestones = []
 
 def initialize_session_state():
     """Initialize all session state variables"""
@@ -44,7 +42,6 @@ def initialize_session_state():
         st.session_state.sidebar_occupation_input = ""
     if 'selected_spouse_occ' not in st.session_state:
         st.session_state['selected_spouse_occ'] = ""
-    # Add marriage-related session state variables
     if 'show_marriage_options' not in st.session_state:
         st.session_state.show_marriage_options = False
 
