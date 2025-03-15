@@ -209,6 +209,9 @@ class MilestoneFactory:
                        lifestyle_adjustment: float = 0.0, initial_savings: float = 0,
                        initial_debt: float = 0, insurance_cost: float = 0) -> Milestone:
         milestone = Milestone("Marriage", trigger_year, "Family")
+
+        # Add wedding cost as a one-time expense with specific year
+        expense_name = f"Marriage One-time Cost Year {trigger_year}"
         milestone.add_one_time_expense(cost)
 
         # Add joint lifestyle expenses adjusted by the lifestyle change percentage

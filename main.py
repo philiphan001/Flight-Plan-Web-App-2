@@ -462,7 +462,9 @@ def main():
                 FinancialPlotter.plot_assets_liabilities(
                     current_projections['years'],
                     current_projections['asset_values'],
-                    current_projections['liability_values']
+                    current_projections['liability_values'],
+                    current_projections['asset_breakdown'],
+                    current_projections['liability_breakdown']
                 )
 
             # Store current projections as previous before any new milestone is added

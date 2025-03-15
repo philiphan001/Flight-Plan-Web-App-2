@@ -10,6 +10,7 @@ class FinancialPlotter:
     def plot_net_worth(years: List[int], net_worth: List[float], 
                       assets: List[float], liabilities: List[float],
                       savings: List[float] = None) -> None:
+        # Create the plot
         fig = go.Figure()
 
         # Add assets as positive bars
@@ -28,13 +29,6 @@ class FinancialPlotter:
                                 name='Net Worth',
                                 line=dict(color='#2E86C1', width=2)))
 
-        # Add savings line if provided
-        if savings:
-            fig.add_trace(go.Scatter(x=years, y=savings,
-                                   mode='lines',
-                                   name='Savings',
-                                   line=dict(color='#F1C40F', width=2, dash='dot')))
-
         fig.update_layout(
             title='Net Worth Components',
             xaxis_title='Year',
@@ -51,20 +45,29 @@ class FinancialPlotter:
         )
         st.plotly_chart(fig)
 
+        # Create and display the data table
+        df = pd.DataFrame({
+            'Year': years,
+            'Total Assets': ['${:,.0f}'.format(x) for x in assets],
+            'Total Liabilities': ['${:,.0f}'.format(x) for x in liabilities],
+            'Net Worth': ['${:,.0f}'.format(x) for x in net_worth],
+        })
+        st.dataframe(df, use_container_width=True)
+
     @staticmethod
     def plot_cash_flow(years: List[int], income: List[float], 
-                       expenses: Dict[str, List[float]], total_expenses: List[float],
-                       cash_flow: List[float], income_streams: Dict[str, List[float]] = None) -> None:
+                      expenses: Dict[str, List[float]], total_expenses: List[float],
+                      cash_flow: List[float], income_streams: Dict[str, List[float]] = None) -> None:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
         # Add stacked income bars in one group
-        colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71'}
+        colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71', 'Part-Time Work': '#82E0AA'}
         for income_type, values in income_streams.items():
             fig.add_trace(
                 go.Bar(x=years, y=values,
                       name=income_type,
                       marker_color=colors.get(income_type, '#27AE60'),
-                      offsetgroup="income"),  # Group all income bars together
+                      offsetgroup="income"),
                 secondary_y=False
             )
 
@@ -73,7 +76,7 @@ class FinancialPlotter:
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
                   marker_color='#E74C3C',
-                  offsetgroup="expenses"),  # Different group for expenses
+                  offsetgroup="expenses"),
             secondary_y=False
         )
 
@@ -85,12 +88,10 @@ class FinancialPlotter:
             secondary_y=True
         )
 
-        # Update layout
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
-            yaxis_title='Amount ($)',
-            barmode='stack',  # Stack the income bars only
+            barmode='stack',
             template='plotly_white',
             showlegend=True,
             legend=dict(
@@ -99,19 +100,44 @@ class FinancialPlotter:
                 xanchor="left",
                 x=1.05
             ),
-            bargap=0.15,  # Gap between bars
-            bargroupgap=0.2  # Gap between bar groups (income vs expenses)
+            bargap=0.15,
+            bargroupgap=0.2
         )
 
-        # Update axes labels
         fig.update_yaxes(title_text="Amount ($)", secondary_y=False)
         fig.update_yaxes(title_text="Net Savings ($)", secondary_y=True)
 
         st.plotly_chart(fig)
 
+        # Create and display income streams table
+        income_data = {
+            'Year': years,
+            'Total Income': ['${:,.0f}'.format(x) for x in income],
+            'Total Expenses': ['${:,.0f}'.format(x) for x in total_expenses],
+            'Net Cash Flow': ['${:,.0f}'.format(x) for x in cash_flow],
+        }
+
+        # Add individual income streams
+        for stream_name, values in income_streams.items():
+            income_data[stream_name] = ['${:,.0f}'.format(x) for x in values]
+
+        df_income = pd.DataFrame(income_data)
+        st.subheader("Income and Cash Flow Details")
+        st.dataframe(df_income, use_container_width=True)
+
+        # Create and display expenses table
+        expense_data = {'Year': years}
+        for category, values in expenses.items():
+            expense_data[category] = ['${:,.0f}'.format(x) for x in values]
+
+        df_expenses = pd.DataFrame(expense_data)
+        st.subheader("Expense Breakdown")
+        st.dataframe(df_expenses, use_container_width=True)
+
     @staticmethod
     def plot_assets_liabilities(years: List[int], assets: List[float], 
-                              liabilities: List[float], savings: List[float] = None) -> None:
+                              liabilities: List[float], asset_breakdown: Dict[str, List[float]] = None,
+                              liability_breakdown: Dict[str, List[float]] = None) -> None:
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=years, y=assets,
                                 mode='lines+markers',
@@ -121,13 +147,6 @@ class FinancialPlotter:
                                 mode='lines+markers',
                                 name='Liabilities',
                                 line=dict(color='#E74C3C', width=2)))
-
-        # Add savings line if provided
-        if savings:
-            fig.add_trace(go.Scatter(x=years, y=savings,
-                                   mode='lines',
-                                   name='Savings',
-                                   line=dict(color='#F1C40F', width=2, dash='dot')))
 
         fig.update_layout(
             title='Assets and Liabilities Projection',
@@ -143,6 +162,24 @@ class FinancialPlotter:
             )
         )
         st.plotly_chart(fig)
+
+        # Create and display assets breakdown table
+        if asset_breakdown:
+            asset_data = {'Year': years}
+            for category, values in asset_breakdown.items():
+                asset_data[category] = ['${:,.0f}'.format(x) for x in values]
+            df_assets = pd.DataFrame(asset_data)
+            st.subheader("Assets Breakdown")
+            st.dataframe(df_assets, use_container_width=True)
+
+        # Create and display liabilities breakdown table
+        if liability_breakdown:
+            liability_data = {'Year': years}
+            for category, values in liability_breakdown.items():
+                liability_data[category] = ['${:,.0f}'.format(x) for x in values]
+            df_liabilities = pd.DataFrame(liability_data)
+            st.subheader("Liabilities Breakdown")
+            st.dataframe(df_liabilities, use_container_width=True)
 
     @staticmethod
     def plot_home_value_breakdown(years: List[int], home_value: List[float], 
@@ -199,6 +236,16 @@ class FinancialPlotter:
 
         st.plotly_chart(fig)
 
+        # Create and display home value breakdown table
+        df_home = pd.DataFrame({
+            'Year': years,
+            'Home Value': ['${:,.0f}'.format(x) for x in home_value],
+            'Mortgage Balance': ['${:,.0f}'.format(x) for x in mortgage_balance],
+            'Home Equity': ['${:,.0f}'.format(x) for x in equity],
+        })
+        st.dataframe(df_home, use_container_width=True)
+
+
     @staticmethod
     def plot_salary_heatmap(
         salary_data: pd.DataFrame,
@@ -222,8 +269,8 @@ class FinancialPlotter:
             y=occupations,
             hoverongaps=False,
             hovertemplate="Location: %{x}<br>" +
-                         "Occupation: %{y}<br>" +
-                         "Salary: $%{z:,.0f}<extra></extra>",
+                          "Occupation: %{y}<br>" +
+                          "Salary: $%{z:,.0f}<extra></extra>",
             colorscale='Viridis',
             colorbar=dict(
                 title=dict(
@@ -276,3 +323,6 @@ class FinancialPlotter:
 
         # Display in Streamlit
         st.plotly_chart(fig, use_container_width=True)
+
+        # Create and display salary data table
+        st.dataframe(salary_data.style.format("${:,.0f}"), use_container_width=True)
