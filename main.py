@@ -113,7 +113,10 @@ def main():
 
             # Location editor
             st.sidebar.markdown(f"**Current Location:** {st.session_state.selected_location}")
-            if st.sidebar.checkbox("Change Location"):
+            change_location = st.sidebar.checkbox("Change Location")
+            if not change_location:
+                st.session_state.show_sidebar_location_matches = False
+            if change_location:
                 new_location_input = st.sidebar.text_input(
                     "Enter New Location",
                     value=st.session_state.selected_location
@@ -132,13 +135,17 @@ def main():
                             if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
                                 st.session_state.selected_location = loc
                                 st.session_state.show_sidebar_location_matches = False
+                                change_location = False
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching locations found")
 
             # Occupation editor
             st.sidebar.markdown(f"**Current Occupation:** {st.session_state.selected_occupation}")
-            if st.sidebar.checkbox("Change Occupation"):
+            change_occupation = st.sidebar.checkbox("Change Occupation")
+            if not change_occupation:
+                st.session_state.show_sidebar_occupation_matches = False
+            if change_occupation:
                 new_occupation_input = st.sidebar.text_input(
                     "Enter New Occupation",
                     value=st.session_state.selected_occupation
@@ -157,6 +164,7 @@ def main():
                             if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
                                 st.session_state.selected_occupation = occ
                                 st.session_state.show_sidebar_occupation_matches = False
+                                change_occupation = False
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
