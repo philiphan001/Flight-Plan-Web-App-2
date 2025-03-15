@@ -129,6 +129,7 @@ def main():
                             if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
                                 st.session_state.selected_location = loc
                                 st.session_state.sidebar_location_input = ""
+                                st.session_state.previous_projections = None  # Force recalculation
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching locations found")
@@ -154,6 +155,7 @@ def main():
                             if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
                                 st.session_state.selected_occupation = occ
                                 st.session_state.sidebar_occupation_input = ""
+                                st.session_state.previous_projections = None  # Force recalculation
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
