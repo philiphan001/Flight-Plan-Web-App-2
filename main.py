@@ -72,7 +72,7 @@ def main():
                                     st.session_state.selected_location = loc
                                     st.session_state.show_location_matches = False
                                     reset_financial_state()
-                                    st.experimental_rerun()
+                                    st.rerun()
                         else:
                             st.error("No matching locations found")
 
@@ -96,7 +96,7 @@ def main():
                                     st.session_state.selected_occupation = occ
                                     st.session_state.show_occupation_matches = False
                                     reset_financial_state()
-                                    st.experimental_rerun()
+                                    st.rerun()
                         else:
                             st.error("No matching occupations found")
 
@@ -105,13 +105,13 @@ def main():
                 st.markdown("---")
                 if st.button("Continue to Financial Projections ➡️"):
                     st.session_state.show_projections = True
-                    st.experimental_rerun()
+                    st.rerun()
 
         else:
             # Back button
             if st.button("← Back to Selection"):
                 st.session_state.show_projections = False
-                st.experimental_rerun()
+                st.rerun()
 
             # Add location and occupation editing in sidebar
             st.sidebar.markdown("## Current Selections 📍")
@@ -138,7 +138,7 @@ def main():
                                 st.session_state.selected_location = loc
                                 st.session_state.sidebar_location_input = ""
                                 reset_financial_state()
-                                st.experimental_rerun()
+                                st.rerun()
                     else:
                         st.sidebar.error("No matching locations found")
 
@@ -164,7 +164,7 @@ def main():
                                 st.session_state.selected_occupation = occ
                                 st.session_state.sidebar_occupation_input = ""
                                 reset_financial_state()
-                                st.experimental_rerun()
+                                st.rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
 
