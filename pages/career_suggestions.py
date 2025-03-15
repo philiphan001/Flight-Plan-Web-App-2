@@ -85,17 +85,17 @@ def load_career_suggestions_page():
             return
 
         with st.spinner("Generating career suggestions..."):
-            # Generate suggestions
-            suggestions = career_service.generate_career_suggestions(
-                interests=interests,
-                skills=skills,
-                education_level=education_level,
-                preferred_work_style=work_style,
-                preferred_industry=preferred_industry if preferred_industry else None,
-                salary_expectation=salary_expectation if salary_expectation else None
-            )
-
             try:
+                # Generate suggestions
+                suggestions = career_service.generate_career_suggestions(
+                    interests=interests,
+                    skills=skills,
+                    education_level=education_level,
+                    preferred_work_style=work_style,
+                    preferred_industry=preferred_industry if preferred_industry else None,
+                    salary_expectation=salary_expectation if salary_expectation else None
+                )
+
                 # Parse the JSON string response
                 career_data = json.loads(suggestions)
 
@@ -103,7 +103,8 @@ def load_career_suggestions_page():
                     st.error(career_data["error"])
                     return
 
-                # Create visualization
+                # Display career path visualization
+                st.subheader("Career Path Visualization")
                 plotter = FinancialPlotter()
                 plotter.plot_career_roadmap(career_data)
 
@@ -112,7 +113,51 @@ def load_career_suggestions_page():
                 if primary_path_title:
                     st.subheader("Recommended Skills Development")
                     skill_recommendations = career_service.get_skill_recommendations(primary_path_title)
-                    st.write(skill_recommendations)
+                    skill_data = json.loads(skill_recommendations)
+
+                    if "error" not in skill_data:
+                        # Display technical skills
+                        if "technical_skills" in skill_data:
+                            st.write("**Technical Skills to Develop:**")
+                            for skill in skill_data["technical_skills"]:
+                                st.write(f"- {skill}")
+
+                        # Display soft skills
+                        if "soft_skills" in skill_data:
+                            st.write("**Soft Skills to Enhance:**")
+                            for skill in skill_data["soft_skills"]:
+                                st.write(f"- {skill}")
+
+                        # Display certifications
+                        if "certifications" in skill_data:
+                            st.write("**Recommended Certifications:**")
+                            for cert in skill_data["certifications"]:
+                                st.write(f"- {cert}")
+
+                        # Display learning resources
+                        if "learning_resources" in skill_data:
+                            st.write("**Learning Resources:**")
+                            for resource in skill_data["learning_resources"]:
+                                with st.expander(f"📚 {resource['name']}"):
+                                    st.write(f"Type: {resource['type']}")
+                                    if 'url' in resource and resource['url']:
+                                        st.write(f"Link: {resource['url']}")
+                                    if 'estimated_duration' in resource:
+                                        st.write(f"Duration: {resource['estimated_duration']}")
+
+                        # Display skill development timeline
+                        if "skill_development_timeline" in skill_data:
+                            st.write("**Skill Development Timeline:**")
+                            for phase in skill_data["skill_development_timeline"]:
+                                with st.expander(f"🎯 {phase['timeframe']}"):
+                                    st.write("Focus Areas:")
+                                    for area in phase["focus_areas"]:
+                                        st.write(f"- {area}")
+                                    st.write("\nExpected Outcomes:")
+                                    for outcome in phase["expected_outcomes"]:
+                                        st.write(f"- {outcome}")
+                    else:
+                        st.error(skill_data["error"])
 
             except json.JSONDecodeError as e:
                 st.error(f"Failed to process career suggestions: {str(e)}")
