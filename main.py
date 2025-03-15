@@ -137,6 +137,7 @@ def main():
                             if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
                                 st.session_state.selected_location = loc
                                 st.session_state.show_sidebar_location_matches = False
+                                st.session_state.change_location_checkbox = False
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching locations found")
@@ -165,6 +166,7 @@ def main():
                             if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
                                 st.session_state.selected_occupation = occ
                                 st.session_state.show_sidebar_occupation_matches = False
+                                st.session_state.change_occupation_checkbox = False
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
