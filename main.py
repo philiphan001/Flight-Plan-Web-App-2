@@ -122,6 +122,32 @@ def main():
                 milestone_year = st.slider("Marriage Year", 1, projection_years, 2, key="marriage_year")
                 wedding_cost = st.number_input("Wedding Cost ($)", 10000, 100000, 30000, step=5000, key="wedding_cost")
 
+                # New marriage variables
+                joint_lifestyle_adjustment = st.slider(
+                    "Joint Lifestyle Cost Adjustment (%)",
+                    -20, 50, 0, 
+                    help="How much will your lifestyle costs change after marriage?",
+                    key="joint_lifestyle"
+                )
+                spouse_savings = st.number_input(
+                    "Spouse's Current Savings ($)",
+                    0, 1000000, 0,
+                    step=1000,
+                    key="spouse_savings"
+                )
+                spouse_debt = st.number_input(
+                    "Spouse's Current Debt ($)",
+                    0, 1000000, 0,
+                    step=1000,
+                    key="spouse_debt"
+                )
+                joint_insurance_cost = st.number_input(
+                    "Joint Insurance Monthly Cost ($)",
+                    0, 2000, 200,
+                    step=50,
+                    key="joint_insurance"
+                )
+
                 # Spouse occupation input
                 spouse_occupation_input = st.text_input("Enter Spouse's Occupation", key="spouse_occ")
                 if spouse_occupation_input:
@@ -141,7 +167,11 @@ def main():
                             )
                             spouse_income = ModelSpouseIncome(
                                 spouse_data['base_income'],
-                                spouse_data['location_adjustment']
+                                spouse_data['location_adjustment'],
+                                lifestyle_adjustment=joint_lifestyle_adjustment/100,
+                                initial_savings=spouse_savings,
+                                initial_debt=spouse_debt,
+                                insurance_cost=joint_insurance_cost*12
                             )
                             milestone = MilestoneFactory.create_marriage(
                                 milestone_year, wedding_cost, spouse_income)
@@ -151,8 +181,42 @@ def main():
             # Child Milestone
             with st.sidebar.expander("👶 New Child"):
                 child_year = st.slider("Child Year", 1, projection_years, 3, key="child_year")
+                # New child variables
+                education_savings = st.number_input(
+                    "Monthly Education Savings ($)",
+                    0, 2000, 200,
+                    step=50,
+                    help="Amount to save monthly for education",
+                    key="education_savings"
+                )
+                healthcare_cost = st.number_input(
+                    "Additional Monthly Healthcare ($)",
+                    0, 1000, 200,
+                    step=50,
+                    key="child_healthcare"
+                )
+                child_insurance = st.number_input(
+                    "Additional Monthly Insurance ($)",
+                    0, 500, 100,
+                    step=25,
+                    key="child_insurance"
+                )
+                tax_benefit = st.number_input(
+                    "Estimated Annual Tax Benefit ($)",
+                    0, 10000, 2000,
+                    step=500,
+                    help="Child tax credits and deductions",
+                    key="child_tax_benefit"
+                )
+
                 if st.button("Add Child Milestone"):
-                    milestone = MilestoneFactory.create_child(child_year)
+                    milestone = MilestoneFactory.create_child(
+                        child_year,
+                        education_savings=education_savings*12,
+                        healthcare_cost=healthcare_cost*12,
+                        insurance_cost=child_insurance*12,
+                        tax_benefit=tax_benefit
+                    )
                     st.session_state.milestones.append(milestone)
                     st.rerun()
 
@@ -161,9 +225,47 @@ def main():
                 home_year = st.slider("Purchase Year", 1, projection_years, 5, key="home_year")
                 home_price = st.number_input("Home Price ($)", 100000, 2000000, 300000, step=50000)
                 down_payment_pct = st.slider("Down Payment %", 5, 40, 20) / 100
+
+                # New home variables
+                monthly_utilities = st.number_input(
+                    "Estimated Monthly Utilities ($)",
+                    100, 1000, 300,
+                    step=50,
+                    key="utilities"
+                )
+                monthly_hoa = st.number_input(
+                    "Monthly HOA Fees ($)",
+                    0, 1000, 0,
+                    step=25,
+                    key="hoa"
+                )
+                annual_renovation = st.number_input(
+                    "Annual Renovation Budget ($)",
+                    0, 50000, 2000,
+                    step=500,
+                    key="renovation"
+                )
+                home_office = st.checkbox(
+                    "Home Office Deduction",
+                    help="Include home office tax deduction",
+                    key="home_office"
+                )
+                if home_office:
+                    office_area_pct = st.slider(
+                        "Office Area % of Home",
+                        1, 30, 10,
+                        key="office_area"
+                    )
+
                 if st.button("Add Home Purchase Milestone"):
                     milestone = MilestoneFactory.create_home_purchase(
-                        home_year, home_price, down_payment_pct)
+                        home_year, home_price, down_payment_pct,
+                        monthly_utilities=monthly_utilities,
+                        monthly_hoa=monthly_hoa,
+                        annual_renovation=annual_renovation,
+                        home_office_deduction=home_office,
+                        office_percentage=office_area_pct if home_office else 0
+                    )
                     st.session_state.milestones.append(milestone)
                     st.rerun()
 
@@ -172,9 +274,41 @@ def main():
                 car_year = st.slider("Purchase Year", 1, projection_years, 2, key="car_year")
                 car_price = st.number_input("Car Price ($)", 5000, 150000, 30000, step=5000)
                 car_down_payment_pct = st.slider("Down Payment %", 5, 100, 20) / 100
+
+                # New car variables
+                car_type = st.selectbox(
+                    "Vehicle Type",
+                    ["Gas", "Electric", "Hybrid"],
+                    key="car_type"
+                )
+                monthly_fuel = st.number_input(
+                    "Estimated Monthly Fuel/Charging ($)",
+                    50, 1000, 200,
+                    step=25,
+                    key="fuel"
+                )
+                monthly_parking = st.number_input(
+                    "Monthly Parking Fees ($)",
+                    0, 500, 0,
+                    step=25,
+                    key="parking"
+                )
+                tax_incentive = st.number_input(
+                    "Tax Incentives ($)",
+                    0, 10000, 0,
+                    step=500,
+                    help="Available tax credits for vehicle type",
+                    key="car_tax_incentive"
+                )
+
                 if st.button("Add Car Purchase Milestone"):
                     milestone = MilestoneFactory.create_car_purchase(
-                        car_year, car_price, car_down_payment_pct)
+                        car_year, car_price, car_down_payment_pct,
+                        vehicle_type=car_type,
+                        monthly_fuel=monthly_fuel,
+                        monthly_parking=monthly_parking,
+                        tax_incentive=tax_incentive
+                    )
                     st.session_state.milestones.append(milestone)
                     st.rerun()
 
@@ -183,9 +317,41 @@ def main():
                 grad_year = st.slider("Start Year", 1, projection_years, 2, key="grad_year")
                 total_cost = st.number_input("Total Cost ($)", 10000, 200000, 100000, step=10000)
                 program_years = st.slider("Program Length (Years)", 1, 4, 2)
+
+                # New graduate school variables
+                part_time_income = st.number_input(
+                    "Estimated Monthly Part-Time Income ($)",
+                    0, 5000, 0,
+                    step=100,
+                    key="part_time"
+                )
+                scholarship_amount = st.number_input(
+                    "Expected Annual Scholarship ($)",
+                    0, 50000, 0,
+                    step=1000,
+                    key="scholarship"
+                )
+                expected_salary_increase = st.slider(
+                    "Expected Salary Increase After Graduation (%)",
+                    0, 200, 30,
+                    key="salary_increase"
+                )
+                networking_cost = st.number_input(
+                    "Monthly Professional Development ($)",
+                    0, 1000, 100,
+                    step=50,
+                    help="Networking events, certifications, etc.",
+                    key="networking"
+                )
+
                 if st.button("Add Graduate School Milestone"):
                     milestone = MilestoneFactory.create_grad_school(
-                        grad_year, total_cost, program_years)
+                        grad_year, total_cost, program_years,
+                        part_time_income=part_time_income*12,
+                        scholarship_amount=scholarship_amount,
+                        salary_increase_percentage=expected_salary_increase/100,
+                        networking_cost=networking_cost*12
+                    )
                     st.session_state.milestones.append(milestone)
                     st.rerun()
 

@@ -194,38 +194,79 @@ class Milestone:
 
 class MilestoneFactory:
     @staticmethod
-    def create_marriage(trigger_year: int, cost: float = 30000, spouse_income: Optional[Income] = None) -> Milestone:
+    def create_marriage(trigger_year: int, cost: float = 30000, spouse_income: Optional[Income] = None,
+                       lifestyle_adjustment: float = 0.0, initial_savings: float = 0,
+                       initial_debt: float = 0, insurance_cost: float = 0) -> Milestone:
         milestone = Milestone("Marriage", trigger_year, "Family")
         milestone.add_one_time_expense(cost)
-        milestone.add_recurring_expense(VariableExpense("Joint Living Expenses", 5000 * 12))
+
+        # Add joint lifestyle expenses adjusted by the lifestyle change percentage
+        base_expense = 5000 * 12  # Base annual joint expenses
+        adjusted_expense = base_expense * (1 + lifestyle_adjustment)
+        milestone.add_recurring_expense(VariableExpense("Joint Living Expenses", adjusted_expense))
+
+        # Add insurance costs
+        if insurance_cost > 0:
+            milestone.add_recurring_expense(FixedExpense("Joint Insurance", insurance_cost))
+
+        # Add spouse income and assets/liabilities
         if spouse_income:
             if isinstance(spouse_income, SpouseIncome):
                 spouse_income.start_year = trigger_year
             milestone.add_income_adjustment(spouse_income)
+
+            if initial_savings > 0:
+                milestone.add_asset(Investment("Spouse Savings", initial_savings))
+            if initial_debt > 0:
+                milestone.add_liability(Loan("Spouse Debt", initial_debt, 0.06, 10))  # Assuming 6% interest, 10-year term
+
         return milestone
 
     @staticmethod
-    def create_child(trigger_year: int) -> Milestone:
+    def create_child(trigger_year: int, education_savings: float = 0,
+                    healthcare_cost: float = 0, insurance_cost: float = 0,
+                    tax_benefit: float = 0) -> Milestone:
         milestone = Milestone("New Child", trigger_year, "Family")
         milestone.add_one_time_expense(10000)  # Initial costs
-        milestone.add_recurring_expense(FixedExpense("Childcare", 15000))
+
+        # Add education savings as investment
+        if education_savings > 0:
+            education_investment = Investment("Education Fund", 0, 0.06)  # 6% return rate
+            education_investment.add_contribution(education_savings)
+            milestone.add_asset(education_investment)
+            milestone.add_recurring_expense(FixedExpense("Education Savings", education_savings))
+
+        # Add healthcare and insurance costs
+        if healthcare_cost > 0:
+            milestone.add_recurring_expense(VariableExpense("Child Healthcare", healthcare_cost))
+        if insurance_cost > 0:
+            milestone.add_recurring_expense(FixedExpense("Child Insurance", insurance_cost))
+
+        # Add general child expenses
         milestone.add_recurring_expense(VariableExpense("Child Expenses", 10000))
+
+        # Add tax benefits as negative expense (savings)
+        if tax_benefit > 0:
+            milestone.add_recurring_expense(FixedExpense("Child Tax Benefit", -tax_benefit))
+
         return milestone
 
     @staticmethod
     def create_home_purchase(trigger_year: int, home_price: float, down_payment_percentage: float = 0.20,
                            property_tax_rate: float = 0.015, insurance_rate: float = 0.005,
                            maintenance_rate: float = 0.01, appreciation_rate: float = 0.03,
-                           mortgage_rate: float = 0.035) -> Milestone:
+                           mortgage_rate: float = 0.035, monthly_utilities: float = 0,
+                           monthly_hoa: float = 0, annual_renovation: float = 0,
+                           home_office_deduction: bool = False, office_percentage: float = 0) -> Milestone:
         milestone = Milestone("Home Purchase", trigger_year, "Asset")
         down_payment = home_price * down_payment_percentage
         loan_amount = home_price * (1 - down_payment_percentage)
 
         # Create mortgage loan
-        mortgage = MortgageLoan(loan_amount, mortgage_rate)  # Configurable interest rate
+        mortgage = MortgageLoan(loan_amount, mortgage_rate)
         monthly_payment = mortgage.calculate_payment()
 
-        # Add the down payment as a one-time expense with specific year
+        # Add the down payment as a one-time expense
         milestone.add_one_time_expense(down_payment)
 
         # Add the home as an asset with configurable appreciation rate
@@ -233,12 +274,23 @@ class MilestoneFactory:
 
         # Add mortgage and recurring housing expenses
         milestone.add_liability(mortgage)
-        # Add mortgage payment as a fixed expense (no inflation adjustment)
         milestone.add_recurring_expense(FixedExpense("Mortgage Payment", monthly_payment * 12, inflation_rate=0))
-        # Add other housing expenses that do inflate
         milestone.add_recurring_expense(FixedExpense("Property Tax", home_price * property_tax_rate))
         milestone.add_recurring_expense(FixedExpense("Home Insurance", home_price * insurance_rate))
         milestone.add_recurring_expense(FixedExpense("Home Maintenance", home_price * maintenance_rate))
+
+        # Add new housing expenses
+        if monthly_utilities > 0:
+            milestone.add_recurring_expense(VariableExpense("Utilities", monthly_utilities * 12))
+        if monthly_hoa > 0:
+            milestone.add_recurring_expense(FixedExpense("HOA Fees", monthly_hoa * 12))
+        if annual_renovation > 0:
+            milestone.add_recurring_expense(VariableExpense("Renovation", annual_renovation))
+
+        # Add home office deduction if applicable
+        if home_office_deduction and office_percentage > 0:
+            deduction = home_price * (office_percentage / 100) * 0.05  # Simplified deduction calculation
+            milestone.add_recurring_expense(FixedExpense("Home Office Deduction", -deduction))
 
         return milestone
 
@@ -246,36 +298,77 @@ class MilestoneFactory:
     def create_car_purchase(trigger_year: int, car_price: float, down_payment_percentage: float = 0.20,
                           loan_interest_rate: float = 0.045, loan_term_years: int = 5,
                           insurance_rate: float = 0.04, maintenance_rate: float = 0.033,
-                          depreciation_rate: float = 0.15) -> Milestone:
+                          depreciation_rate: float = 0.15, vehicle_type: str = "Gas",
+                          monthly_fuel: float = 0, monthly_parking: float = 0,
+                          tax_incentive: float = 0) -> Milestone:
         milestone = Milestone("Car Purchase", trigger_year, "Asset")
+
+        # Apply tax incentive to purchase price for electric/hybrid vehicles
+        if vehicle_type in ["Electric", "Hybrid"] and tax_incentive > 0:
+            car_price = car_price - tax_incentive
+
         down_payment = car_price * down_payment_percentage
         loan_amount = car_price * (1 - down_payment_percentage)
 
         # Add down payment as one-time expense
         milestone.add_one_time_expense(down_payment)
 
+        # Adjust depreciation rate based on vehicle type
+        if vehicle_type == "Electric":
+            depreciation_rate *= 1.2  # Higher depreciation for electric vehicles
+        elif vehicle_type == "Hybrid":
+            depreciation_rate *= 1.1  # Slightly higher depreciation for hybrid vehicles
+
         # Add the car as an asset with configurable depreciation
         milestone.add_asset(Vehicle("Car", car_price, depreciation_rate))
 
-        # Add car loan with configurable terms
+        # Add car loan
         car_loan = CarLoan(loan_amount, loan_interest_rate, loan_term_years)
         milestone.add_liability(car_loan)
 
-        # Add recurring expenses (insurance and maintenance)
+        # Add recurring expenses
         monthly_payment = car_loan.calculate_payment()
         milestone.add_recurring_expense(FixedExpense("Car Payment", monthly_payment * 12, inflation_rate=0))
         milestone.add_recurring_expense(FixedExpense("Car Insurance", car_price * insurance_rate))
         milestone.add_recurring_expense(FixedExpense("Car Maintenance", car_price * maintenance_rate))
 
+        # Add new vehicle expenses
+        if monthly_fuel > 0:
+            milestone.add_recurring_expense(VariableExpense(f"{vehicle_type} Fuel/Charging", monthly_fuel * 12))
+        if monthly_parking > 0:
+            milestone.add_recurring_expense(FixedExpense("Parking", monthly_parking * 12))
+
         return milestone
 
     @staticmethod
-    def create_grad_school(trigger_year: int, total_cost: float, years: int = 2) -> Milestone:
+    def create_grad_school(trigger_year: int, total_cost: float, years: int = 2,
+                          part_time_income: float = 0, scholarship_amount: float = 0,
+                          salary_increase_percentage: float = 0.3,
+                          networking_cost: float = 0) -> Milestone:
         milestone = Milestone("Graduate School", trigger_year, "Education")
-        annual_cost = total_cost / years
 
-        milestone.add_liability(StudentLoan(total_cost, 0.06))  # 6% interest rate
+        # Reduce total cost by scholarship amount
+        annual_cost = (total_cost - scholarship_amount) / years
+
+        # Add student loan with reduced principal if scholarship available
+        milestone.add_liability(StudentLoan(total_cost - scholarship_amount, 0.06))
+
+        # Add annual expenses
         milestone.add_recurring_expense(FixedExpense("Graduate School Expenses", annual_cost))
-        # Potential income increase after graduation
-        milestone.add_income_adjustment(Salary(30000, 1.0))  # Average salary increase post-grad
+
+        # Add networking and professional development costs
+        if networking_cost > 0:
+            milestone.add_recurring_expense(VariableExpense("Professional Development", networking_cost))
+
+        # Add part-time income during school if applicable
+        if part_time_income > 0:
+            part_time = Income("Part-Time Work", part_time_income, start_year=trigger_year)
+            milestone.add_income_adjustment(part_time)
+
+        # Add post-graduation salary increase
+        if salary_increase_percentage > 0:
+            increased_salary = Salary(30000 * (1 + salary_increase_percentage), 1.0)
+            increased_salary.start_year = trigger_year + years
+            milestone.add_income_adjustment(increased_salary)
+
         return milestone
