@@ -343,6 +343,7 @@ class FinancialPlotter:
         # Create and display salary data table
         st.dataframe(salary_data.style.format("${:,.0f}"), use_container_width=True)
     
+
     def plot_career_roadmap(self, career_data: Dict) -> None:
         """
         Create an interactive visualization of the career roadmap.
@@ -361,11 +362,11 @@ class FinancialPlotter:
         milestones = [milestone['milestone'] for milestone in timeline]
         salaries = [milestone['estimated_salary'] for milestone in timeline]
 
-        # Add primary path as a line
+        # Add primary path as a line with list for y-values
         fig.add_trace(
             go.Scatter(
                 x=years,
-                y=range(len(years)),
+                y=list(range(len(years))),  # Convert range to list
                 text=milestones,
                 mode='lines+markers+text',
                 name=primary_path.get('title', 'Primary Path'),
@@ -383,10 +384,13 @@ class FinancialPlotter:
                 alt_years = [milestone['year'] for milestone in path['timeline']]
                 alt_milestones = [milestone['milestone'] for milestone in path['timeline']]
 
+                # Create y-values as a list with proper spacing
+                y_values = [i + (idx + 1) * 2 for i in range(len(alt_years))]
+
                 fig.add_trace(
                     go.Scatter(
                         x=alt_years,
-                        y=[i + (idx + 1) * 2 for i in range(len(alt_years))],
+                        y=y_values,  # Use calculated list
                         text=alt_milestones,
                         mode='lines+markers+text',
                         name=path.get('title', f'Alternative Path {idx + 1}'),
@@ -421,7 +425,8 @@ class FinancialPlotter:
 
         # Create a table with timeline details
         df_timeline = pd.DataFrame(timeline)
-        st.dataframe(df_timeline, use_container_width=True)
+        if not df_timeline.empty:
+            st.dataframe(df_timeline, use_container_width=True)
 
         # Display alternative paths
         if alt_paths:
