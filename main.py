@@ -20,6 +20,11 @@ def main():
         st.session_state.milestones = []
     if 'previous_projections' not in st.session_state:
         st.session_state.previous_projections = None
+    if 'location_input' not in st.session_state:
+        st.session_state.location_input = ""
+    if 'occupation_input' not in st.session_state:
+        st.session_state.occupation_input = ""
+
 
     st.title("Financial Projection Application")
 
@@ -46,14 +51,15 @@ def main():
                     location_input = st.text_input("Enter Location", key="location_input")
                     if location_input:
                         matches = get_close_matches(location_input.lower(), 
-                                                [loc.lower() for loc in locations], 
-                                                n=3, cutoff=0.1)
+                                               [loc.lower() for loc in locations], 
+                                               n=3, cutoff=0.1)
                         matching_locations = [loc for loc in locations if loc.lower() in matches]
                         if matching_locations:
                             st.markdown("#### Select from matches:")
                             for loc in matching_locations:
                                 if st.button(f"📍 {loc}", key=f"loc_{loc}"):
                                     st.session_state.selected_location = loc
+                                    st.session_state.location_input = loc  # Store the selected value
                                     st.rerun()
                         else:
                             st.error("No matching locations found")
@@ -66,14 +72,15 @@ def main():
                     occupation_input = st.text_input("Enter Occupation", key="occupation_input")
                     if occupation_input:
                         matches = get_close_matches(occupation_input.lower(), 
-                                                [occ.lower() for occ in occupations], 
-                                                n=3, cutoff=0.1)
+                                               [occ.lower() for occ in occupations], 
+                                               n=3, cutoff=0.1)
                         matching_occupations = [occ for occ in occupations if occ.lower() in matches]
                         if matching_occupations:
                             st.markdown("#### Select from matches:")
                             for occ in matching_occupations:
                                 if st.button(f"💼 {occ}", key=f"occ_{occ}"):
                                     st.session_state.selected_occupation = occ
+                                    st.session_state.occupation_input = occ  # Store the selected value
                                     st.rerun()
                         else:
                             st.error("No matching occupations found")
@@ -97,11 +104,11 @@ def main():
             # Location editor
             st.sidebar.markdown(f"**Current Location:** {st.session_state.selected_location}")
             if st.sidebar.checkbox("Change Location"):
-                location_input = st.sidebar.text_input("Enter New Location", key="new_location_input")
+                location_input = st.sidebar.text_input("Enter New Location", value=st.session_state.selected_location, key="new_location_input")
                 if location_input:
                     matches = get_close_matches(location_input.lower(), 
-                                            [loc.lower() for loc in locations], 
-                                            n=3, cutoff=0.1)
+                                           [loc.lower() for loc in locations], 
+                                           n=3, cutoff=0.1)
                     matching_locations = [loc for loc in locations if loc.lower() in matches]
                     if matching_locations:
                         st.sidebar.markdown("#### Select from matches:")
@@ -115,11 +122,11 @@ def main():
             # Occupation editor
             st.sidebar.markdown(f"**Current Occupation:** {st.session_state.selected_occupation}")
             if st.sidebar.checkbox("Change Occupation"):
-                occupation_input = st.sidebar.text_input("Enter New Occupation", key="new_occupation_input")
+                occupation_input = st.sidebar.text_input("Enter New Occupation", value=st.session_state.selected_occupation, key="new_occupation_input")
                 if occupation_input:
                     matches = get_close_matches(occupation_input.lower(), 
-                                            [occ.lower() for occ in occupations], 
-                                            n=3, cutoff=0.1)
+                                           [occ.lower() for occ in occupations], 
+                                           n=3, cutoff=0.1)
                     matching_occupations = [occ for occ in occupations if occ.lower() in matches]
                     if matching_occupations:
                         st.sidebar.markdown("#### Select from matches:")
