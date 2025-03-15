@@ -44,6 +44,9 @@ def initialize_session_state():
         st.session_state.sidebar_occupation_input = ""
     if 'selected_spouse_occ' not in st.session_state:
         st.session_state['selected_spouse_occ'] = ""
+    # Add marriage-related session state variables
+    if 'show_marriage_options' not in st.session_state:
+        st.session_state.show_marriage_options = False
 
 def main():
     initialize_session_state()
