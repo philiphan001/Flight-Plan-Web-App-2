@@ -1,6 +1,7 @@
 import os
 from typing import Dict, List, Optional
 import openai
+import json
 from datetime import datetime, timedelta
 
 class CareerSuggestionService:
@@ -16,16 +17,17 @@ class CareerSuggestionService:
         preferred_work_style: str,
         preferred_industry: Optional[str] = None,
         salary_expectation: Optional[str] = None
-    ) -> Dict:
+    ) -> str:
         """
         Generate career suggestions based on user inputs using OpenAI's API.
+        Returns a JSON string.
         """
         prompt = self._create_prompt(
             interests, skills, education_level,
             preferred_work_style, preferred_industry,
             salary_expectation
         )
-        
+
         try:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
@@ -57,12 +59,15 @@ class CareerSuggestionService:
                 ],
                 temperature=0.7
             )
-            
+
+            # Return the response content as a string - it's already JSON formatted
             return response.choices[0].message.content
+
         except Exception as e:
-            return {
+            # Return error as a JSON string
+            return json.dumps({
                 "error": f"Failed to generate career suggestions: {str(e)}"
-            }
+            })
 
     def _create_prompt(
         self,
@@ -84,26 +89,27 @@ class CareerSuggestionService:
         Education Level: {education_level}
         Preferred Work Style: {preferred_work_style}
         """
-        
+
         if preferred_industry:
             prompt += f"\nPreferred Industry: {preferred_industry}"
         if salary_expectation:
             prompt += f"\nSalary Expectation: {salary_expectation}"
-            
+
         prompt += """\n\nProvide a detailed career progression timeline including:
         1. Starting position and subsequent role advancements
         2. Required skills and certifications for each stage
         3. Estimated timeline for transitions
         4. Salary ranges for each position
         5. Alternative career paths that leverage the same skill set
-        
+
         Format the response as a JSON object with a primary career path and alternative options."""
-        
+
         return prompt
 
-    def get_skill_recommendations(self, career_path: str) -> List[str]:
+    def get_skill_recommendations(self, career_path: str) -> str:
         """
         Get specific skill recommendations for a given career path.
+        Returns a JSON string.
         """
         try:
             response = openai.ChatCompletion.create(
@@ -114,7 +120,9 @@ class CareerSuggestionService:
                 ],
                 temperature=0.7
             )
-            
+
             return response.choices[0].message.content
         except Exception as e:
-            return [f"Error getting skill recommendations: {str(e)}"]
+            return json.dumps({
+                "error": f"Error getting skill recommendations: {str(e)}"
+            })

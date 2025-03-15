@@ -5,14 +5,14 @@ from visualizations.plotter import FinancialPlotter
 
 def load_career_suggestions_page():
     st.title("AI Career Path Suggestions 🎯")
-    
+
     # Initialize the career suggestion service
     career_service = CareerSuggestionService()
-    
+
     # Create input form
     with st.form("career_input_form"):
         st.subheader("Tell us about yourself")
-        
+
         # Multi-select for interests
         interests = st.multiselect(
             "What are your interests?",
@@ -23,7 +23,7 @@ def load_career_suggestions_page():
             ],
             max_selections=5
         )
-        
+
         # Multi-select for skills
         skills = st.multiselect(
             "What are your current skills?",
@@ -35,7 +35,7 @@ def load_career_suggestions_page():
             ],
             max_selections=5
         )
-        
+
         # Education level
         education_level = st.selectbox(
             "What is your education level?",
@@ -48,7 +48,7 @@ def load_career_suggestions_page():
                 "Doctorate"
             ]
         )
-        
+
         # Work style preference
         work_style = st.selectbox(
             "What is your preferred work style?",
@@ -60,30 +60,30 @@ def load_career_suggestions_page():
                 "Flexible"
             ]
         )
-        
+
         # Optional inputs
         col1, col2 = st.columns(2)
-        
+
         with col1:
             preferred_industry = st.text_input(
                 "Preferred industry (optional)",
                 placeholder="e.g., Technology, Healthcare"
             )
-        
+
         with col2:
             salary_expectation = st.text_input(
                 "Expected salary range (optional)",
                 placeholder="e.g., $60,000 - $80,000"
             )
-        
+
         # Submit button
         submitted = st.form_submit_button("Generate Career Suggestions")
-    
+
     if submitted:
         if not interests or not skills:
             st.error("Please select at least one interest and one skill.")
             return
-        
+
         with st.spinner("Generating career suggestions..."):
             # Generate suggestions
             suggestions = career_service.generate_career_suggestions(
@@ -94,28 +94,28 @@ def load_career_suggestions_page():
                 preferred_industry=preferred_industry if preferred_industry else None,
                 salary_expectation=salary_expectation if salary_expectation else None
             )
-            
+
             try:
-                # Parse the JSON response
+                # Parse the JSON string response
                 career_data = json.loads(suggestions)
-                
+
                 if "error" in career_data:
                     st.error(career_data["error"])
                     return
-                
+
                 # Create visualization
                 plotter = FinancialPlotter()
                 plotter.plot_career_roadmap(career_data)
-                
+
                 # Get skill recommendations
                 primary_path_title = career_data.get("primary_path", {}).get("title", "")
                 if primary_path_title:
                     st.subheader("Recommended Skills Development")
                     skill_recommendations = career_service.get_skill_recommendations(primary_path_title)
                     st.write(skill_recommendations)
-                
-            except json.JSONDecodeError:
-                st.error("Failed to process career suggestions. Please try again.")
+
+            except json.JSONDecodeError as e:
+                st.error(f"Failed to process career suggestions: {str(e)}")
                 return
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
