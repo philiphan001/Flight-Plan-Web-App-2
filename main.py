@@ -50,7 +50,7 @@ def main():
                             for loc in matching_locations:
                                 if st.button(f"📍 {loc}", key=f"loc_{loc}"):
                                     st.session_state.selected_location = loc
-                                    st.experimental_rerun()
+                                    st.rerun()
                         else:
                             st.error("No matching locations found")
 
@@ -70,7 +70,7 @@ def main():
                             for occ in matching_occupations:
                                 if st.button(f"💼 {occ}", key=f"occ_{occ}"):
                                     st.session_state.selected_occupation = occ
-                                    st.experimental_rerun()
+                                    st.rerun()
                         else:
                             st.error("No matching occupations found")
 
@@ -79,13 +79,13 @@ def main():
                 st.markdown("---")
                 if st.button("Continue to Financial Projections ➡️"):
                     st.session_state.show_projections = True
-                    st.experimental_rerun()
+                    st.rerun()
 
         else:
             # Show back button
             if st.button("← Back to Selection"):
                 st.session_state.show_projections = False
-                st.experimental_rerun()
+                st.rerun()
 
             # Investment and projection settings
             col3, col4 = st.columns(2)
