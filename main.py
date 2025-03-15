@@ -567,30 +567,6 @@ def show_college_search():
         <p class='subtitle'>
             Find and explore educational institutions
         </p>
-        <style>
-            .results-container {
-                height: 600px;
-                overflow-y: auto;
-                padding: 10px;
-                background-color: #f8f9fa;
-                border-radius: 10px;
-                margin: 10px 0;
-            }
-            .results-container::-webkit-scrollbar {
-                width: 12px;
-            }
-            .results-container::-webkit-scrollbar-track {
-                background: #f1f1f1;
-                border-radius: 10px;
-            }
-            .results-container::-webkit-scrollbar-thumb {
-                background: #888;
-                border-radius: 10px;
-            }
-            .results-container::-webkit-scrollbar-thumb:hover {
-                background: #555;
-            }
-        </style>
     """, unsafe_allow_html=True)
 
     try:
@@ -632,6 +608,9 @@ def show_college_search():
         st.markdown("</div>", unsafe_allow_html=True)
 
     with results_col:
+        # Create the scrollable container first
+        st.markdown('<div class="results-container">', unsafe_allow_html=True)
+
         if search_button:
             with st.spinner("Searching..."):
                 if search_term:
@@ -666,12 +645,9 @@ def show_college_search():
                                 filtered_institutions.append(inst)
                     matching_institutions = filtered_institutions
 
-                # Display results in scrollable container
+                # Display results
                 if matching_institutions:
                     st.success(f"Found {len(matching_institutions)} matching institutions")
-
-                    # Start scrollable container
-                    st.markdown('<div class="results-container">', unsafe_allow_html=True)
 
                     for inst in matching_institutions:
                         # Calculate gender ratio if available
@@ -699,11 +675,11 @@ def show_college_search():
                             <p>{gender_ratio_text}</p>
                         </div>
                         """, unsafe_allow_html=True)
-
-                    # End scrollable container
-                    st.markdown('</div>', unsafe_allow_html=True)
                 else:
                     st.info("No institutions found matching your criteria")
+
+        # Close the scrollable container
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # Add a back button
     if st.button("← Back to Main Menu"):
@@ -866,8 +842,7 @@ def main():
                         st.rerun()
 
         # Occupation input with suggestions
-        occupation_input = st.sidebar.text_input(
-            "Enter Occupation",
+        occupation_input = st.sidebar.text_input("Enter Occupation",
             value=st.session_state.selected_occupation if st.session_state.selected_occupation else "",
             key="occupation_input"
         )
