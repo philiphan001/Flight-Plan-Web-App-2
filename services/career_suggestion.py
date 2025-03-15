@@ -1,13 +1,13 @@
 import os
 from typing import Dict, List, Optional
-import openai
+from openai import OpenAI
 import json
 from datetime import datetime, timedelta
 
 class CareerSuggestionService:
     def __init__(self):
         self.api_key = os.getenv('OPENAI_API_KEY')
-        openai.api_key = self.api_key
+        self.client = OpenAI(api_key=self.api_key)
 
     def generate_career_suggestions(
         self,
@@ -29,8 +29,8 @@ class CareerSuggestionService:
         )
 
         try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+            response = self.client.chat.completions.create(
+                model="gpt-4",  # Using GPT-4 for better career analysis
                 messages=[
                     {"role": "system", "content": """You are a career counselor helping to create detailed career paths. 
                     Format your response as JSON with the following structure:
@@ -57,6 +57,7 @@ class CareerSuggestionService:
                     }"""},
                     {"role": "user", "content": prompt}
                 ],
+                response_format={"type": "json_object"},
                 temperature=0.7
             )
 
@@ -112,12 +113,13 @@ class CareerSuggestionService:
         Returns a JSON string.
         """
         try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+            response = self.client.chat.completions.create(
+                model="gpt-4",
                 messages=[
                     {"role": "system", "content": "You are a career development expert. Provide specific, actionable skill recommendations."},
                     {"role": "user", "content": f"What are the most important skills to develop for a career in {career_path}? Include both technical and soft skills."}
                 ],
+                response_format={"type": "json_object"},
                 temperature=0.7
             )
 
