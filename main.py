@@ -130,7 +130,7 @@ def main():
                                 st.session_state.selected_location = loc
                                 st.session_state.sidebar_location_input = ""
                                 st.session_state.previous_projections = None  # Force recalculation
-                                st.rerun()
+                                st.experimental_rerun()  # Force complete page rerun
                     else:
                         st.sidebar.error("No matching locations found")
 
@@ -156,7 +156,7 @@ def main():
                                 st.session_state.selected_occupation = occ
                                 st.session_state.sidebar_occupation_input = ""
                                 st.session_state.previous_projections = None  # Force recalculation
-                                st.rerun()
+                                st.experimental_rerun()  # Force complete page rerun
                     else:
                         st.sidebar.error("No matching occupations found")
 
