@@ -156,7 +156,8 @@ def main():
                     projections['total_income'],
                     projections['expense_categories'],
                     projections['total_expenses'],
-                    projections['cash_flow']
+                    projections['cash_flow'],
+                    projections['income_streams']
                 )
 
             with tab3:

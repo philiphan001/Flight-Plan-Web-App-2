@@ -15,7 +15,7 @@ class FinancialCalculator:
             'net_worth': [],
             'cash_flow': [],
             'total_income': [],
-            'income_streams': {},  # New: track individual income streams
+            'income_streams': {},  # Initialize income_streams dictionary
             'total_expenses': [],
             'expense_categories': {},
             'asset_values': [],
@@ -30,36 +30,18 @@ class FinancialCalculator:
         for inc in self.income:
             income_streams[inc.name] = []
 
-        # Initialize expense categories
-        expense_categories = {}
-        for expense in self.expenses:
-            category = expense.name
-            if "One-time Cost" in category:
-                milestone_name = category.replace(" One-time Cost", "")
-                category = f"One-time: {milestone_name}"
-            expense_categories[category] = []
-
-        # Initialize asset and liability breakdowns
-        asset_breakdown = {}
-        liability_breakdown = {}
-        for asset in self.assets:
-            asset_type = asset.__class__.__name__
-            asset_breakdown[f"{asset_type}: {asset.name}"] = []
-        for liability in self.liabilities:
-            liability_type = liability.__class__.__name__
-            liability_breakdown[f"{liability_type}: {liability.name}"] = []
-
-        cumulative_savings = 0
         for year in range(projection_years):
-            # Calculate income streams
+            # Calculate income streams for each income source
             for inc in self.income:
+                if inc.name not in income_streams:
+                    income_streams[inc.name] = []
                 income_amount = round(inc.calculate_income(year))
                 income_streams[inc.name].append(income_amount)
 
             # Calculate total income
             total_income = round(sum(inc.calculate_income(year) for inc in self.income))
             projections['total_income'].append(total_income)
-            projections['income_streams'] = income_streams
+            projections['income_streams'] = income_streams  # Store income streams in projections
 
             # Calculate expenses by category
             total_expenses = 0
@@ -108,7 +90,7 @@ class FinancialCalculator:
 
             # Calculate investment growth
             investment_growth = round(next(
-                (asset.calculate_value(year) for asset in self.assets 
+                (asset.calculate_value(year) for asset in self.assets
                  if isinstance(asset, Investment) and asset.name == "Savings"),
                 0
             ))
