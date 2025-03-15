@@ -168,6 +168,14 @@ st.markdown("""
             color: #004085;
             border: 1px solid #b8daff;
         }
+        div[data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+        }
+
     </style>
 """, unsafe_allow_html=True)
 
@@ -574,6 +582,7 @@ def show_landing_page():
         show_college_search()
 
 
+
 def show_college_search():
     """Dedicated college search page"""
     st.markdown("""
@@ -624,87 +633,86 @@ def show_college_search():
         st.markdown("</div>", unsafe_allow_html=True)
 
     with results_col:
-        # Create the scrollable container
-        st.markdown("""
-            <div class="results-container">
-            <div id="search-results">
-        """, unsafe_allow_html=True)
+        # Create a container for the results
+        results_container = st.container()
 
-        if search_button:
-            matching_institutions = []
+        with results_container:
+            if search_button:
+                matching_institutions = []
 
-            if search_term:
-                # Search by name first
-                matching_institutions = firebase_service.search_institutions_by_name(search_term)
+                if search_term:
+                    # Search by name first
+                    matching_institutions = firebase_service.search_institutions_by_name(search_term)
 
-                # Apply state filter if selected
-                if selected_state != "All States":
-                    matching_institutions = [
-                        inst for inst in matching_institutions
-                        if inst.get('state') == selected_state
-                    ]
-            elif selected_state != "All States":
-                # If no search term, get institutions by state
-                matching_institutions = firebase_service.get_institutions_by_state(selected_state)
+                    # Apply state filter if selected
+                    if selected_state != "All States":
+                        matching_institutions = [
+                            inst for inst in matching_institutions
+                            if inst.get('state') == selected_state
+                        ]
+                elif selected_state != "All States":
+                    # If no search term, get institutions by state
+                    matching_institutions = firebase_service.get_institutions_by_state(selected_state)
 
-            # Apply gender ratio filter
-            if matching_institutions and gender_filter != "No Filter":
-                filtered_institutions = []
-                for inst in matching_institutions:
-                    men = float(inst.get('men', 0))
-                    women = float(inst.get('women', 0))
-                    total = men + women
-                    if total > 0:
-                        women_ratio = women / total
-                        if (gender_filter == "Women > 50%" and women_ratio > 0.5) or \
-                           (gender_filter == "Men > 50%" and women_ratio < 0.5):
-                            filtered_institutions.append(inst)
-                matching_institutions = filtered_institutions
-
-            # Display results inside the scrollable container
-            if matching_institutions:
-                st.markdown(f"""
-                    <div class="success-message">
-                        Found {len(matching_institutions)} matching institutions
-                    </div>
-                """, unsafe_allow_html=True)
-
-                for inst in matching_institutions:
-                    # Calculate gender ratio if available
-                    gender_ratio_text = ""
-                    if 'men' in inst and 'women' in inst:
-                        total = float(inst['men'] + inst['women'])
+                # Apply gender ratio filter
+                if matching_institutions and gender_filter != "No Filter":
+                    filtered_institutions = []
+                    for inst in matching_institutions:
+                        men = float(inst.get('men', 0))
+                        women = float(inst.get('women', 0))
+                        total = men + women
                         if total > 0:
-                            women_ratio = (float(inst['women']) / total) * 100
-                            gender_ratio_text = f"👥 Women: {women_ratio:.1f}%"
+                            women_ratio = women / total
+                            if (gender_filter == "Women > 50%" and women_ratio > 0.5) or \
+                               (gender_filter == "Men > 50%" and women_ratio < 0.5):
+                                filtered_institutions.append(inst)
+                    matching_institutions = filtered_institutions
 
-                    # Format tuition value safely
-                    in_state_tuition = inst.get('in_state_tuition')
-                    tuition_display = f"${in_state_tuition:,.2f}" if isinstance(in_state_tuition, (int, float)) else "N/A"
-
-                    # Format admission rate safely
-                    admission_rate = inst.get('admission_rate', 0)
-                    admission_display = f"{admission_rate * 100:.1f}%" if admission_rate else "N/A"
-
-                    st.markdown(f"""
-                    <div style='padding: 15px; border-radius: 10px; background-color: white; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
-                        <h3>{inst['name']} 🏛️</h3>
-                        <p>📍 {inst['city']}, {inst['state']}</p>
-                        <p>💰 In-State Tuition: {tuition_display}</p>
-                        <p>📊 Admission Rate: {admission_display}</p>
-                        <p>{gender_ratio_text}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
+                # Wrap results in a scrollable container with fixed height
                 st.markdown("""
-                    <div class="info-message">
-                        No institutions found matching your criteria. Try adjusting your search or filters.
-                    </div>
+                    <style>
+                        div[data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {
+                            max-height: 600px;
+                            overflow-y: auto;
+                            padding: 1rem;
+                            background-color: #f8f9fa;
+                            border-radius: 10px;
+                        }
+                    </style>
                 """, unsafe_allow_html=True)
 
-        # Close the scrollable container
-        st.markdown("</div></div>", unsafe_allow_html=True)
+                # Display results
+                if matching_institutions:
+                    st.success(f"Found {len(matching_institutions)} matching institutions")
 
+                    for inst in matching_institutions:
+                        # Calculate gender ratio if available
+                        gender_ratio_text = ""
+                        if 'men' in inst and 'women' in inst:
+                            total = float(inst['men'] + inst['women'])
+                            if total > 0:
+                                women_ratio = (float(inst['women']) / total) * 100
+                                gender_ratio_text = f"👥 Women: {women_ratio:.1f}%"
+
+                        # Format tuition value safely
+                        in_state_tuition = inst.get('in_state_tuition')
+                        tuition_display = f"${in_state_tuition:,.2f}" if isinstance(in_state_tuition, (int, float)) else "N/A"
+
+                        # Format admission rate safely
+                        admission_rate = inst.get('admission_rate', 0)
+                        admission_display = f"{admission_rate * 100:.1f}%" if admission_rate else "N/A"
+
+                        st.markdown(f"""
+                        <div style='padding: 15px; border-radius: 10px; background-color: white; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                            <h3>{inst['name']} 🏛️</h3>
+                            <p>📍 {inst['city']}, {inst['state']}</p>
+                            <p>💰 In-State Tuition: {tuition_display}</p>
+                            <p>📊 Admission Rate: {admission_display}</p>
+                            <p>{gender_ratio_text}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info("No institutions found matching your criteria")
 
     # Add a back button
     if st.button("← Back to Main Menu"):
@@ -837,7 +845,7 @@ def main():
 
         # Clear selection if user starts typing something new
         if (st.session_state.selected_location and 
-            location_input != st.session_state.selected_location):
+            location_input != st.session_state.selectedlocation):
             st.sessionstate.selected_location = None
             st.rerun()
 
