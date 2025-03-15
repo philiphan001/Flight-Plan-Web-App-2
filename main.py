@@ -118,7 +118,10 @@ def main():
                     "Enter New Location",
                     value=st.session_state.selected_location
                 )
-                if new_location_input and st.session_state.show_sidebar_location_matches:
+                if new_location_input and not st.session_state.show_sidebar_location_matches:
+                    st.session_state.show_sidebar_location_matches = True
+                    st.rerun()
+                elif new_location_input and st.session_state.show_sidebar_location_matches:
                     matches = get_close_matches(new_location_input.lower(), 
                                            [loc.lower() for loc in locations], 
                                            n=3, cutoff=0.1)
@@ -132,9 +135,6 @@ def main():
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching locations found")
-                elif new_location_input:
-                    st.session_state.show_sidebar_location_matches = True
-                    st.rerun()
 
             # Occupation editor
             st.sidebar.markdown(f"**Current Occupation:** {st.session_state.selected_occupation}")
@@ -143,7 +143,10 @@ def main():
                     "Enter New Occupation",
                     value=st.session_state.selected_occupation
                 )
-                if new_occupation_input and st.session_state.show_sidebar_occupation_matches:
+                if new_occupation_input and not st.session_state.show_sidebar_occupation_matches:
+                    st.session_state.show_sidebar_occupation_matches = True
+                    st.rerun()
+                elif new_occupation_input and st.session_state.show_sidebar_occupation_matches:
                     matches = get_close_matches(new_occupation_input.lower(), 
                                            [occ.lower() for occ in occupations], 
                                            n=3, cutoff=0.1)
@@ -157,9 +160,6 @@ def main():
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
-                elif new_occupation_input:
-                    st.session_state.show_sidebar_occupation_matches = True
-                    st.rerun()
 
             st.sidebar.markdown("---")
 
