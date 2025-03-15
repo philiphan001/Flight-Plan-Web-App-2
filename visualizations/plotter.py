@@ -60,7 +60,7 @@ class FinancialPlotter:
                       cash_flow: List[float], income_streams: Dict[str, List[float]] = None) -> None:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        # Add stacked income bars in one group
+        # Add grouped income bars
         colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71', 'Part-Time Work': '#82E0AA'}
         for income_type, values in income_streams.items():
             fig.add_trace(
@@ -71,7 +71,7 @@ class FinancialPlotter:
                 secondary_y=False
             )
 
-        # Add expenses bar
+        # Add expense bar
         fig.add_trace(
             go.Bar(x=years, y=total_expenses,
                   name="Total Expenses",
@@ -80,10 +80,10 @@ class FinancialPlotter:
             secondary_y=False
         )
 
-        # Add cash flow line
+        # Add net cash flow line
         fig.add_trace(
             go.Scatter(x=years, y=cash_flow,
-                      name="Net Savings",
+                      name="Net Cash Flow",
                       line=dict(color='#2E86C1', width=2)),
             secondary_y=True
         )
@@ -91,7 +91,7 @@ class FinancialPlotter:
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
-            barmode='stack',
+            barmode='group',  # Changed from 'stack' to 'group'
             template='plotly_white',
             showlegend=True,
             legend=dict(
@@ -101,11 +101,11 @@ class FinancialPlotter:
                 x=1.05
             ),
             bargap=0.15,
-            bargroupgap=0.2
+            bargroupgap=0.1  # Reduced gap between groups for better visualization
         )
 
         fig.update_yaxes(title_text="Amount ($)", secondary_y=False)
-        fig.update_yaxes(title_text="Net Savings ($)", secondary_y=True)
+        fig.update_yaxes(title_text="Net Cash Flow ($)", secondary_y=True)
 
         st.plotly_chart(fig)
 
