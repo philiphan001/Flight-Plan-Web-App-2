@@ -174,7 +174,14 @@ def main():
                                 insurance_cost=joint_insurance_cost*12
                             )
                             milestone = MilestoneFactory.create_marriage(
-                                milestone_year, wedding_cost, spouse_income)
+                                milestone_year, 
+                                wedding_cost, 
+                                spouse_income,
+                                lifestyle_adjustment=joint_lifestyle_adjustment/100,
+                                initial_savings=spouse_savings,
+                                initial_debt=spouse_debt,
+                                insurance_cost=joint_insurance_cost*12
+                            )
                             st.session_state.milestones.append(milestone)
                             st.rerun()
 

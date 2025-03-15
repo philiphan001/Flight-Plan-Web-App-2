@@ -220,16 +220,19 @@ class MilestoneFactory:
         if insurance_cost > 0:
             milestone.add_recurring_expense(FixedExpense("Joint Insurance", insurance_cost))
 
-        # Add spouse income and assets/liabilities
+        # Add spouse's initial savings as an investment asset
+        if initial_savings > 0:
+            milestone.add_asset(Investment("Spouse Savings", initial_savings))
+
+        # Add spouse's initial debt as a liability
+        if initial_debt > 0:
+            milestone.add_liability(Loan("Spouse Debt", initial_debt, 0.06, 10))  # Assuming 6% interest, 10-year term
+
+        # Add spouse income
         if spouse_income:
             if isinstance(spouse_income, SpouseIncome):
                 spouse_income.start_year = trigger_year
             milestone.add_income_adjustment(spouse_income)
-
-            if initial_savings > 0:
-                milestone.add_asset(Investment("Spouse Savings", initial_savings))
-            if initial_debt > 0:
-                milestone.add_liability(Loan("Spouse Debt", initial_debt, 0.06, 10))  # Assuming 6% interest, 10-year term
 
         return milestone
 
