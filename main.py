@@ -26,6 +26,11 @@ def main():
         st.session_state.show_occupation_matches = False
     if 'show_marriage_options' not in st.session_state: # Added flag
         st.session_state.show_marriage_options = True
+    # Add new session state variables for sidebar matches
+    if 'show_sidebar_location_matches' not in st.session_state:
+        st.session_state.show_sidebar_location_matches = False
+    if 'show_sidebar_occupation_matches' not in st.session_state:
+        st.session_state.show_sidebar_occupation_matches = False
 
     st.title("Financial Projection Application")
 
@@ -113,7 +118,7 @@ def main():
                     "Enter New Location",
                     value=st.session_state.selected_location
                 )
-                if new_location_input:
+                if new_location_input and st.session_state.show_sidebar_location_matches:
                     matches = get_close_matches(new_location_input.lower(), 
                                            [loc.lower() for loc in locations], 
                                            n=3, cutoff=0.1)
@@ -123,9 +128,13 @@ def main():
                         for loc in matching_locations:
                             if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}"):
                                 st.session_state.selected_location = loc
+                                st.session_state.show_sidebar_location_matches = False
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching locations found")
+                elif new_location_input:
+                    st.session_state.show_sidebar_location_matches = True
+                    st.rerun()
 
             # Occupation editor
             st.sidebar.markdown(f"**Current Occupation:** {st.session_state.selected_occupation}")
@@ -134,7 +143,7 @@ def main():
                     "Enter New Occupation",
                     value=st.session_state.selected_occupation
                 )
-                if new_occupation_input:
+                if new_occupation_input and st.session_state.show_sidebar_occupation_matches:
                     matches = get_close_matches(new_occupation_input.lower(), 
                                            [occ.lower() for occ in occupations], 
                                            n=3, cutoff=0.1)
@@ -144,9 +153,13 @@ def main():
                         for occ in matching_occupations:
                             if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}"):
                                 st.session_state.selected_occupation = occ
+                                st.session_state.show_sidebar_occupation_matches = False
                                 st.rerun()
                     else:
                         st.sidebar.error("No matching occupations found")
+                elif new_occupation_input:
+                    st.session_state.show_sidebar_occupation_matches = True
+                    st.rerun()
 
             st.sidebar.markdown("---")
 
