@@ -16,6 +16,8 @@ def main():
         st.session_state.selected_occupation = None
     if 'show_projections' not in st.session_state:
         st.session_state.show_projections = False
+    if 'milestones' not in st.session_state:
+        st.session_state.milestones = []
 
     st.title("Financial Projection Application")
 
@@ -109,9 +111,95 @@ def main():
                 investment_return_rate
             )
 
-            # Create financial objects
+            # Life Milestones Section in Sidebar
+            st.sidebar.markdown("## Life Milestones 🎯")
+            st.sidebar.markdown("Add life events to see their impact:")
+
+            # Marriage Milestone
+            with st.sidebar.expander("💑 Marriage"):
+                milestone_year = st.slider("Marriage Year", 1, projection_years, 2, key="marriage_year")
+                wedding_cost = st.number_input("Wedding Cost ($)", 10000, 100000, 30000, step=5000, key="wedding_cost")
+
+                # Spouse occupation input
+                spouse_occupation_input = st.text_input("Enter Spouse's Occupation", key="spouse_occ")
+                if spouse_occupation_input:
+                    matches = get_close_matches(spouse_occupation_input.lower(), 
+                                            [occ.lower() for occ in occupations], 
+                                            n=3, cutoff=0.1)
+                    matching_occupations = [occ for occ in occupations if occ.lower() in matches]
+                    if matching_occupations:
+                        selected_spouse_occ = st.radio("Select Spouse's Occupation:", matching_occupations)
+                        if st.button("Add Marriage Milestone"):
+                            # Process spouse's income data
+                            spouse_data = DataProcessor.process_location_data(
+                                coli_df, occupation_df,
+                                st.session_state.selected_location,
+                                selected_spouse_occ,
+                                investment_return_rate
+                            )
+                            spouse_income = ModelSpouseIncome(
+                                spouse_data['base_income'],
+                                spouse_data['location_adjustment']
+                            )
+                            milestone = MilestoneFactory.create_marriage(
+                                milestone_year, wedding_cost, spouse_income)
+                            st.session_state.milestones.append(milestone)
+                            st.rerun()
+
+            # Child Milestone
+            with st.sidebar.expander("👶 New Child"):
+                child_year = st.slider("Child Year", 1, projection_years, 3, key="child_year")
+                if st.button("Add Child Milestone"):
+                    milestone = MilestoneFactory.create_child(child_year)
+                    st.session_state.milestones.append(milestone)
+                    st.rerun()
+
+            # Home Purchase Milestone
+            with st.sidebar.expander("🏠 Home Purchase"):
+                home_year = st.slider("Purchase Year", 1, projection_years, 5, key="home_year")
+                home_price = st.number_input("Home Price ($)", 100000, 2000000, 300000, step=50000)
+                down_payment_pct = st.slider("Down Payment %", 5, 40, 20) / 100
+                if st.button("Add Home Purchase Milestone"):
+                    milestone = MilestoneFactory.create_home_purchase(
+                        home_year, home_price, down_payment_pct)
+                    st.session_state.milestones.append(milestone)
+                    st.rerun()
+
+            # Car Purchase Milestone
+            with st.sidebar.expander("🚗 Car Purchase"):
+                car_year = st.slider("Purchase Year", 1, projection_years, 2, key="car_year")
+                car_price = st.number_input("Car Price ($)", 5000, 150000, 30000, step=5000)
+                car_down_payment_pct = st.slider("Down Payment %", 5, 100, 20) / 100
+                if st.button("Add Car Purchase Milestone"):
+                    milestone = MilestoneFactory.create_car_purchase(
+                        car_year, car_price, car_down_payment_pct)
+                    st.session_state.milestones.append(milestone)
+                    st.rerun()
+
+            # Graduate School Milestone
+            with st.sidebar.expander("🎓 Graduate School"):
+                grad_year = st.slider("Start Year", 1, projection_years, 2, key="grad_year")
+                total_cost = st.number_input("Total Cost ($)", 10000, 200000, 100000, step=10000)
+                program_years = st.slider("Program Length (Years)", 1, 4, 2)
+                if st.button("Add Graduate School Milestone"):
+                    milestone = MilestoneFactory.create_grad_school(
+                        grad_year, total_cost, program_years)
+                    st.session_state.milestones.append(milestone)
+                    st.rerun()
+
+            # Display current milestones
+            if st.session_state.milestones:
+                st.sidebar.markdown("### Current Milestones")
+                for idx, milestone in enumerate(st.session_state.milestones):
+                    st.sidebar.markdown(f"- {milestone.name} (Year {milestone.trigger_year})")
+                    if st.sidebar.button(f"Remove {milestone.name}", key=f"remove_{idx}"):
+                        st.session_state.milestones.pop(idx)
+                        st.rerun()
+
+            # Create financial objects with milestones
             assets, liabilities, income, expenses = DataProcessor.create_financial_objects(
-                location_data
+                location_data,
+                st.session_state.milestones
             )
 
             # Calculate projections
@@ -167,30 +255,6 @@ def main():
                     projections['asset_values'],
                     projections['liability_values']
                 )
-
-            # Life Milestones Section
-            st.markdown("---")
-            st.markdown("## Life Milestones 🎯")
-            st.markdown("Add life events to see their impact on your financial future:")
-
-            # Create milestone buttons in columns
-            milestone_col1, milestone_col2, milestone_col3 = st.columns(3)
-
-            with milestone_col1:
-                if st.button("💑 Add Marriage"):
-                    st.session_state.adding_milestone = "Marriage"
-                if st.button("👶 Add Child"):
-                    st.session_state.adding_milestone = "Child"
-
-            with milestone_col2:
-                if st.button("🏠 Buy Home"):
-                    st.session_state.adding_milestone = "Home"
-                if st.button("🚗 Buy Car"):
-                    st.session_state.adding_milestone = "Car"
-
-            with milestone_col3:
-                if st.button("🎓 Graduate School"):
-                    st.session_state.adding_milestone = "Grad School"
 
     except Exception as e:
         st.error(f"Error processing data: {str(e)}")
