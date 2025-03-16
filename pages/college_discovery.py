@@ -38,6 +38,23 @@ def load_college_discovery_page():
         help="Display only schools ranked in US News Top 150. This filter is applied by default."
     )
 
+    # Future feature placeholders (disabled for now)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.checkbox(
+            "Top Liberal Arts Colleges",
+            value=False,
+            disabled=True,
+            help="Coming soon: Filter for top Liberal Arts Colleges"
+        )
+    with col2:
+        st.checkbox(
+            "Best Greek Life",
+            value=False,
+            disabled=True,
+            help="Coming soon: Filter for schools with outstanding Greek life"
+        )
+
     # Sidebar filters
     st.sidebar.header("Filter Options")
 
@@ -113,7 +130,13 @@ def load_college_discovery_page():
 
     # Show results in an expandable format
     for _, college in filtered_df.iterrows():
-        with st.expander(f"{college['name']} - {college['city']}, {college['state']}"):
+        # Create title with ranking if available
+        if pd.notna(college['US News Top 150']):
+            title = f"#{int(college['US News Top 150'])} - {college['name']} - {college['city']}, {college['state']}"
+        else:
+            title = f"{college['name']} - {college['city']}, {college['state']}"
+
+        with st.expander(title):
             col1, col2 = st.columns(2)
 
             with col1:
