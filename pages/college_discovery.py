@@ -16,7 +16,8 @@ def load_college_data():
             'avg_net_price.public',
             'avg_net_price.private',
             'ownership',
-            'US News Top 150'  # Updated column name
+            'US News Top 150',  # Updated column name
+            'best liberal arts colleges'  # New column added
         ]
         return df[columns_of_interest]
     except Exception as e:
@@ -41,11 +42,10 @@ def load_college_discovery_page():
     # Future feature placeholders (disabled for now)
     col1, col2 = st.columns(2)
     with col1:
-        st.checkbox(
+        show_liberal_arts = st.checkbox(
             "Top Liberal Arts Colleges",
             value=False,
-            disabled=True,
-            help="Coming soon: Filter for top Liberal Arts Colleges"
+            help="Filter for top Liberal Arts Colleges"
         )
     with col2:
         st.checkbox(
@@ -101,6 +101,10 @@ def load_college_discovery_page():
     if show_top_150:
         filtered_df = filtered_df[filtered_df['US News Top 150'].notna()].sort_values('US News Top 150')
 
+    # Apply Liberal Arts filter if selected
+    if show_liberal_arts:
+        filtered_df = filtered_df[filtered_df['best liberal arts colleges'].notna()].sort_values('best liberal arts colleges')
+
     if selected_states:
         filtered_df = filtered_df[filtered_df['state'].isin(selected_states)]
 
@@ -130,8 +134,10 @@ def load_college_discovery_page():
 
     # Show results in an expandable format
     for _, college in filtered_df.iterrows():
-        # Create title with ranking if available
-        if pd.notna(college['US News Top 150']):
+        # Create title with appropriate ranking
+        if show_liberal_arts and pd.notna(college['best liberal arts colleges']):
+            title = f"Liberal Arts #{int(college['best liberal arts colleges'])} - {college['name']} - {college['city']}, {college['state']}"
+        elif pd.notna(college['US News Top 150']):
             title = f"#{int(college['US News Top 150'])} - {college['name']} - {college['city']}, {college['state']}"
         else:
             title = f"{college['name']} - {college['city']}, {college['state']}"
@@ -145,11 +151,14 @@ def load_college_discovery_page():
                 institution_type = institution_types.get(college['ownership'], 'Unknown')
                 st.write(f"Type: {institution_type}")
 
-                # Show US News Ranking if available
+                # Show appropriate ranking information
                 if pd.notna(college['US News Top 150']):
                     st.write(f"US News Ranking: #{int(college['US News Top 150'])}")
                 else:
                     st.write("US News Ranking: Not ranked")
+
+                if pd.notna(college['best liberal arts colleges']):
+                    st.write(f"Liberal Arts Ranking: #{int(college['best liberal arts colleges'])}")
 
                 # Show admission rate if available
                 if pd.notna(college['admission_rate.overall']):
