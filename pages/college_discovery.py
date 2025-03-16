@@ -31,14 +31,15 @@ def load_college_discovery_page():
     if df is None:
         return
 
+    # Main ranking filter at the top of the page
+    show_top_150 = st.checkbox(
+        "Show Only Top 150 Schools",
+        value=True,  # Default to showing Top 150
+        help="Display only schools ranked in US News Top 150. This filter is applied by default."
+    )
+
     # Sidebar filters
     st.sidebar.header("Filter Options")
-
-    # Add Top 150 filter checkbox
-    show_top_150 = st.sidebar.checkbox(
-        "Show Only Top 150 Schools",
-        help="Display only schools ranked in US News Top 150"
-    )
 
     # State filter
     states = sorted(df['state'].unique())
@@ -79,7 +80,7 @@ def load_college_discovery_page():
     # Apply filters
     filtered_df = df.copy()
 
-    # Apply Top 150 filter if checkbox is selected
+    # Always apply Top 150 filter first if checkbox is selected
     if show_top_150:
         filtered_df = filtered_df[filtered_df['US News Top 150'].notna()].sort_values('US News Top 150')
 
