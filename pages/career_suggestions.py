@@ -6,9 +6,13 @@ from visualizations.plotter import FinancialPlotter
 def load_career_suggestions_page():
     st.title("AI Career Path Suggestions 🎯")
 
-    # Initialize session state for saved careers if not exists
+    # Initialize session state for saved data
     if 'saved_career_suggestions' not in st.session_state:
         st.session_state.saved_career_suggestions = []
+    if 'user_interests' not in st.session_state:
+        st.session_state.user_interests = []
+    if 'user_skills' not in st.session_state:
+        st.session_state.user_skills = []
 
     # Initialize the career suggestion service
     career_service = CareerSuggestionService()
@@ -67,13 +71,11 @@ def load_career_suggestions_page():
 
         # Optional inputs
         col1, col2 = st.columns(2)
-
         with col1:
             preferred_industry = st.text_input(
                 "Preferred industry (optional)",
                 placeholder="e.g., Technology, Healthcare"
             )
-
         with col2:
             salary_expectation = st.text_input(
                 "Expected salary range (optional)",
@@ -87,6 +89,10 @@ def load_career_suggestions_page():
         if not interests or not skills:
             st.error("Please select at least one interest and one skill.")
             return
+
+        # Save user interests and skills to session state
+        st.session_state.user_interests = interests
+        st.session_state.user_skills = skills
 
         with st.spinner("Generating career suggestions..."):
             try:
@@ -128,7 +134,11 @@ def load_career_suggestions_page():
                             'type': 'primary',
                             'title': career_data['primary_path']['title'],
                             'description': career_data['primary_path']['description'],
-                            'timeline': career_data['primary_path']['timeline']
+                            'timeline': career_data['primary_path']['timeline'],
+                            'interests': interests,
+                            'skills': skills,
+                            'education_level': education_level,
+                            'work_style': work_style
                         }
                         st.session_state.saved_career_suggestions.append(saved_career)
                         st.success(f"Saved {career_data['primary_path']['title']} to your profile!")
@@ -150,7 +160,11 @@ def load_career_suggestions_page():
                                 'type': 'alternative',
                                 'title': alt_path['title'],
                                 'description': alt_path['description'],
-                                'timeline': alt_path['timeline']
+                                'timeline': alt_path['timeline'],
+                                'interests': interests,
+                                'skills': skills,
+                                'education_level': education_level,
+                                'work_style': work_style
                             }
                             st.session_state.saved_career_suggestions.append(saved_career)
                             st.success(f"Saved {alt_path['title']} to your profile!")
@@ -162,7 +176,6 @@ def load_career_suggestions_page():
 
                 if "error" not in skill_data:
                     st.subheader("📚 Recommended Skills Development")
-                    # Rest of the skill recommendations display remains unchanged...
                     if "technical_skills" in skill_data:
                         st.write("**Technical Skills to Develop:**")
                         for skill in skill_data["technical_skills"]:
