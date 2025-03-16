@@ -503,54 +503,65 @@ def main():
                     key="monthly_revenue"
                 )
 
-                # Advanced business options
-                with st.expander("Advanced Options"):
-                    business_loan = st.checkbox("Include Business Loan")
-                    if business_loan:
+                st.markdown("#### Advanced Options")
+
+                # Business Loan Section
+                business_loan = st.checkbox("Include Business Loan")
+                if business_loan:
+                    col1, col2 = st.columns(2)
+                    with col1:
                         loan_amount = st.number_input(
                             "Loan Amount ($)",
                             0, 1000000, 100000,
                             step=10000,
                             key="business_loan_amount"
                         )
-                        loan_interest = st.slider(
-                            "Loan Interest Rate (%)",
-                            1.0, 15.0, 6.0,
-                            step=0.1,
-                            key="business_loan_interest"
-                        ) / 100.0
                         loan_term = st.slider(
                             "Loan Term (Years)",
                             1, 20, 5,
                             key="business_loan_term"
                         )
+                    with col2:
+                        loan_interest = st.slider(
+                            "Interest Rate (%)",
+                            1.0, 15.0, 6.0,
+                            step=0.1,
+                            key="business_loan_interest"
+                        ) / 100.0
 
-                    equipment_needed = st.checkbox("Include Equipment Purchase")
-                    if equipment_needed:
+                # Equipment Section
+                equipment_needed = st.checkbox("Include Equipment Purchase")
+                if equipment_needed:
+                    col3, col4 = st.columns(2)
+                    with col3:
                         equipment_cost = st.number_input(
                             "Equipment Cost ($)",
                             0, 500000, 25000,
                             step=5000,
                             key="equipment_cost"
                         )
+                    with col4:
                         equipment_depreciation = st.slider(
-                            "Equipment Depreciation Rate (%/year)",
+                            "Depreciation Rate (%/year)",
                             5.0, 40.0, 20.0,
                             step=5.0,
                             key="equipment_depreciation"
                         ) / 100.0
 
+                # Tax and Growth Section
+                col5, col6 = st.columns(2)
+                with col5:
                     tax_deduction = st.slider(
-                        "Expected Tax Deduction Rate (%)",
+                        "Tax Deduction Rate (%)",
                         0, 50, 30,
-                        help="Percentage of expenses deductible for tax purposes",
+                        help="Percentage of expenses deductible",
                         key="tax_deduction"
                     ) / 100.0
-
+                with col6:
                     revenue_growth = st.slider(
-                        "Projected Annual Revenue Growth (%)",
+                        "Revenue Growth (%/year)",
                         0, 100, 10,
-                        help="Expected year-over-year revenue growth",
+                        help="Year-over-year growth",
                         key="revenue_growth"
                     ) / 100.0
 
