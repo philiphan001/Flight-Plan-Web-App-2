@@ -1,4 +1,4 @@
-"""Career discovery page implementation"""
+"""College discovery page implementation"""
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -34,11 +34,10 @@ def load_college_discovery_page():
     # Sidebar filters
     st.sidebar.header("Filter Options")
 
-    # Add US News Rankings filter
-    ranking_range = st.sidebar.slider(
-        "US News Top Rankings",
-        1, 150, (1, 150),
-        help="Filter by US News World Report Rankings"
+    # Add Top 150 filter checkbox
+    show_top_150 = st.sidebar.checkbox(
+        "Show Only Top 150 Schools",
+        help="Display only schools ranked in US News Top 150"
     )
 
     # State filter
@@ -65,13 +64,6 @@ def load_college_discovery_page():
         step=10
     )
 
-    # Cost filters
-    tuition_range = st.sidebar.slider(
-        "Annual Tuition Range ($)",
-        0, 100000, (0, 100000),
-        step=5000
-    )
-
     # Institution type mapping
     institution_types = {
         1: "Public",
@@ -87,14 +79,9 @@ def load_college_discovery_page():
     # Apply filters
     filtered_df = df.copy()
 
-    # Apply US News Rankings filter
-    filtered_df = filtered_df[
-        (filtered_df['US News Top 150'].isnull()) |  # Include unranked schools
-        (
-            (filtered_df['US News Top 150'] >= ranking_range[0]) &
-            (filtered_df['US News Top 150'] <= ranking_range[1])
-        )
-    ]
+    # Apply Top 150 filter if checkbox is selected
+    if show_top_150:
+        filtered_df = filtered_df[filtered_df['US News Top 150'].notna()].sort_values('US News Top 150')
 
     if selected_states:
         filtered_df = filtered_df[filtered_df['state'].isin(selected_states)]
