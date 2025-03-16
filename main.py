@@ -478,6 +478,100 @@ def main():
                     st.session_state.needs_recalculation = True
                     st.rerun()
 
+            # Business Startup Milestone
+            with st.sidebar.expander("💼 Business Startup"):
+                business_year = st.slider("Start Year", 1, projection_years, 2, key="business_year")
+                startup_cost = st.number_input(
+                    "Initial Startup Cost ($)",
+                    0, 1000000, 50000,
+                    step=5000,
+                    help="One-time costs to start the business",
+                    key="startup_cost"
+                )
+                monthly_operating_cost = st.number_input(
+                    "Monthly Operating Costs ($)",
+                    0, 50000, 5000,
+                    step=500,
+                    help="Regular monthly expenses like rent, utilities, supplies, etc.",
+                    key="monthly_operating"
+                )
+                expected_monthly_revenue = st.number_input(
+                    "Expected Monthly Revenue ($)",
+                    0, 100000, 8000,
+                    step=1000,
+                    help="Projected monthly revenue from the business",
+                    key="monthly_revenue"
+                )
+
+                # Advanced business options
+                with st.expander("Advanced Options"):
+                    business_loan = st.checkbox("Include Business Loan")
+                    if business_loan:
+                        loan_amount = st.number_input(
+                            "Loan Amount ($)",
+                            0, 1000000, 100000,
+                            step=10000,
+                            key="business_loan_amount"
+                        )
+                        loan_interest = st.slider(
+                            "Loan Interest Rate (%)",
+                            1.0, 15.0, 6.0,
+                            step=0.1,
+                            key="business_loan_interest"
+                        ) / 100.0
+                        loan_term = st.slider(
+                            "Loan Term (Years)",
+                            1, 20, 5,
+                            key="business_loan_term"
+                        )
+
+                    equipment_needed = st.checkbox("Include Equipment Purchase")
+                    if equipment_needed:
+                        equipment_cost = st.number_input(
+                            "Equipment Cost ($)",
+                            0, 500000, 25000,
+                            step=5000,
+                            key="equipment_cost"
+                        )
+                        equipment_depreciation = st.slider(
+                            "Equipment Depreciation Rate (%/year)",
+                            5.0, 40.0, 20.0,
+                            step=5.0,
+                            key="equipment_depreciation"
+                        ) / 100.0
+
+                    tax_deduction = st.slider(
+                        "Expected Tax Deduction Rate (%)",
+                        0, 50, 30,
+                        help="Percentage of expenses deductible for tax purposes",
+                        key="tax_deduction"
+                    ) / 100.0
+
+                    revenue_growth = st.slider(
+                        "Projected Annual Revenue Growth (%)",
+                        0, 100, 10,
+                        help="Expected year-over-year revenue growth",
+                        key="revenue_growth"
+                    ) / 100.0
+
+                if st.button("Add Business Startup Milestone"):
+                    milestone = MilestoneFactory.create_business_startup(
+                        business_year,
+                        startup_cost,
+                        monthly_operating_cost,
+                        expected_monthly_revenue,
+                        business_loan_amount=loan_amount if business_loan else 0,
+                        loan_interest_rate=loan_interest if business_loan else 0.06,
+                        loan_term_years=loan_term if business_loan else 5,
+                        equipment_cost=equipment_cost if equipment_needed else 0,
+                        equipment_depreciation_rate=equipment_depreciation if equipment_needed else 0.2,
+                        tax_deduction_rate=tax_deduction,
+                        revenue_growth_rate=revenue_growth
+                    )
+                    st.session_state.milestones.append(milestone)
+                    st.session_state.needs_recalculation = True
+                    st.rerun()
+
             # Display current milestones
             if st.session_state.milestones:
                 st.sidebar.markdown("### Current Milestones")
