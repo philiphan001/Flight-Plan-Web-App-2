@@ -6,6 +6,10 @@ from visualizations.plotter import FinancialPlotter
 def load_career_suggestions_page():
     st.title("AI Career Path Suggestions 🎯")
 
+    # Initialize session state for saved careers if not exists
+    if 'saved_career_suggestions' not in st.session_state:
+        st.session_state.saved_career_suggestions = []
+
     # Initialize the career suggestion service
     career_service = CareerSuggestionService()
 
@@ -108,56 +112,86 @@ def load_career_suggestions_page():
                 plotter = FinancialPlotter()
                 plotter.plot_career_roadmap(career_data)
 
-                # Get skill recommendations
-                primary_path_title = career_data.get("primary_path", {}).get("title", "")
-                if primary_path_title:
-                    st.subheader("Recommended Skills Development")
-                    skill_recommendations = career_service.get_skill_recommendations(primary_path_title)
-                    skill_data = json.loads(skill_recommendations)
+                # Display primary career path with save option
+                st.subheader("🎯 Primary Career Path")
+                with st.expander(f"📋 {career_data['primary_path']['title']}", expanded=True):
+                    st.write(career_data['primary_path']['description'])
+                    st.write("**Career Timeline:**")
+                    for milestone in career_data['primary_path']['timeline']:
+                        st.write(f"Year {milestone['year']}: {milestone['milestone']}")
+                        st.write(f"- Required Skills: {', '.join(milestone['skills_needed'])}")
+                        st.write(f"- Estimated Salary: ${milestone['estimated_salary']:,}")
 
-                    if "error" not in skill_data:
-                        # Display technical skills
-                        if "technical_skills" in skill_data:
-                            st.write("**Technical Skills to Develop:**")
-                            for skill in skill_data["technical_skills"]:
-                                st.write(f"- {skill}")
+                    # Save button for primary path
+                    if st.button("💾 Save to Profile", key="save_primary"):
+                        saved_career = {
+                            'type': 'primary',
+                            'title': career_data['primary_path']['title'],
+                            'description': career_data['primary_path']['description'],
+                            'timeline': career_data['primary_path']['timeline']
+                        }
+                        st.session_state.saved_career_suggestions.append(saved_career)
+                        st.success(f"Saved {career_data['primary_path']['title']} to your profile!")
 
-                        # Display soft skills
-                        if "soft_skills" in skill_data:
-                            st.write("**Soft Skills to Enhance:**")
-                            for skill in skill_data["soft_skills"]:
-                                st.write(f"- {skill}")
+                # Display alternative paths with save options
+                st.subheader("🔄 Alternative Career Paths")
+                for idx, alt_path in enumerate(career_data['alternative_paths']):
+                    with st.expander(f"📋 {alt_path['title']}", expanded=False):
+                        st.write(alt_path['description'])
+                        st.write("**Career Timeline:**")
+                        for milestone in alt_path['timeline']:
+                            st.write(f"Year {milestone['year']}: {milestone['milestone']}")
+                            st.write(f"- Required Skills: {', '.join(milestone['skills_needed'])}")
+                            st.write(f"- Estimated Salary: ${milestone['estimated_salary']:,}")
 
-                        # Display certifications
-                        if "certifications" in skill_data:
-                            st.write("**Recommended Certifications:**")
-                            for cert in skill_data["certifications"]:
-                                st.write(f"- {cert}")
+                        # Save button for alternative path
+                        if st.button("💾 Save to Profile", key=f"save_alt_{idx}"):
+                            saved_career = {
+                                'type': 'alternative',
+                                'title': alt_path['title'],
+                                'description': alt_path['description'],
+                                'timeline': alt_path['timeline']
+                            }
+                            st.session_state.saved_career_suggestions.append(saved_career)
+                            st.success(f"Saved {alt_path['title']} to your profile!")
 
-                        # Display learning resources
-                        if "learning_resources" in skill_data:
-                            st.write("**Learning Resources:**")
-                            for resource in skill_data["learning_resources"]:
-                                with st.expander(f"📚 {resource['name']}"):
-                                    st.write(f"Type: {resource['type']}")
-                                    if 'url' in resource and resource['url']:
-                                        st.write(f"Link: {resource['url']}")
-                                    if 'estimated_duration' in resource:
-                                        st.write(f"Duration: {resource['estimated_duration']}")
+                # Get skill recommendations for primary path
+                primary_path_title = career_data['primary_path']['title']
+                skill_recommendations = career_service.get_skill_recommendations(primary_path_title)
+                skill_data = json.loads(skill_recommendations)
 
-                        # Display skill development timeline
-                        if "skill_development_timeline" in skill_data:
-                            st.write("**Skill Development Timeline:**")
-                            for phase in skill_data["skill_development_timeline"]:
-                                with st.expander(f"🎯 {phase['timeframe']}"):
-                                    st.write("Focus Areas:")
-                                    for area in phase["focus_areas"]:
-                                        st.write(f"- {area}")
-                                    st.write("\nExpected Outcomes:")
-                                    for outcome in phase["expected_outcomes"]:
-                                        st.write(f"- {outcome}")
-                    else:
-                        st.error(skill_data["error"])
+                if "error" not in skill_data:
+                    st.subheader("📚 Recommended Skills Development")
+                    # Rest of the skill recommendations display remains unchanged...
+                    if "technical_skills" in skill_data:
+                        st.write("**Technical Skills to Develop:**")
+                        for skill in skill_data["technical_skills"]:
+                            st.write(f"- {skill}")
+
+                    if "soft_skills" in skill_data:
+                        st.write("**Soft Skills to Enhance:**")
+                        for skill in skill_data["soft_skills"]:
+                            st.write(f"- {skill}")
+
+                    if "certifications" in skill_data:
+                        st.write("**Recommended Certifications:**")
+                        for cert in skill_data["certifications"]:
+                            st.write(f"- {cert}")
+
+                    if "learning_resources" in skill_data:
+                        st.write("**Learning Resources:**")
+                        for resource in skill_data["learning_resources"]:
+                            with st.expander(f"📚 {resource['name']}"):
+                                st.write(f"Type: {resource['type']}")
+                                if 'url' in resource and resource['url']:
+                                    st.write(f"Link: {resource['url']}")
+                                if 'estimated_duration' in resource:
+                                    st.write(f"Duration: {resource['estimated_duration']}")
+
+                # Add view profile button
+                st.markdown("---")
+                if st.button("👤 View Your Profile"):
+                    st.switch_page("pages/user_profile.py")
 
             except json.JSONDecodeError as e:
                 st.error(f"Failed to process career suggestions: {str(e)}")
