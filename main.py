@@ -44,6 +44,9 @@ def initialize_session_state():
         st.session_state['selected_spouse_occ'] = ""
     if 'show_marriage_options' not in st.session_state:
         st.session_state.show_marriage_options = False
+    if 'saved_projections' not in st.session_state:
+        st.session_state.saved_projections = []
+
 
 def main():
     initialize_session_state()
@@ -55,10 +58,10 @@ def main():
         occupation_df = DataProcessor.load_occupation_data("Occupational Data.csv")
 
         # Get available options and remove any NaN values
-        locations = sorted([loc for loc in coli_df['Cost of Living'].astype(str).unique().tolist() 
-                   if loc.lower() != 'nan'])
-        occupations = sorted([occ for occ in occupation_df['Occupation'].astype(str).unique().tolist() 
-                     if occ.lower() != 'nan'])
+        locations = sorted([loc for loc in coli_df['Cost of Living'].astype(str).unique().tolist()
+                           if loc.lower() != 'nan'])
+        occupations = sorted([occ for occ in occupation_df['Occupation'].astype(str).unique().tolist()
+                             if occ.lower() != 'nan'])
 
         if not st.session_state.show_projections:
             # Create two columns for location and occupation selection
@@ -71,14 +74,15 @@ def main():
                 else:
                     location_input = st.text_input("Enter Location")
                     if location_input:
-                        matches = get_close_matches(location_input.lower(), 
-                                               [loc.lower() for loc in locations], 
-                                               n=3, cutoff=0.1)
+                        matches = get_close_matches(location_input.lower(),
+                                                   [loc.lower() for loc in locations],
+                                                   n=3, cutoff=0.1)
                         matching_locations = [loc for loc in locations if loc.lower() in matches]
                         if matching_locations:
                             st.markdown("#### Select from matches:")
                             for loc in matching_locations:
-                                if st.button(f"📍 {loc}", key=f"loc_{loc}", on_click=update_location, args=(loc,)):
+                                if st.button(f"📍 {loc}", key=f"loc_{loc}", on_click=update_location,
+                                             args=(loc,)):
                                     st.rerun()
 
             with col2:
@@ -88,14 +92,15 @@ def main():
                 else:
                     occupation_input = st.text_input("Enter Occupation")
                     if occupation_input:
-                        matches = get_close_matches(occupation_input.lower(), 
-                                               [occ.lower() for occ in occupations], 
-                                               n=3, cutoff=0.1)
+                        matches = get_close_matches(occupation_input.lower(),
+                                                   [occ.lower() for occ in occupations],
+                                                   n=3, cutoff=0.1)
                         matching_occupations = [occ for occ in occupations if occ.lower() in matches]
                         if matching_occupations:
                             st.markdown("#### Select from matches:")
                             for occ in matching_occupations:
-                                if st.button(f"💼 {occ}", key=f"occ_{occ}", on_click=update_occupation, args=(occ,)):
+                                if st.button(f"💼 {occ}", key=f"occ_{occ}", on_click=update_occupation,
+                                             args=(occ,)):
                                     st.rerun()
 
             # Show continue button only if both selections are made
@@ -123,14 +128,15 @@ def main():
                     key="new_location_input"
                 )
                 if new_location:
-                    matches = get_close_matches(new_location.lower(), 
-                                           [loc.lower() for loc in locations], 
-                                           n=3, cutoff=0.1)
+                    matches = get_close_matches(new_location.lower(),
+                                               [loc.lower() for loc in locations],
+                                               n=3, cutoff=0.1)
                     matching_locations = [loc for loc in locations if loc.lower() in matches]
                     if matching_locations:
                         st.sidebar.markdown("#### Select from matches:")
                         for loc in matching_locations:
-                            if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}", on_click=update_location, args=(loc,)):
+                            if st.sidebar.button(f"📍 {loc}", key=f"new_loc_{loc}", on_click=update_location,
+                                                 args=(loc,)):
                                 st.rerun()
 
             # Occupation editor
@@ -141,14 +147,15 @@ def main():
                     key="new_occupation_input"
                 )
                 if new_occupation:
-                    matches = get_close_matches(new_occupation.lower(), 
-                                           [occ.lower() for occ in occupations], 
-                                           n=3, cutoff=0.1)
+                    matches = get_close_matches(new_occupation.lower(),
+                                               [occ.lower() for occ in occupations],
+                                               n=3, cutoff=0.1)
                     matching_occupations = [occ for occ in occupations if occ.lower() in matches]
                     if matching_occupations:
                         st.sidebar.markdown("#### Select from matches:")
                         for occ in matching_occupations:
-                            if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}", on_click=update_occupation, args=(occ,)):
+                            if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}", on_click=update_occupation,
+                                                 args=(occ,)):
                                 st.rerun()
 
             st.sidebar.markdown("---")
@@ -157,10 +164,10 @@ def main():
             col3, col4 = st.columns(2)
             with col3:
                 investment_return_rate = st.slider(
-                    "Investment Return Rate (%)", 
-                    min_value=0.0, 
-                    max_value=15.0, 
-                    value=7.0, 
+                    "Investment Return Rate (%)",
+                    min_value=0.0,
+                    max_value=15.0,
+                    value=7.0,
                     step=0.5,
                     key="investment_rate",
                     on_change=lambda: setattr(st.session_state, 'needs_recalculation', True)
@@ -168,7 +175,7 @@ def main():
 
             with col4:
                 projection_years = st.slider(
-                    "Projection Years", 
+                    "Projection Years",
                     1, 30, 10,
                     key="projection_years",
                     on_change=lambda: setattr(st.session_state, 'needs_recalculation', True)
@@ -179,8 +186,8 @@ def main():
                 try:
                     # Process data
                     location_data = DataProcessor.process_location_data(
-                        coli_df, occupation_df, 
-                        st.session_state.selected_location, 
+                        coli_df, occupation_df,
+                        st.session_state.selected_location,
                         st.session_state.selected_occupation,
                         investment_return_rate
                     )
@@ -221,7 +228,7 @@ def main():
                 # New marriage variables
                 joint_lifestyle_adjustment = st.slider(
                     "Joint Lifestyle Cost Adjustment (%)",
-                    -20, 50, 0, 
+                    -20, 50, 0,
                     help="How much will your lifestyle costs change after marriage?",
                     key="joint_lifestyle"
                 )
@@ -251,9 +258,9 @@ def main():
                 )
 
                 if spouse_occupation_input:
-                    matches = get_close_matches(spouse_occupation_input.lower(), 
-                                           [occ.lower() for occ in occupations], 
-                                           n=3, cutoff=0.1)
+                    matches = get_close_matches(spouse_occupation_input.lower(),
+                                               [occ.lower() for occ in occupations],
+                                               n=3, cutoff=0.1)
                     matching_occupations = [occ for occ in occupations if occ.lower() in matches]
                     if matching_occupations:
                         st.markdown("#### Select Spouse's Occupation:")
@@ -281,19 +288,19 @@ def main():
                         spouse_income = ModelSpouseIncome(
                             spouse_data['base_income'],
                             spouse_data['location_adjustment'],
-                            lifestyle_adjustment=joint_lifestyle_adjustment/100,
+                            lifestyle_adjustment=joint_lifestyle_adjustment / 100,
                             initial_savings=spouse_savings,
                             initial_debt=spouse_debt,
-                            insurance_cost=joint_insurance_cost*12
+                            insurance_cost=joint_insurance_cost * 12
                         )
                         milestone = MilestoneFactory.create_marriage(
-                            milestone_year, 
-                            wedding_cost, 
+                            milestone_year,
+                            wedding_cost,
                             spouse_income,
-                            lifestyle_adjustment=joint_lifestyle_adjustment/100,
+                            lifestyle_adjustment=joint_lifestyle_adjustment / 100,
                             initial_savings=spouse_savings,
                             initial_debt=spouse_debt,
-                            insurance_cost=joint_insurance_cost*12
+                            insurance_cost=joint_insurance_cost * 12
                         )
                         st.session_state.milestones.append(milestone)
                         st.session_state.needs_recalculation = True
@@ -333,9 +340,9 @@ def main():
                 if st.button("Add Child Milestone"):
                     milestone = MilestoneFactory.create_child(
                         child_year,
-                        education_savings=education_savings*12,
-                        healthcare_cost=healthcare_cost*12,
-                        insurance_cost=child_insurance*12,
+                        education_savings=education_savings * 12,
+                        healthcare_cost=healthcare_cost * 12,
+                        insurance_cost=child_insurance * 12,
                         tax_benefit=tax_benefit
                     )
                     st.session_state.milestones.append(milestone)
@@ -471,10 +478,10 @@ def main():
                 if st.button("Add Graduate School Milestone"):
                     milestone = MilestoneFactory.create_grad_school(
                         grad_year, total_cost, program_years,
-                        part_time_income=part_time_income*12,
+                        part_time_income=part_time_income * 12,
                         scholarship_amount=scholarship_amount,
-                        salary_increase_percentage=expected_salary_increase/100,
-                        networking_cost=networking_cost*12
+                        salary_increase_percentage=expected_salary_increase / 100,
+                        networking_cost=networking_cost * 12
                     )
                     st.session_state.milestones.append(milestone)
                     st.session_state.needs_recalculation = True
@@ -507,7 +514,7 @@ def main():
 
                 with col5:
                     st.metric("Initial Net Worth 💰",
-                           f"${int(round(current_projections['net_worth'][0])):,}")
+                               f"${int(round(current_projections['net_worth'][0])):,}")
                     if st.session_state.previous_projections:
                         st.markdown(
                             format_change(
@@ -519,7 +526,7 @@ def main():
 
                 with col6:
                     st.metric("Final Net Worth 🚀",
-                           f"${int(round(current_projections['net_worth'][-1])):,}")
+                               f"${int(round(current_projections['net_worth'][-1])):,}")
                     if st.session_state.previous_projections:
                         st.markdown(
                             format_change(
@@ -530,17 +537,38 @@ def main():
                         )
 
                 with col7:
-                    current_avg_cash_flow = int(round(sum(current_projections['cash_flow'])/len(current_projections['cash_flow'])))
+                    current_avg_cash_flow = int(
+                        round(sum(current_projections['cash_flow']) / len(current_projections['cash_flow'])))
                     st.metric(
                         "Average Annual Cash Flow 💵",
                         f"${current_avg_cash_flow:,}"
                     )
                     if st.session_state.previous_projections:
-                        prev_avg_cash_flow = int(round(sum(st.session_state.previous_projections['cash_flow'])/len(st.session_state.previous_projections['cash_flow'])))
+                        prev_avg_cash_flow = int(
+                            round(sum(st.session_state.previous_projections['cash_flow']) / len(
+                                st.session_state.previous_projections['cash_flow'])))
                         st.markdown(
                             format_change(current_avg_cash_flow, prev_avg_cash_flow),
                             unsafe_allow_html=True
                         )
+
+                # Add save projection button
+                if st.button("💾 Save Current Projection"):
+                    projection = {
+                        'date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'),
+                        'location': st.session_state.selected_location,
+                        'occupation': st.session_state.selected_occupation,
+                        'investment_rate': investment_return_rate * 100,
+                        'final_net_worth': int(round(current_projections['net_worth'][-1]))
+                    }
+                    st.session_state.saved_projections.append(projection)
+                    st.success("Projection saved to your profile!")
+
+                # Add profile link
+                st.markdown("---")
+                if st.button("👤 View Your Profile"):
+                    st.switch_page("pages/user_profile.py")
+
 
                 # Create tabs for different visualizations
                 tab1, tab2, tab3 = st.tabs([
