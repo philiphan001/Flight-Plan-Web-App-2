@@ -1,3 +1,4 @@
+"""Career discovery page implementation"""
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -15,7 +16,7 @@ def load_college_data():
             'avg_net_price.public',
             'avg_net_price.private',
             'ownership',
-            'us_news_ranking'  # New column for rankings
+            'US News Top 150'  # Updated column name
         ]
         return df[columns_of_interest]
     except Exception as e:
@@ -88,10 +89,10 @@ def load_college_discovery_page():
 
     # Apply US News Rankings filter
     filtered_df = filtered_df[
-        (filtered_df['us_news_ranking'].isnull()) |  # Include unranked schools
+        (filtered_df['US News Top 150'].isnull()) |  # Include unranked schools
         (
-            (filtered_df['us_news_ranking'] >= ranking_range[0]) &
-            (filtered_df['us_news_ranking'] <= ranking_range[1])
+            (filtered_df['US News Top 150'] >= ranking_range[0]) &
+            (filtered_df['US News Top 150'] <= ranking_range[1])
         )
     ]
 
@@ -134,8 +135,8 @@ def load_college_discovery_page():
                 st.write(f"Type: {institution_type}")
 
                 # Show US News Ranking if available
-                if pd.notna(college['us_news_ranking']):
-                    st.write(f"US News Ranking: #{int(college['us_news_ranking'])}")
+                if pd.notna(college['US News Top 150']):
+                    st.write(f"US News Ranking: #{int(college['US News Top 150'])}")
                 else:
                     st.write("US News Ranking: Not ranked")
 
