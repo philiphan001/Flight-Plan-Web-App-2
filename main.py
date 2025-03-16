@@ -162,14 +162,16 @@ def main():
                     max_value=15.0, 
                     value=7.0, 
                     step=0.5,
-                    key="investment_rate"
+                    key="investment_rate",
+                    on_change=lambda: setattr(st.session_state, 'needs_recalculation', True)
                 ) / 100.0
 
             with col4:
                 projection_years = st.slider(
                     "Projection Years", 
                     1, 30, 10,
-                    key="projection_years"
+                    key="projection_years",
+                    on_change=lambda: setattr(st.session_state, 'needs_recalculation', True)
                 )
 
             # Only calculate if we need to
