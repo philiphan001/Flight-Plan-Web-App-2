@@ -81,12 +81,12 @@ def load_college_discovery_page():
     if selected_states:
         filtered_df = filtered_df[filtered_df['state'].isin(selected_states)]
 
-    # Handle admission rate filter with missing data
-    admission_mask = pd.isna(filtered_df['admission_rate.overall']) | (
+    # Set null admission rates to 100% and then filter
+    filtered_df['admission_rate.overall'] = filtered_df['admission_rate.overall'].fillna(1.0)
+    filtered_df = filtered_df[
         (filtered_df['admission_rate.overall'] * 100 >= admission_rate_range[0]) &
         (filtered_df['admission_rate.overall'] * 100 <= admission_rate_range[1])
-    )
-    filtered_df = filtered_df[admission_mask]
+    ]
 
     # Handle SAT score filter with missing data
     sat_mask = pd.isna(filtered_df['sat_scores.average.overall']) | (
