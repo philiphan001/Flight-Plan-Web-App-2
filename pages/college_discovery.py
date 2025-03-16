@@ -94,6 +94,25 @@ def load_college_discovery_page():
             default=[]
         )
 
+        # Tuition filters
+        st.sidebar.subheader("Tuition Filters")
+
+        # In-state tuition range for public schools
+        in_state_tuition_range = st.sidebar.slider(
+            "In-State Tuition Range ($)",
+            0, 50000, (0, 50000),
+            step=1000,
+            help="Filter public schools by in-state tuition"
+        )
+
+        # Out-of-state/private tuition range
+        out_state_tuition_range = st.sidebar.slider(
+            "Out-of-State/Private Tuition Range ($)",
+            0, 75000, (0, 75000),
+            step=1000,
+            help="Filter schools by out-of-state (public) or private tuition"
+        )
+
         # Admission rate filter
         admission_rate_range = st.sidebar.slider(
             "Admission Rate (%)",
@@ -135,6 +154,34 @@ def load_college_discovery_page():
 
         if selected_states:
             filtered_df = filtered_df[filtered_df['state'].isin(selected_states)]
+
+        # Apply tuition filters
+        # For public schools (ownership == 1), check in-state tuition
+        public_mask = (
+            (filtered_df['ownership'] == 1) & 
+            (
+                pd.isna(filtered_df['avg_net_price.public']) |
+                (
+                    (filtered_df['avg_net_price.public'] >= in_state_tuition_range[0]) &
+                    (filtered_df['avg_net_price.public'] <= in_state_tuition_range[1])
+                )
+            )
+        )
+
+        # For private schools and out-of-state public tuition
+        private_mask = (
+            (filtered_df['ownership'].isin([2, 3])) & 
+            (
+                pd.isna(filtered_df['avg_net_price.private']) |
+                (
+                    (filtered_df['avg_net_price.private'] >= out_state_tuition_range[0]) &
+                    (filtered_df['avg_net_price.private'] <= out_state_tuition_range[1])
+                )
+            )
+        )
+
+        # Combine masks
+        filtered_df = filtered_df[public_mask | private_mask]
 
         # Set null admission rates to 100% and then filter
         filtered_df['admission_rate.overall'] = filtered_df['admission_rate.overall'].fillna(1.0)
@@ -203,12 +250,20 @@ def load_college_discovery_page():
                 with col2:
                     st.write("**Cost Information**")
                     # Show appropriate cost based on institution type
-                    if college['ownership'] == 1 and pd.notna(college['avg_net_price.public']):
-                        st.write(f"Average Net Price: ${int(college['avg_net_price.public']):,}")
-                    elif college['ownership'] in [2, 3] and pd.notna(college['avg_net_price.private']):
-                        st.write(f"Average Net Price: ${int(college['avg_net_price.private']):,}")
+                    if college['ownership'] == 1:
+                        if pd.notna(college['avg_net_price.public']):
+                            st.write(f"In-State Tuition: ${int(college['avg_net_price.public']):,}")
+                        else:
+                            st.write("In-State Tuition: Not available")
+                        if pd.notna(college['avg_net_price.private']):
+                            st.write(f"Out-of-State Tuition: ${int(college['avg_net_price.private']):,}")
+                        else:
+                            st.write("Out-of-State Tuition: Not available")
                     else:
-                        st.write("Average Net Price: Not available")
+                        if pd.notna(college['avg_net_price.private']):
+                            st.write(f"Tuition: ${int(college['avg_net_price.private']):,}")
+                        else:
+                            st.write("Tuition: Not available")
 
                     # Add favorite button
                     college_dict = college.to_dict()
