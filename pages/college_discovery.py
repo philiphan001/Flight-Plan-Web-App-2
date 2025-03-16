@@ -63,7 +63,7 @@ def load_college_discovery_page():
         step=5000
     )
 
-    # Institution type
+    # Institution type mapping
     institution_types = {
         1: "Public",
         2: "Private Non-Profit",
@@ -91,6 +91,13 @@ def load_college_discovery_page():
         (filtered_df['sat_scores.average.overall'] <= sat_range[1])
     ]
 
+    # Filter by institution type
+    if selected_types:
+        # Create a mapping from type name back to code
+        type_to_code = {v: k for k, v in institution_types.items()}
+        selected_codes = [type_to_code[type_name] for type_name in selected_types]
+        filtered_df = filtered_df[filtered_df['ownership'].isin(selected_codes)]
+
     # Display results
     st.subheader(f"Found {len(filtered_df)} matching institutions")
 
@@ -101,16 +108,31 @@ def load_college_discovery_page():
 
             with col1:
                 st.write("**Institution Details**")
-                st.write(f"Type: {institution_types.get(college['ownership'], 'Other')}")
-                st.write(f"Admission Rate: {college['admission_rate.overall']*100:.1f}%")
-                st.write(f"Average SAT Score: {college['sat_scores.average.overall']}")
+                # Get institution type from mapping
+                institution_type = institution_types.get(college['ownership'], 'Unknown')
+                st.write(f"Type: {institution_type}")
+
+                # Show admission rate if available
+                if pd.notna(college['admission_rate.overall']):
+                    st.write(f"Admission Rate: {college['admission_rate.overall']*100:.1f}%")
+                else:
+                    st.write("Admission Rate: Not available")
+
+                # Show SAT score if available
+                if pd.notna(college['sat_scores.average.overall']):
+                    st.write(f"Average SAT Score: {int(college['sat_scores.average.overall'])}")
+                else:
+                    st.write("Average SAT Score: Not available")
 
             with col2:
                 st.write("**Cost Information**")
-                if pd.notna(college['avg_net_price.public']):
-                    st.write(f"Public Institution Cost: ${college['avg_net_price.public']:,.2f}")
-                if pd.notna(college['avg_net_price.private']):
-                    st.write(f"Private Institution Cost: ${college['avg_net_price.private']:,.2f}")
+                # Show appropriate cost based on institution type
+                if college['ownership'] == 1 and pd.notna(college['avg_net_price.public']):
+                    st.write(f"Average Net Price: ${int(college['avg_net_price.public']):,}")
+                elif college['ownership'] in [2, 3] and pd.notna(college['avg_net_price.private']):
+                    st.write(f"Average Net Price: ${int(college['avg_net_price.private']):,}")
+                else:
+                    st.write("Average Net Price: Not available")
 
 if __name__ == "__main__":
     load_college_discovery_page()
