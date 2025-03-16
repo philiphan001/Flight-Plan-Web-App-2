@@ -6,7 +6,7 @@ def load_college_data():
     """Load and preprocess college scorecard data"""
     try:
         df = pd.read_csv('attached_assets/Updated_Most-Recent-Cohorts-Institution.csv')
-        # Select relevant columns
+        # Select relevant columns including the new rankings
         columns_of_interest = [
             'name', 'city', 'state', 
             'admission_rate.overall',
@@ -14,7 +14,8 @@ def load_college_data():
             'act_scores.midpoint.cumulative',
             'avg_net_price.public',
             'avg_net_price.private',
-            'ownership'
+            'ownership',
+            'us_news_ranking'  # New column for rankings
         ]
         return df[columns_of_interest]
     except Exception as e:
@@ -31,6 +32,13 @@ def load_college_discovery_page():
 
     # Sidebar filters
     st.sidebar.header("Filter Options")
+
+    # Add US News Rankings filter
+    ranking_range = st.sidebar.slider(
+        "US News Top Rankings",
+        1, 150, (1, 150),
+        help="Filter by US News World Report Rankings"
+    )
 
     # State filter
     states = sorted(df['state'].unique())
@@ -78,6 +86,15 @@ def load_college_discovery_page():
     # Apply filters
     filtered_df = df.copy()
 
+    # Apply US News Rankings filter
+    filtered_df = filtered_df[
+        (filtered_df['us_news_ranking'].isnull()) |  # Include unranked schools
+        (
+            (filtered_df['us_news_ranking'] >= ranking_range[0]) &
+            (filtered_df['us_news_ranking'] <= ranking_range[1])
+        )
+    ]
+
     if selected_states:
         filtered_df = filtered_df[filtered_df['state'].isin(selected_states)]
 
@@ -115,6 +132,12 @@ def load_college_discovery_page():
                 # Get institution type from mapping
                 institution_type = institution_types.get(college['ownership'], 'Unknown')
                 st.write(f"Type: {institution_type}")
+
+                # Show US News Ranking if available
+                if pd.notna(college['us_news_ranking']):
+                    st.write(f"US News Ranking: #{int(college['us_news_ranking'])}")
+                else:
+                    st.write("US News Ranking: Not ranked")
 
                 # Show admission rate if available
                 if pd.notna(college['admission_rate.overall']):
