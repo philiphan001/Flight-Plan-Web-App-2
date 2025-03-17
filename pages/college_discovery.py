@@ -65,18 +65,23 @@ def load_college_discovery_page():
     main_col, favorites_col = st.columns([2, 1])
 
     with favorites_col:
+        # Display favorites in sidebar
         st.markdown("### Your Favorite Schools ⭐")
         favorite_schools = UserFavorites.get_favorite_schools()
 
         if favorite_schools:
             for school in favorite_schools:
-                with st.expander(f"⭐ {school['name']}", expanded=False):
-                    st.write(f"Location: {school['city']}, {school['state']}")
-                    if 'US News Top 150' in school and pd.notna(school['US News Top 150']):
-                        st.write(f"US News Ranking: #{int(school['US News Top 150'])}")
-                    if 'best liberal arts colleges' in school and pd.notna(school['best liberal arts colleges']):
-                        st.write(f"Liberal Arts Ranking: #{int(school['best liberal arts colleges'])}")
-                    if st.button("❌ Remove from Favorites", key=f"remove_{school['name']}"):
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    if st.button(f"📚 {school['name']}", key=f"view_{school['name']}", use_container_width=True):
+                        with st.expander(f"⭐ {school['name']}", expanded=True):
+                            st.write(f"Location: {school['city']}, {school['state']}")
+                            if 'US News Top 150' in school and pd.notna(school['US News Top 150']):
+                                st.write(f"US News Ranking: #{int(school['US News Top 150'])}")
+                            if 'best liberal arts colleges' in school and pd.notna(school['best liberal arts colleges']):
+                                st.write(f"Liberal Arts Ranking: #{int(school['best liberal arts colleges'])}")
+                with col2:
+                    if st.button("❌", key=f"remove_fav_{school['name']}", help="Remove from favorites"):
                         UserFavorites.remove_favorite_school(school)
                         st.rerun()
         else:
