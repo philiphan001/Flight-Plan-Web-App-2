@@ -32,7 +32,6 @@ def load_user_profile_page():
                 income_data = get_income_estimate(zip_code)
                 if income_data:
                     st.write("**Estimated Household Income in Your Area:**")
-                    st.write(f"Median: ${income_data['median_income']:,}")
                     st.write(f"Mean: ${income_data['mean_income']:,}")
                 else:
                     st.warning("Income data not available for this ZIP code.")
@@ -154,7 +153,7 @@ def load_user_profile_page():
         st.header("Your Saved Financial Projections")
         if 'saved_projections' in st.session_state and st.session_state.saved_projections:
             for idx, proj in enumerate(st.session_state.saved_projections):
-                with st.expander(f"Projection {idx + 1}: {proj['date']}", expanded=False):
+                with st.expander(f"Projection: {proj['name']} ({proj['date']})", expanded=False):
                     st.write(f"Location: {proj['location']}")
                     st.write(f"Occupation: {proj['occupation']}")
                     st.write(f"Investment Return Rate: {proj['investment_rate']}%")
