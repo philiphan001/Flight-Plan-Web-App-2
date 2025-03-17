@@ -2,7 +2,7 @@
 import pandas as pd
 from typing import Optional
 
-def load_zip_income_data(file_path: str = "Income by Zipcode.csv") -> pd.DataFrame:
+def load_zip_income_data(file_path: str = "aggregated_irs_data.csv") -> pd.DataFrame:
     """Load income data by zip code from CSV file"""
     try:
         df = pd.read_csv(file_path)
@@ -20,15 +20,15 @@ def get_income_estimate(zip_code: str) -> Optional[dict]:
         df = load_zip_income_data()
         if df.empty:
             return None
-            
+
         # Convert zip code to string and pad with zeros if needed
         zip_code = str(zip_code).zfill(5)
-        
+
         # Find matching zip code
         zip_data = df[df['zipcode'] == zip_code]
         if zip_data.empty:
             return None
-            
+
         return {
             'median_income': int(zip_data['median_household_income'].iloc[0]),
             'mean_income': int(zip_data['mean_household_income'].iloc[0])
