@@ -10,11 +10,9 @@ def load_career_game():
     # Initialize game state
     if 'game_stage' not in st.session_state:
         st.session_state.game_stage = 0
-    if 'game_responses' not in st.session_state:
         st.session_state.game_responses = {
             'interests': [],
             'skills': [],
-            'values': [],
             'work_style': None,
             'education_level': None
         }
@@ -43,47 +41,43 @@ def load_career_game():
             'options': [
                 ('Tech startup', {'interests': ['Technology'], 'skills': ['Innovation', 'Business']}),
                 ('Environmental conservation', {'interests': ['Environment'], 'skills': ['Social Impact']}),
-                ('Community education center', {'interests': ['Education'], 'skills': ['Social Impact']}),
-                ('Healthcare innovation lab', {'interests': ['Healthcare'], 'skills': ['Science']}),
+                ('Community education center', {'interests': ['Education'], 'skills': ['Teaching']}),
+                ('Healthcare innovation lab', {'interests': ['Healthcare'], 'skills': ['Research']}),
                 ('Creative arts studio', {'interests': ['Arts'], 'skills': ['Design']}),
-                ('Social enterprise', {'interests': ['Business'], 'skills': ['Social Impact']}),
-                ('Research institute', {'interests': ['Science'], 'skills': ['Research']}),
+                ('Social enterprise', {'interests': ['Business'], 'skills': ['Leadership']}),
+                ('Research institute', {'interests': ['Science'], 'skills': ['Analysis']}),
                 ('Engineering workshop', {'interests': ['Engineering'], 'skills': ['Innovation']}),
-                ('Financial advisory firm', {'interests': ['Finance'], 'skills': ['Business']}),
-                ('Digital media company', {'interests': ['Technology'], 'skills': ['Arts']})
+                ('Financial advisory firm', {'interests': ['Finance'], 'skills': ['Analysis']}),
+                ('Digital media company', {'interests': ['Technology', 'Arts'], 'skills': ['Creativity']})
             ]
         },
         {
-            'name': 'Time Management',
+            'name': 'Work Environment',
             'question': 'How would you prefer to structure your workday?',
             'options': [
-                ('Fixed schedule, clear tasks', 'Office-based'),
-                ('Flexible hours, remote work', 'Remote'),
-                ('Mix of office and remote', 'Hybrid'),
-                ('Different locations daily', 'Field work'),
-                ('Project-based scheduling', 'Flexible')
+                ('Fixed schedule, clear tasks', {'work_style': 'Office-based'}),
+                ('Flexible hours, remote work', {'work_style': 'Remote'}),
+                ('Mix of office and remote', {'work_style': 'Hybrid'}),
+                ('Different locations daily', {'work_style': 'Field work'}),
+                ('Project-based scheduling', {'work_style': 'Flexible'})
             ]
         },
         {
-            'name': 'Learning Style',
+            'name': 'Learning Path',
             'question': 'What\'s your ideal way to learn something new?',
             'options': [
-                ('Traditional academic courses', "Bachelor's Degree"),
-                ('Hands-on training programs', "Associate's Degree"),
-                ('Self-paced online learning', 'Some College'),
-                ('Advanced research projects', "Master's Degree"),
-                ('Intensive specialized study', 'Doctorate')
+                ('Traditional academic courses', {'education_level': "Bachelor's Degree"}),
+                ('Hands-on training programs', {'education_level': "Associate's Degree"}),
+                ('Self-paced online learning', {'education_level': 'Some College'}),
+                ('Advanced research projects', {'education_level': "Master's Degree"}),
+                ('Intensive specialized study', {'education_level': 'Doctorate'})
             ]
         }
     ]
 
     # Check if game is complete
     if st.session_state.game_stage >= len(stages):
-        st.success("🎉 Game Complete! Let's find your career matches!")
-
-        # Clean up and deduplicate responses
-        st.session_state.game_responses['interests'] = list(set(st.session_state.game_responses['interests']))
-        st.session_state.game_responses['skills'] = list(set(st.session_state.game_responses['skills']))
+        st.success("🎉 Game Complete! Let's see your career matches!")
 
         if st.button("View Career Suggestions"):
             st.session_state.show_suggestions = True
@@ -98,10 +92,11 @@ def load_career_game():
     st.markdown(f"### 🎯 {current_stage['name']}")
     st.write(current_stage['question'])
 
+    # Handle options based on stage type
     if st.session_state.game_stage < 2:  # Multi-select stages
         selected_options = st.multiselect(
             "Choose up to three options:",
-            [opt[0] for opt in current_stage['options']],
+            options=[opt[0] for opt in current_stage['options']],
             max_selections=3
         )
 
@@ -109,42 +104,34 @@ def load_career_game():
             # Map selections to interests and skills
             for selection in selected_options:
                 traits = next(opt[1] for opt in current_stage['options'] if opt[0] == selection)
-                if isinstance(traits, dict):  # For first two stages with interests and skills
-                    st.session_state.game_responses['interests'].extend(traits.get('interests', []))
-                    st.session_state.game_responses['skills'].extend(traits.get('skills', []))
+                if 'interests' in traits:
+                    st.session_state.game_responses['interests'].extend(traits['interests'])
+                if 'skills' in traits:
+                    st.session_state.game_responses['skills'].extend(traits['skills'])
 
             if st.button("Next ➡️"):
                 st.session_state.game_stage += 1
                 st.rerun()
 
     else:  # Single-select stages
-        for option, value in current_stage['options']:
-            if st.button(option, key=f"option_{value}"):
-                if st.session_state.game_stage == 2:  # Work style
-                    st.session_state.game_responses['work_style'] = value
-                else:  # Education level
-                    st.session_state.game_responses['education_level'] = value
+        for option, traits in current_stage['options']:
+            if st.button(option, key=f"option_{option}"):
+                if 'work_style' in traits:
+                    st.session_state.game_responses['work_style'] = traits['work_style']
+                if 'education_level' in traits:
+                    st.session_state.game_responses['education_level'] = traits['education_level']
                 st.session_state.game_stage += 1
                 st.rerun()
 
-    # Fixed progress calculation
+    # Show progress
     progress = st.session_state.game_stage / len(stages)
     st.progress(progress)
 
 def load_career_suggestions_page():
+    """Main career suggestions page"""
     st.title("AI Career Path Suggestions 🎯")
 
     # Initialize session state
-    if 'saved_career_suggestions' not in st.session_state:
-        st.session_state.saved_career_suggestions = []
-    if 'game_responses' not in st.session_state:
-        st.session_state.game_responses = {
-            'interests': [],
-            'skills': [],
-            'values': [],
-            'work_style': None,
-            'education_level': None
-        }
     if 'show_suggestions' not in st.session_state:
         st.session_state.show_suggestions = False
     if 'exploration_mode' not in st.session_state:
@@ -152,7 +139,7 @@ def load_career_suggestions_page():
     if 'hide_game' not in st.session_state:
         st.session_state.hide_game = False
 
-    # Only show mode selection if we're not showing suggestions
+    # Only show mode selection if not showing suggestions
     if not st.session_state.show_suggestions:
         st.write("Choose how you'd like to explore career paths:")
         col1, col2 = st.columns(2)
@@ -172,26 +159,24 @@ def load_career_suggestions_page():
                         help="Discover your career interests through interactive scenarios"):
                 st.session_state.exploration_mode = 'game'
                 st.session_state.game_stage = 0
+                st.session_state.game_responses = {
+                    'interests': [],
+                    'skills': [],
+                    'work_style': None,
+                    'education_level': None
+                }
                 st.session_state.show_suggestions = False
                 st.session_state.hide_game = False
                 st.rerun()
 
         st.markdown("---")
 
-    # Initialize variables
-    interests = []
-    skills = []
-    education_level = None
-    work_style = None
-    preferred_industry = None
-    salary_expectation = None
-    submitted = False
-
     # Show appropriate interface based on mode and state
     if st.session_state.exploration_mode == 'traditional' and not st.session_state.show_suggestions:
-        # Create input form
+        # Traditional form interface
         with st.form("career_input_form"):
             st.subheader("Tell us about yourself")
+
             interests = st.multiselect(
                 "What are your interests?",
                 options=[
@@ -250,50 +235,58 @@ def load_career_suggestions_page():
 
             submitted = st.form_submit_button("Generate Career Suggestions")
 
+            if submitted:
+                st.session_state.show_suggestions = True
+                st.session_state.form_data = {
+                    'interests': interests,
+                    'skills': skills,
+                    'education_level': education_level,
+                    'work_style': work_style,
+                    'preferred_industry': preferred_industry,
+                    'salary_expectation': salary_expectation
+                }
+
     elif st.session_state.exploration_mode == 'game' and not st.session_state.hide_game:
-        # Load the game interface
+        # Game interface
         load_career_game()
 
-    # Handle career suggestions generation
-    if st.session_state.show_suggestions or submitted:
-        # Get data based on exploration mode
+    # Generate career suggestions if needed
+    if st.session_state.show_suggestions:
+        # Get data based on mode
         if st.session_state.exploration_mode == 'game':
-            interests = st.session_state.game_responses['interests']
-            skills = st.session_state.game_responses['skills']
-            education_level = st.session_state.game_responses['education_level']
-            work_style = st.session_state.game_responses['work_style']
+            data = st.session_state.game_responses
             preferred_industry = None
             salary_expectation = None
-            st.session_state.hide_game = True
+        else:
+            data = st.session_state.form_data
 
-        # Validate required fields
-        if not interests or not skills:
+        # Validate data
+        if not data.get('interests') or not data.get('skills'):
             st.error("Please provide at least one interest and one skill.")
             return
 
-        # Initialize the career suggestion service
+        # Generate suggestions
         career_service = CareerSuggestionService()
 
         with st.spinner("Generating career suggestions..."):
             try:
-                # Generate suggestions
                 suggestions = career_service.generate_career_suggestions(
-                    interests=interests,
-                    skills=skills,
-                    education_level=education_level,
-                    preferred_work_style=work_style,
+                    interests=data['interests'],
+                    skills=data['skills'],
+                    education_level=data['education_level'],
+                    preferred_work_style=data['work_style'],
                     preferred_industry=preferred_industry,
                     salary_expectation=salary_expectation
                 )
 
-                # Parse the JSON string response
+                # Parse and display suggestions
                 career_data = json.loads(suggestions)
 
                 if "error" in career_data:
                     st.error(career_data["error"])
                     return
 
-                # Display career path visualization
+                # Display visualizations and suggestions
                 st.subheader("Career Path Visualization")
                 plotter = FinancialPlotter()
                 plotter.plot_career_roadmap(career_data)
@@ -315,10 +308,10 @@ def load_career_suggestions_page():
                             'title': career_data['primary_path']['title'],
                             'description': career_data['primary_path']['description'],
                             'timeline': career_data['primary_path']['timeline'],
-                            'interests': interests,
-                            'skills': skills,
-                            'education_level': education_level,
-                            'work_style': work_style
+                            'interests': data['interests'],
+                            'skills': data['skills'],
+                            'education_level': data['education_level'],
+                            'work_style': data['work_style']
                         }
                         st.session_state.saved_career_suggestions.append(saved_career)
                         st.success(f"Saved {career_data['primary_path']['title']} to your profile!")
@@ -341,10 +334,10 @@ def load_career_suggestions_page():
                                 'title': alt_path['title'],
                                 'description': alt_path['description'],
                                 'timeline': alt_path['timeline'],
-                                'interests': interests,
-                                'skills': skills,
-                                'education_level': education_level,
-                                'work_style': work_style
+                                'interests': data['interests'],
+                                'skills': data['skills'],
+                                'education_level': data['education_level'],
+                                'work_style': data['work_style']
                             }
                             st.session_state.saved_career_suggestions.append(saved_career)
                             st.success(f"Saved {alt_path['title']} to your profile!")
@@ -386,9 +379,6 @@ def load_career_suggestions_page():
                 if st.button("👤 View Your Profile"):
                     st.switch_page("pages/user_profile.py")
 
-            except json.JSONDecodeError as e:
-                st.error(f"Failed to process career suggestions: {str(e)}")
-                return
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
                 return
