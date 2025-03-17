@@ -131,13 +131,24 @@ def load_career_suggestions_page():
     """Main career suggestions page"""
     st.title("AI Career Path Suggestions 🎯")
 
-    # Initialize session state
+    # Initialize all session state variables
     if 'show_suggestions' not in st.session_state:
         st.session_state.show_suggestions = False
     if 'exploration_mode' not in st.session_state:
         st.session_state.exploration_mode = 'traditional'
     if 'hide_game' not in st.session_state:
         st.session_state.hide_game = False
+    if 'saved_career_suggestions' not in st.session_state:
+        st.session_state.saved_career_suggestions = []
+
+    # Initialize form variables
+    interests = []
+    skills = []
+    education_level = None
+    work_style = None
+    preferred_industry = None
+    salary_expectation = None
+    submitted = False
 
     # Only show mode selection if not showing suggestions
     if not st.session_state.show_suggestions:
@@ -254,14 +265,23 @@ def load_career_suggestions_page():
     if st.session_state.show_suggestions:
         # Get data based on mode
         if st.session_state.exploration_mode == 'game':
-            data = st.session_state.game_responses
-            preferred_industry = None
-            salary_expectation = None
+            interests = st.session_state.game_responses.get('interests', [])
+            skills = st.session_state.game_responses.get('skills', [])
+            education_level = st.session_state.game_responses.get('education_level')
+            work_style = st.session_state.game_responses.get('work_style')
+            preferred_industry = None  # Game mode doesn't collect this
+            salary_expectation = None  # Game mode doesn't collect this
         else:
-            data = st.session_state.form_data
+            form_data = st.session_state.form_data
+            interests = form_data.get('interests', [])
+            skills = form_data.get('skills', [])
+            education_level = form_data.get('education_level')
+            work_style = form_data.get('work_style')
+            preferred_industry = form_data.get('preferred_industry')
+            salary_expectation = form_data.get('salary_expectation')
 
         # Validate data
-        if not data.get('interests') or not data.get('skills'):
+        if not interests or not skills:
             st.error("Please provide at least one interest and one skill.")
             return
 
@@ -271,10 +291,10 @@ def load_career_suggestions_page():
         with st.spinner("Generating career suggestions..."):
             try:
                 suggestions = career_service.generate_career_suggestions(
-                    interests=data['interests'],
-                    skills=data['skills'],
-                    education_level=data['education_level'],
-                    preferred_work_style=data['work_style'],
+                    interests=interests,
+                    skills=skills,
+                    education_level=education_level,
+                    preferred_work_style=work_style,
                     preferred_industry=preferred_industry,
                     salary_expectation=salary_expectation
                 )
@@ -308,10 +328,10 @@ def load_career_suggestions_page():
                             'title': career_data['primary_path']['title'],
                             'description': career_data['primary_path']['description'],
                             'timeline': career_data['primary_path']['timeline'],
-                            'interests': data['interests'],
-                            'skills': data['skills'],
-                            'education_level': data['education_level'],
-                            'work_style': data['work_style']
+                            'interests': interests,
+                            'skills': skills,
+                            'education_level': education_level,
+                            'work_style': work_style
                         }
                         st.session_state.saved_career_suggestions.append(saved_career)
                         st.success(f"Saved {career_data['primary_path']['title']} to your profile!")
@@ -334,10 +354,10 @@ def load_career_suggestions_page():
                                 'title': alt_path['title'],
                                 'description': alt_path['description'],
                                 'timeline': alt_path['timeline'],
-                                'interests': data['interests'],
-                                'skills': data['skills'],
-                                'education_level': data['education_level'],
-                                'work_style': data['work_style']
+                                'interests': interests,
+                                'skills': skills,
+                                'education_level': education_level,
+                                'work_style': work_style
                             }
                             st.session_state.saved_career_suggestions.append(saved_career)
                             st.success(f"Saved {alt_path['title']} to your profile!")
