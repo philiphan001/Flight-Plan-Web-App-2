@@ -19,7 +19,7 @@ def load_career_game():
             'education_level': None
         }
 
-    # Game stages
+    # Game stages remain unchanged
     stages = [
         {
             'name': 'Desert Island',
@@ -110,8 +110,8 @@ def load_career_game():
                 st.session_state.game_stage += 1
                 st.rerun()
 
-    # Show progress
-    progress = (st.session_state.game_stage / len(stages)) * 100
+    # Fixed progress calculation - now returns value between 0 and 1
+    progress = st.session_state.game_stage / len(stages)
     st.progress(progress)
 
     # When game is complete
