@@ -149,36 +149,40 @@ def load_career_suggestions_page():
         st.session_state.show_suggestions = False
     if 'exploration_mode' not in st.session_state:
         st.session_state.exploration_mode = 'traditional'
+    if 'hide_game' not in st.session_state:
+        st.session_state.hide_game = False
 
-    # Mode selection
-    st.write("Choose how you'd like to explore career paths:")
-    col1, col2 = st.columns(2)
+    # Only show mode selection if we're not showing suggestions yet
+    if not st.session_state.show_suggestions:
+        st.write("Choose how you'd like to explore career paths:")
+        col1, col2 = st.columns(2)
 
-    with col1:
-        if st.button("📝 Traditional Form", 
-                    use_container_width=True,
-                    help="Fill out a form with your interests and preferences"):
-            st.session_state.exploration_mode = 'traditional'
-            st.session_state.show_suggestions = False
-            st.rerun()
+        with col1:
+            if st.button("📝 Traditional Form", 
+                        use_container_width=True,
+                        help="Fill out a form with your interests and preferences"):
+                st.session_state.exploration_mode = 'traditional'
+                st.session_state.show_suggestions = False
+                st.session_state.hide_game = False
+                st.rerun()
 
-    with col2:
-        if st.button("🎮 Let's Play a Game!", 
-                    use_container_width=True,
-                    help="Discover your career interests through interactive scenarios"):
-            st.session_state.exploration_mode = 'game'
-            st.session_state.game_stage = 0
-            st.session_state.show_suggestions = False
-            st.rerun()
+        with col2:
+            if st.button("🎮 Let's Play a Game!", 
+                        use_container_width=True,
+                        help="Discover your career interests through interactive scenarios"):
+                st.session_state.exploration_mode = 'game'
+                st.session_state.game_stage = 0
+                st.session_state.show_suggestions = False
+                st.session_state.hide_game = False
+                st.rerun()
 
-    st.markdown("---")
+        st.markdown("---")
 
-    if st.session_state.exploration_mode == 'traditional':
+    # Show appropriate interface based on mode and state
+    if st.session_state.exploration_mode == 'traditional' and not st.session_state.show_suggestions:
         # Create input form
         with st.form("career_input_form"):
             st.subheader("Tell us about yourself")
-
-            # Original form inputs remain unchanged
             interests = st.multiselect(
                 "What are your interests?",
                 options=[
@@ -237,16 +241,13 @@ def load_career_suggestions_page():
 
             submitted = st.form_submit_button("Generate Career Suggestions")
 
-    else:
+    elif st.session_state.exploration_mode == 'game' and not st.session_state.hide_game:
         # Load the game interface
         load_career_game()
         submitted = st.session_state.show_suggestions
-        interests = st.session_state.user_interests
-        skills = st.session_state.user_skills
-        education_level = st.session_state.game_responses.get('education_level')
-        work_style = st.session_state.game_responses.get('work_style')
-        preferred_industry = None
-        salary_expectation = None
+
+    else:
+        submitted = st.session_state.show_suggestions
 
     if submitted:
         # Ensure we have required data from either form or game
@@ -258,6 +259,8 @@ def load_career_suggestions_page():
             skills = st.session_state.game_responses['skills']
             education_level = st.session_state.game_responses['education_level']
             work_style = st.session_state.game_responses['work_style']
+            # Hide the game interface once we're showing suggestions
+            st.session_state.hide_game = True
         else:
             if not interests or not skills:
                 st.error("Please select at least one interest and one skill.")
