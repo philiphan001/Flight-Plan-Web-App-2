@@ -389,3 +389,27 @@ class MilestoneFactory:
             milestone.add_income_adjustment(increased_salary)
 
         return milestone
+    
+    @staticmethod
+    def create_education(trigger_year: int, total_cost: float, program_years: int,
+                        institution_name: str = "", location: str = "",
+                        is_undergraduate: bool = True) -> Milestone:
+        """Create an education milestone for college or graduate school"""
+        name = f"Education: {institution_name}" if institution_name else "Education"
+        milestone = Milestone(name, trigger_year, "Education")
+
+        # Calculate annual cost
+        annual_cost = total_cost / program_years
+
+        # Add the total cost as a student loan
+        milestone.add_liability(StudentLoan(total_cost, 0.05))  # 5% interest rate for student loans
+
+        # Add annual expenses for the duration of the program
+        milestone.add_recurring_expense(FixedExpense(f"{institution_name} Tuition", annual_cost))
+
+        # Add living expenses if it's undergraduate education
+        if is_undergraduate:
+            living_expenses = annual_cost * 0.4  # Estimate living expenses as 40% of tuition
+            milestone.add_recurring_expense(VariableExpense("College Living Expenses", living_expenses))
+
+        return milestone

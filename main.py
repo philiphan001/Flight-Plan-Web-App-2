@@ -5,6 +5,7 @@ from utils.data_processor import DataProcessor
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
 from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome
+# Assuming UserFavorites class exists and has a get_favorite_schools method.  This needs to be defined elsewhere.
 
 def update_location(new_location: str):
     """Callback for location updates"""
@@ -46,6 +47,8 @@ def initialize_session_state():
         st.session_state.show_marriage_options = False
     if 'saved_projections' not in st.session_state:
         st.session_state.saved_projections = []
+    if 'selected_colleges_for_projection' not in st.session_state:
+        st.session_state.selected_colleges_for_projection = []
 
 
 def main():
@@ -497,6 +500,47 @@ def main():
                         st.session_state.needs_recalculation = True
                         st.rerun()
 
+            if st.session_state.selected_colleges_for_projection:
+                st.sidebar.markdown("### Selected Colleges 🎓")
+                for college_name in st.session_state.selected_colleges_for_projection:
+                    # Find the college data from favorites
+                    college = next((school for school in UserFavorites.get_favorite_schools()
+                                   if school['name'] == college_name), None)
+                    if college:
+                        st.sidebar.markdown(f"**{college['name']}**")
+                        if 'avg_net_price.private' in college and pd.notna(college['avg_net_price.private']):
+                            annual_cost = float(college['avg_net_price.private'])
+                        elif 'avg_net_price.public' in college and pd.notna(college['avg_net_price.public']):
+                            annual_cost = float(college['avg_net_price.public'])
+                        else:
+                            annual_cost = 30000  # Default annual cost if not available
+
+                        college_years = st.sidebar.slider(
+                            "Years of Study",
+                            2, 4, 4,
+                            key=f"college_years_{college_name}"
+                        )
+                        start_year = st.sidebar.slider(
+                            "Start Year",
+                            1, projection_years - college_years + 1, 1,
+                            key=f"start_year_{college_name}"
+                        )
+
+                        # Add college as milestone if button clicked
+                        if st.sidebar.button("Add to Financial Plan", key=f"add_college_{college_name}"):
+                            milestone = MilestoneFactory.create_education(
+                                trigger_year=start_year,
+                                total_cost=annual_cost * college_years,
+                                program_years=college_years,
+                                institution_name=college['name'],
+                                location=f"{college['city']}, {college['state']}",
+                                is_undergraduate=True
+                            )
+                            st.session_state.milestones.append(milestone)
+                            st.session_state.needs_recalculation = True
+                            st.rerun()
+
+
             # Display financial metrics only if we have projections
             if hasattr(st.session_state, 'current_projections'):
                 current_projections = st.session_state.current_projections
@@ -642,7 +686,6 @@ def main():
                 st.markdown("---")
                 if st.button("👤 View Your Profile"):
                     st.switch_page("pages/user_profile.py")
-
 
                 # Create tabs for different visualizations
                 tab1, tab2, tab3 = st.tabs([

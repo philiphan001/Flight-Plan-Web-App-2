@@ -53,16 +53,37 @@ def load_user_profile_page():
         favorite_schools = UserFavorites.get_favorite_schools()
 
         if favorite_schools:
+            # Initialize selected colleges in session state if not present
+            if 'selected_colleges_for_projection' not in st.session_state:
+                st.session_state.selected_colleges_for_projection = []
+
             for school in favorite_schools:
                 with st.expander(f"⭐ {school['name']}", expanded=False):
-                    st.write(f"Location: {school['city']}, {school['state']}")
-                    if 'US News Top 150' in school and pd.notna(school['US News Top 150']):
-                        st.write(f"US News Ranking: #{int(school['US News Top 150'])}")
-                    if 'best liberal arts colleges' in school and pd.notna(school['best liberal arts colleges']):
-                        st.write(f"Liberal Arts Ranking: #{int(school['best liberal arts colleges'])}")
-                    if st.button("❌ Remove", key=f"remove_school_{school['name']}"):
-                        UserFavorites.remove_favorite_school(school)
-                        st.rerun()
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.write(f"Location: {school['city']}, {school['state']}")
+                        if 'US News Top 150' in school and pd.notna(school['US News Top 150']):
+                            st.write(f"US News Ranking: #{int(school['US News Top 150'])}")
+                        if 'best liberal arts colleges' in school and pd.notna(school['best liberal arts colleges']):
+                            st.write(f"Liberal Arts Ranking: #{int(school['best liberal arts colleges'])}")
+
+                    with col2:
+                        # Add checkbox for financial projection
+                        is_selected = school['name'] in st.session_state.selected_colleges_for_projection
+                        if st.checkbox("📊", value=is_selected, 
+                                    key=f"include_in_projection_{school['name']}", 
+                                    help="Include in Financial Projection"):
+                            if school['name'] not in st.session_state.selected_colleges_for_projection:
+                                st.session_state.selected_colleges_for_projection.append(school['name'])
+                        elif school['name'] in st.session_state.selected_colleges_for_projection:
+                            st.session_state.selected_colleges_for_projection.remove(school['name'])
+
+                        if st.button("❌", key=f"remove_{school['name']}", help="Remove from favorites"):
+                            UserFavorites.remove_favorite_school(school)
+                            # Also remove from selected colleges if present
+                            if school['name'] in st.session_state.selected_colleges_for_projection:
+                                st.session_state.selected_colleges_for_projection.remove(school['name'])
+                            st.rerun()
         else:
             st.info("No favorite colleges yet. Visit the College Discovery page to add some!")
             if st.button("Go to College Discovery"):
