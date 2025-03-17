@@ -564,13 +564,74 @@ def main():
                     save_clicked = st.button("💾 Save Current Projection", key="save_projection_button")
                     if save_clicked:
                         if scenario_name:
+                            # Create a list of milestone details
+                            milestone_details = []
+                            for milestone in st.session_state.milestones:
+                                details = {
+                                    'type': milestone.__class__.__name__,
+                                    'name': milestone.name,
+                                    'year': milestone.trigger_year
+                                }
+
+                                # Add specific details based on milestone type
+                                if hasattr(milestone, 'wedding_cost'):
+                                    details.update({
+                                        'wedding_cost': milestone.wedding_cost,
+                                        'spouse_occupation': st.session_state.selected_spouse_occ,
+                                        'lifestyle_adjustment': milestone.lifestyle_adjustment * 100,
+                                        'spouse_savings': milestone.spouse_savings,
+                                        'spouse_debt': milestone.spouse_debt
+                                    })
+                                elif hasattr(milestone, 'home_price'):
+                                    details.update({
+                                        'home_price': milestone.home_price,
+                                        'down_payment': milestone.down_payment_percentage * 100,
+                                        'monthly_utilities': milestone.monthly_utilities,
+                                        'monthly_hoa': milestone.monthly_hoa,
+                                        'annual_renovation': milestone.annual_renovation
+                                    })
+                                elif hasattr(milestone, 'car_price'):
+                                    details.update({
+                                        'car_price': milestone.car_price,
+                                        'down_payment': milestone.down_payment_percentage * 100,
+                                        'vehicle_type': milestone.vehicle_type,
+                                        'monthly_fuel': milestone.monthly_fuel,
+                                        'monthly_parking': milestone.monthly_parking
+                                    })
+                                elif hasattr(milestone, 'education_savings'):
+                                    details.update({
+                                        'education_savings': milestone.education_savings,
+                                        'healthcare_cost': milestone.healthcare_cost,
+                                        'insurance_cost': milestone.insurance_cost,
+                                        'tax_benefit': milestone.tax_benefit
+                                    })
+                                elif hasattr(milestone, 'total_cost'):  # Graduate School
+                                    details.update({
+                                        'total_cost': milestone.total_cost,
+                                        'program_years': milestone.program_years,
+                                        'part_time_income': milestone.part_time_income,
+                                        'scholarship_amount': milestone.scholarship_amount,
+                                        'salary_increase': milestone.salary_increase_percentage * 100
+                                    })
+
+                                milestone_details.append(details)
+
                             projection = {
                                 'name': scenario_name,
                                 'date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'),
                                 'location': st.session_state.selected_location,
                                 'occupation': st.session_state.selected_occupation,
                                 'investment_rate': investment_return_rate * 100,
-                                'final_net_worth': int(round(current_projections['net_worth'][-1]))
+                                'final_net_worth': int(round(current_projections['net_worth'][-1])),
+                                'milestones': milestone_details,
+                                'yearly_data': {
+                                    'net_worth': current_projections['net_worth'],
+                                    'cash_flow': current_projections['cash_flow'],
+                                    'total_income': current_projections['total_income'],
+                                    'total_expenses': current_projections['total_expenses'],
+                                    'asset_values': current_projections['asset_values'],
+                                    'liability_values': current_projections['liability_values']
+                                }
                             }
                             st.session_state.saved_projections.append(projection)
                             st.success("Projection saved to your profile!")

@@ -158,6 +158,50 @@ def load_user_profile_page():
                     st.write(f"Occupation: {proj['occupation']}")
                     st.write(f"Investment Return Rate: {proj['investment_rate']}%")
                     st.write(f"Final Net Worth: ${proj['final_net_worth']:,}")
+
+                    # Display milestones if present
+                    if 'milestones' in proj and proj['milestones']:
+                        st.subheader("Life Milestones:")
+                        for milestone in proj['milestones']:
+                            st.markdown(f"**{milestone['name']} (Year {milestone['year']})**")
+
+                            # Display milestone-specific details
+                            if milestone['type'] == 'Marriage':
+                                st.write(f"Wedding Cost: ${milestone['wedding_cost']:,}")
+                                st.write(f"Spouse Occupation: {milestone['spouse_occupation']}")
+                                st.write(f"Lifestyle Adjustment: {milestone['lifestyle_adjustment']}%")
+                                st.write(f"Spouse Initial Savings: ${milestone['spouse_savings']:,}")
+                                st.write(f"Spouse Initial Debt: ${milestone['spouse_debt']:,}")
+
+                            elif milestone['type'] == 'HomePurchase':
+                                st.write(f"Home Price: ${milestone['home_price']:,}")
+                                st.write(f"Down Payment: {milestone['down_payment']}%")
+                                st.write(f"Monthly Utilities: ${milestone['monthly_utilities']:,}")
+                                st.write(f"Monthly HOA: ${milestone['monthly_hoa']:,}")
+                                st.write(f"Annual Renovation Budget: ${milestone['annual_renovation']:,}")
+
+                            elif milestone['type'] == 'CarPurchase':
+                                st.write(f"Car Price: ${milestone['car_price']:,}")
+                                st.write(f"Down Payment: {milestone['down_payment']}%")
+                                st.write(f"Vehicle Type: {milestone['vehicle_type']}")
+                                st.write(f"Monthly Fuel Cost: ${milestone['monthly_fuel']:,}")
+                                st.write(f"Monthly Parking: ${milestone['monthly_parking']:,}")
+
+                            elif milestone['type'] == 'Child':
+                                st.write(f"Monthly Education Savings: ${milestone['education_savings']/12:,.2f}")
+                                st.write(f"Annual Healthcare Cost: ${milestone['healthcare_cost']:,}")
+                                st.write(f"Annual Insurance Cost: ${milestone['insurance_cost']:,}")
+                                st.write(f"Annual Tax Benefit: ${milestone['tax_benefit']:,}")
+
+                            elif milestone['type'] == 'GraduateSchool':
+                                st.write(f"Total Cost: ${milestone['total_cost']:,}")
+                                st.write(f"Program Length: {milestone['program_years']} years")
+                                st.write(f"Part-time Income: ${milestone['part_time_income']:,}/year")
+                                st.write(f"Scholarship Amount: ${milestone['scholarship_amount']:,}")
+                                st.write(f"Expected Salary Increase: {milestone['salary_increase']}%")
+
+                            st.markdown("---")
+
                     if st.button("Remove", key=f"remove_proj_{idx}"):
                         st.session_state.saved_projections.pop(idx)
                         st.rerun()
