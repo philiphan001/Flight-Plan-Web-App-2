@@ -19,38 +19,38 @@ def load_career_game():
             'education_level': None
         }
 
-    # Game stages remain unchanged
+    # Game stages
     stages = [
         {
             'name': 'Desert Island',
             'question': 'You\'re stranded on a desert island. Which three items would you choose to have with you?',
             'options': [
-                ('Laptop and solar charger', ['Technology', 'Problem Solving']),
-                ('Medical supplies kit', ['Healthcare', 'Helping Others']),
-                ('Art supplies', ['Arts', 'Creativity']),
-                ('Books on survival', ['Research', 'Planning']),
-                ('Building tools', ['Engineering', 'Hands-on Work']),
-                ('Communication device', ['Communication', 'Leadership']),
-                ('Scientific equipment', ['Science', 'Analysis']),
-                ('Musical instrument', ['Arts', 'Entertainment']),
-                ('Teaching materials', ['Education', 'Communication']),
-                ('Business planning notebook', ['Business', 'Organization'])
+                ('Laptop and solar charger', {'interests': ['Technology'], 'skills': ['Problem Solving']}),
+                ('Medical supplies kit', {'interests': ['Healthcare'], 'skills': ['Helping Others']}),
+                ('Art supplies', {'interests': ['Arts'], 'skills': ['Creativity']}),
+                ('Books on survival', {'interests': ['Research'], 'skills': ['Planning']}),
+                ('Building tools', {'interests': ['Engineering'], 'skills': ['Hands-on Work']}),
+                ('Communication device', {'interests': ['Communication'], 'skills': ['Leadership']}),
+                ('Scientific equipment', {'interests': ['Science'], 'skills': ['Analysis']}),
+                ('Musical instrument', {'interests': ['Arts'], 'skills': ['Entertainment']}),
+                ('Teaching materials', {'interests': ['Education'], 'skills': ['Communication']}),
+                ('Business planning notebook', {'interests': ['Business'], 'skills': ['Organization']})
             ]
         },
         {
             'name': 'Dream Project',
             'question': 'If you had unlimited resources, what kind of project would you start?',
             'options': [
-                ('Tech startup', ['Technology', 'Innovation', 'Business']),
-                ('Environmental conservation', ['Environment', 'Social Impact']),
-                ('Community education center', ['Education', 'Social Impact']),
-                ('Healthcare innovation lab', ['Healthcare', 'Science']),
-                ('Creative arts studio', ['Arts', 'Design']),
-                ('Social enterprise', ['Business', 'Social Impact']),
-                ('Research institute', ['Science', 'Research']),
-                ('Engineering workshop', ['Engineering', 'Innovation']),
-                ('Financial advisory firm', ['Finance', 'Business']),
-                ('Digital media company', ['Technology', 'Arts'])
+                ('Tech startup', {'interests': ['Technology'], 'skills': ['Innovation', 'Business']}),
+                ('Environmental conservation', {'interests': ['Environment'], 'skills': ['Social Impact']}),
+                ('Community education center', {'interests': ['Education'], 'skills': ['Social Impact']}),
+                ('Healthcare innovation lab', {'interests': ['Healthcare'], 'skills': ['Science']}),
+                ('Creative arts studio', {'interests': ['Arts'], 'skills': ['Design']}),
+                ('Social enterprise', {'interests': ['Business'], 'skills': ['Social Impact']}),
+                ('Research institute', {'interests': ['Science'], 'skills': ['Research']}),
+                ('Engineering workshop', {'interests': ['Engineering'], 'skills': ['Innovation']}),
+                ('Financial advisory firm', {'interests': ['Finance'], 'skills': ['Business']}),
+                ('Digital media company', {'interests': ['Technology'], 'skills': ['Arts']})
             ]
         },
         {
@@ -85,10 +85,6 @@ def load_career_game():
         st.session_state.game_responses['interests'] = list(set(st.session_state.game_responses['interests']))
         st.session_state.game_responses['skills'] = list(set(st.session_state.game_responses['skills']))
 
-        # Transfer game responses to career suggestion inputs
-        st.session_state.user_interests = st.session_state.game_responses['interests']
-        st.session_state.user_skills = st.session_state.game_responses['skills']
-
         if st.button("View Career Suggestions"):
             st.session_state.game_complete = True
             st.session_state.show_suggestions = True
@@ -112,10 +108,14 @@ def load_career_game():
         )
 
         if selected_options:
-            # Map selections to interests/skills
+            # Map selections to interests and skills
             for selection in selected_options:
                 traits = next(opt[1] for opt in current_stage['options'] if opt[0] == selection)
-                st.session_state.game_responses['interests'].extend(traits)
+                if isinstance(traits, dict):  # For first two stages with interests and skills
+                    st.session_state.game_responses['interests'].extend(traits.get('interests', []))
+                    st.session_state.game_responses['skills'].extend(traits.get('skills', []))
+                else:  # For later stages with single values
+                    st.session_state.game_responses['values'].append(traits)
 
             if st.button("Next ➡️"):
                 st.session_state.game_stage += 1
@@ -249,9 +249,19 @@ def load_career_suggestions_page():
         salary_expectation = None
 
     if submitted:
-        if not interests or not skills:
-            st.error("Please select at least one interest and one skill.")
-            return
+        # Ensure we have required data from either form or game
+        if st.session_state.exploration_mode == 'game':
+            if not st.session_state.game_responses['interests'] or not st.session_state.game_responses['skills']:
+                st.error("Please complete the game to generate career suggestions.")
+                return
+            interests = st.session_state.game_responses['interests']
+            skills = st.session_state.game_responses['skills']
+            education_level = st.session_state.game_responses['education_level']
+            work_style = st.session_state.game_responses['work_style']
+        else:
+            if not interests or not skills:
+                st.error("Please select at least one interest and one skill.")
+                return
 
         # Initialize the career suggestion service
         career_service = CareerSuggestionService()
