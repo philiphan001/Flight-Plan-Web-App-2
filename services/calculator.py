@@ -64,6 +64,12 @@ class FinancialCalculator:
                     milestone_name = category.replace(" One-time Cost", "")
                     category = f"One-time: {milestone_name}"
 
+                # Handle pre-projection expenses for education
+                if "Education:" in category and year == 0:
+                    # For pre-projection education expenses, add them to initial liabilities
+                    # but don't include in yearly expenses
+                    continue
+
                 expense_amount = int(round(expense.calculate_expense(year)))
                 expense_categories[category][year] = expense_amount
                 total_expenses += expense_amount
@@ -108,6 +114,7 @@ class FinancialCalculator:
             # Calculate liability values
             total_liability_value = 0
             for liability in self.liabilities:
+                # For education liabilities marked as pre-projection, start them at year 0
                 liability_value = int(round(liability.get_balance(year)))
                 liability_type = liability.__class__.__name__
                 liability_key = f"{liability_type}: {liability.name}"

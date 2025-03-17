@@ -522,21 +522,19 @@ def main():
                             2, 4, 4,
                             key=f"college_years_{college_name}"
                         )
-                        start_year = st.sidebar.slider(
-                            "Start Year",
-                            1, projection_years - college_years + 1, 1,
-                            key=f"start_year_{college_name}"
-                        )
+
+                        st.sidebar.info(f"Note: The {college_years} years of college education will precede your {projection_years}-year financial projection.")
 
                         # Add college as milestone if button clicked
                         if st.sidebar.button("Add to Financial Plan", key=f"add_college_{college_name}"):
                             milestone = MilestoneFactory.create_education(
-                                trigger_year=start_year,
+                                trigger_year=0,  # Start at year 0 (pre-projection)
                                 total_cost=annual_cost * college_years,
                                 program_years=college_years,
                                 institution_name=college['name'],
                                 location=f"{college['city']}, {college['state']}",
-                                is_undergraduate=True
+                                is_undergraduate=True,
+                                pre_projection=True  # New flag to indicate this happens before projection
                             )
                             st.session_state.milestones.append(milestone)
                             st.session_state.needs_recalculation = True

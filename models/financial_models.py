@@ -389,11 +389,11 @@ class MilestoneFactory:
             milestone.add_income_adjustment(increased_salary)
 
         return milestone
-    
+
     @staticmethod
     def create_education(trigger_year: int, total_cost: float, program_years: int,
                         institution_name: str = "", location: str = "",
-                        is_undergraduate: bool = True) -> Milestone:
+                        is_undergraduate: bool = True, pre_projection: bool = False) -> Milestone:
         """Create an education milestone for college or graduate school"""
         name = f"Education: {institution_name}" if institution_name else "Education"
         milestone = Milestone(name, trigger_year, "Education")
