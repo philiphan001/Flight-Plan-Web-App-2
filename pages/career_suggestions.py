@@ -86,10 +86,8 @@ def load_career_game():
         st.session_state.game_responses['skills'] = list(set(st.session_state.game_responses['skills']))
 
         if st.button("View Career Suggestions"):
-            st.session_state.game_complete = True
             st.session_state.show_suggestions = True
-            # Reset game stage for next time
-            st.session_state.game_stage = 0
+            st.session_state.hide_game = True
             st.rerun()
         return
 
@@ -114,8 +112,6 @@ def load_career_game():
                 if isinstance(traits, dict):  # For first two stages with interests and skills
                     st.session_state.game_responses['interests'].extend(traits.get('interests', []))
                     st.session_state.game_responses['skills'].extend(traits.get('skills', []))
-                else:  # For later stages with single values
-                    st.session_state.game_responses['values'].append(traits)
 
             if st.button("Next ➡️"):
                 st.session_state.game_stage += 1
@@ -131,7 +127,7 @@ def load_career_game():
                 st.session_state.game_stage += 1
                 st.rerun()
 
-    # Fixed progress calculation - now returns value between 0 and 1
+    # Fixed progress calculation
     progress = st.session_state.game_stage / len(stages)
     st.progress(progress)
 
@@ -141,10 +137,14 @@ def load_career_suggestions_page():
     # Initialize session state
     if 'saved_career_suggestions' not in st.session_state:
         st.session_state.saved_career_suggestions = []
-    if 'user_interests' not in st.session_state:
-        st.session_state.user_interests = []
-    if 'user_skills' not in st.session_state:
-        st.session_state.user_skills = []
+    if 'game_responses' not in st.session_state:
+        st.session_state.game_responses = {
+            'interests': [],
+            'skills': [],
+            'values': [],
+            'work_style': None,
+            'education_level': None
+        }
     if 'show_suggestions' not in st.session_state:
         st.session_state.show_suggestions = False
     if 'exploration_mode' not in st.session_state:
@@ -152,7 +152,7 @@ def load_career_suggestions_page():
     if 'hide_game' not in st.session_state:
         st.session_state.hide_game = False
 
-    # Only show mode selection if we're not showing suggestions yet
+    # Only show mode selection if we're not showing suggestions
     if not st.session_state.show_suggestions:
         st.write("Choose how you'd like to explore career paths:")
         col1, col2 = st.columns(2)
@@ -177,6 +177,15 @@ def load_career_suggestions_page():
                 st.rerun()
 
         st.markdown("---")
+
+    # Initialize variables
+    interests = []
+    skills = []
+    education_level = None
+    work_style = None
+    preferred_industry = None
+    salary_expectation = None
+    submitted = False
 
     # Show appropriate interface based on mode and state
     if st.session_state.exploration_mode == 'traditional' and not st.session_state.show_suggestions:
@@ -244,40 +253,23 @@ def load_career_suggestions_page():
     elif st.session_state.exploration_mode == 'game' and not st.session_state.hide_game:
         # Load the game interface
         load_career_game()
-        submitted = st.session_state.show_suggestions
-        # Initialize these variables with default values for game mode
-        preferred_industry = None
-        salary_expectation = None
 
-    else:
-        submitted = st.session_state.show_suggestions
+    # Handle career suggestions generation
+    if st.session_state.show_suggestions or submitted:
+        # Get data based on exploration mode
         if st.session_state.exploration_mode == 'game':
-            # Set these values from game responses
             interests = st.session_state.game_responses['interests']
             skills = st.session_state.game_responses['skills']
             education_level = st.session_state.game_responses['education_level']
             work_style = st.session_state.game_responses['work_style']
-            preferred_industry = None  # Game mode doesn't collect this
-            salary_expectation = None  # Game mode doesn't collect this
-
-    if submitted:
-        # Ensure we have required data from either form or game
-        if st.session_state.exploration_mode == 'game':
-            if not st.session_state.game_responses['interests'] or not st.session_state.game_responses['skills']:
-                st.error("Please complete the game to generate career suggestions.")
-                return
-            interests = st.session_state.game_responses['interests']
-            skills = st.session_state.game_responses['skills']
-            education_level = st.session_state.game_responses['education_level']
-            work_style = st.session_state.game_responses['work_style']
-            preferred_industry = None  # Game mode doesn't collect this
-            salary_expectation = None  # Game mode doesn't collect this
-            # Hide the game interface once we're showing suggestions
+            preferred_industry = None
+            salary_expectation = None
             st.session_state.hide_game = True
-        else:
-            if not interests or not skills:
-                st.error("Please select at least one interest and one skill.")
-                return
+
+        # Validate required fields
+        if not interests or not skills:
+            st.error("Please provide at least one interest and one skill.")
+            return
 
         # Initialize the career suggestion service
         career_service = CareerSuggestionService()
@@ -290,8 +282,8 @@ def load_career_suggestions_page():
                     skills=skills,
                     education_level=education_level,
                     preferred_work_style=work_style,
-                    preferred_industry=preferred_industry if preferred_industry else None,
-                    salary_expectation=salary_expectation if salary_expectation else None
+                    preferred_industry=preferred_industry,
+                    salary_expectation=salary_expectation
                 )
 
                 # Parse the JSON string response
