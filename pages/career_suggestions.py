@@ -245,9 +245,20 @@ def load_career_suggestions_page():
         # Load the game interface
         load_career_game()
         submitted = st.session_state.show_suggestions
+        # Initialize these variables with default values for game mode
+        preferred_industry = None
+        salary_expectation = None
 
     else:
         submitted = st.session_state.show_suggestions
+        if st.session_state.exploration_mode == 'game':
+            # Set these values from game responses
+            interests = st.session_state.game_responses['interests']
+            skills = st.session_state.game_responses['skills']
+            education_level = st.session_state.game_responses['education_level']
+            work_style = st.session_state.game_responses['work_style']
+            preferred_industry = None  # Game mode doesn't collect this
+            salary_expectation = None  # Game mode doesn't collect this
 
     if submitted:
         # Ensure we have required data from either form or game
@@ -259,6 +270,8 @@ def load_career_suggestions_page():
             skills = st.session_state.game_responses['skills']
             education_level = st.session_state.game_responses['education_level']
             work_style = st.session_state.game_responses['work_style']
+            preferred_industry = None  # Game mode doesn't collect this
+            salary_expectation = None  # Game mode doesn't collect this
             # Hide the game interface once we're showing suggestions
             st.session_state.hide_game = True
         else:
