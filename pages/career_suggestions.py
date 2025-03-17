@@ -77,6 +77,27 @@ def load_career_game():
         }
     ]
 
+    # Check if game is complete
+    if st.session_state.game_stage >= len(stages):
+        st.success("🎉 Game Complete! Let's find your career matches!")
+
+        # Clean up and deduplicate responses
+        st.session_state.game_responses['interests'] = list(set(st.session_state.game_responses['interests']))
+        st.session_state.game_responses['skills'] = list(set(st.session_state.game_responses['skills']))
+
+        # Transfer game responses to career suggestion inputs
+        st.session_state.user_interests = st.session_state.game_responses['interests']
+        st.session_state.user_skills = st.session_state.game_responses['skills']
+
+        if st.button("View Career Suggestions"):
+            st.session_state.game_complete = True
+            st.session_state.show_suggestions = True
+            # Reset game stage for next time
+            st.session_state.game_stage = 0
+            st.rerun()
+        return
+
+    # Get current stage
     current_stage = stages[st.session_state.game_stage]
 
     # Display current game stage
@@ -113,23 +134,6 @@ def load_career_game():
     # Fixed progress calculation - now returns value between 0 and 1
     progress = st.session_state.game_stage / len(stages)
     st.progress(progress)
-
-    # When game is complete
-    if st.session_state.game_stage >= len(stages):
-        st.success("🎉 Game Complete! Let's find your career matches!")
-
-        # Clean up and deduplicate responses
-        st.session_state.game_responses['interests'] = list(set(st.session_state.game_responses['interests']))
-        st.session_state.game_responses['skills'] = list(set(st.session_state.game_responses['skills']))
-
-        # Transfer game responses to career suggestion inputs
-        st.session_state.user_interests = st.session_state.game_responses['interests']
-        st.session_state.user_skills = st.session_state.game_responses['skills']
-
-        if st.button("View Career Suggestions"):
-            st.session_state.game_complete = True
-            st.session_state.show_suggestions = True
-            st.rerun()
 
 def load_career_suggestions_page():
     st.title("AI Career Path Suggestions 🎯")
