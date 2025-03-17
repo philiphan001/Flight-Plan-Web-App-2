@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 from models.user_favorites import UserFavorites
 from utils.zip_income import get_income_estimate
+from services.financial_assessment import generate_financial_assessment
 
 def load_user_profile_page():
     st.title("Your Profile 👤")
@@ -201,6 +202,13 @@ def load_user_profile_page():
                                 st.write(f"Expected Salary Increase: {milestone['salary_increase']}%")
 
                             st.markdown("---")
+
+                    # Add AI Assessment section
+                    st.subheader("💡 AI Financial Assessment")
+                    if st.button("Generate Assessment", key=f"gen_assessment_{idx}"):
+                        with st.spinner("Generating financial assessment..."):
+                            assessment = generate_financial_assessment(proj)
+                            st.markdown(f"**Analysis:**\n{assessment}")
 
                     if st.button("Remove", key=f"remove_proj_{idx}"):
                         st.session_state.saved_projections.pop(idx)
