@@ -4,7 +4,7 @@ from difflib import get_close_matches
 from utils.data_processor import DataProcessor
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
-from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome
+from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome, Home
 from models.user_favorites import UserFavorites  # Added import for UserFavorites
 
 def update_location(new_location: str):
@@ -494,13 +494,85 @@ def main():
 
             # Display current milestones
             if st.session_state.milestones:
-                st.sidebar.markdown("### Current Milestones")
-                for idx, milestone in enumerate(st.session_state.milestones):
-                    st.sidebar.markdown(f"- {milestone.name} (Year {milestone.trigger_year})")
-                    if st.sidebar.button(f"Remove {milestone.name}", key=f"remove_{idx}"):
-                        st.session_state.milestones.pop(idx)
-                        st.session_state.needs_recalculation = True
-                        st.rerun()
+                st.sidebar.markdown("---")
+                with st.sidebar.expander("✏️ Edit Milestones", expanded=False):
+                    st.markdown("### Current Milestones")
+                    for idx, milestone in enumerate(st.session_state.milestones):
+                        with st.expander(f"{milestone.name} (Year {milestone.trigger_year})", expanded=False):
+                            if "Marriage" in milestone.name:
+                                # Marriage milestone editing
+                                new_year = st.slider("Marriage Year", 1, projection_years, milestone.trigger_year, key=f"edit_marriage_year_{idx}")
+                                new_cost = st.number_input("Wedding Cost ($)", 10000, 100000, int(milestone.one_time_expense), step=5000, key=f"edit_wedding_cost_{idx}")
+
+                                # Update milestone if changes detected
+                                if new_year != milestone.trigger_year or new_cost != milestone.one_time_expense:
+                                    milestone.trigger_year = new_year
+                                    milestone.one_time_expense = new_cost
+                                    st.session_state.needs_recalculation = True
+
+                            elif "Child" in milestone.name:
+                                # Child milestone editing
+                                new_year = st.slider("Child Year", 1, projection_years, milestone.trigger_year, key=f"edit_child_year_{idx}")
+                                education_savings = next((exp.annual_amount for exp in milestone.recurring_expenses if "Education Savings" in exp.name), 0)
+                                new_education_savings = st.number_input("Monthly Education Savings ($)", 0, 2000, int(education_savings/12), step=50, key=f"edit_edu_savings_{idx}")
+
+                                if new_year != milestone.trigger_year or new_education_savings*12 != education_savings:
+                                    milestone.trigger_year = new_year
+                                    # Update education savings expense
+                                    for exp in milestone.recurring_expenses:
+                                        if "Education Savings" in exp.name:
+                                            exp.annual_amount = new_education_savings * 12
+                                    st.session_state.needs_recalculation = True
+
+                            elif "Home Purchase" in milestone.name:
+                                # Home purchase milestone editing
+                                new_year = st.slider("Purchase Year", 1, projection_years, milestone.trigger_year, key=f"edit_home_year_{idx}")
+                                home_asset = next((asset for asset in milestone.assets if isinstance(asset, Home)), None)
+                                if home_asset:
+                                    new_price = st.number_input("Home Price ($)", 100000, 2000000, int(home_asset.initial_value), step=50000, key=f"edit_home_price_{idx}")
+                                    if new_year != milestone.trigger_year or new_price != home_asset.initial_value:
+                                        milestone.trigger_year = new_year
+                                        home_asset.initial_value = new_price
+                                        st.session_state.needs_recalculation = True
+
+                            elif "Education" in milestone.name:
+                                # Education milestone editing
+                                st.write("Current Education Plan:")
+                                current_expense = next((exp for exp in milestone.recurring_expenses if "Tuition" in exp.name), None)
+                                if current_expense:
+                                    annual_cost = current_expense.annual_amount
+                                    st.write(f"Annual Cost: ${int(annual_cost):,}")
+
+                                # Show other favorite schools as alternatives
+                                st.write("\nAlternative Schools from Favorites:")
+                                favorite_schools = UserFavorites.get_favorite_schools()
+                                current_school_name = milestone.name.replace("Education: ", "")
+
+                                for school in favorite_schools:
+                                    if school['name'] != current_school_name:
+                                        if st.button(f"Switch to {school['name']}", key=f"switch_school_{idx}_{school['name']}"):
+                                            # Calculate new costs
+                                            if 'avg_net_price.private' in school and pd.notna(school['avg_net_price.private']):
+                                                new_annual_cost = float(school['avg_net_price.private'])
+                                            elif 'avg_net_price.public' in school and pd.notna(school['avg_net_price.public']):
+                                                new_annual_cost = float(school['avg_net_price.public'])
+                                            else:
+                                                new_annual_cost = 30000
+
+                                            # Update the milestone
+                                            milestone.name = f"Education: {school['name']}"
+                                            for exp in milestone.recurring_expenses:
+                                                if "Tuition" in exp.name:
+                                                    exp.name = f"{school['name']} Tuition"
+                                                    exp.annual_amount = new_annual_cost
+                                            st.session_state.needs_recalculation = True
+                                            st.rerun()
+
+                            # Common remove button for all milestone types
+                            if st.button("🗑️ Remove Milestone", key=f"remove_milestone_{idx}"):
+                                st.session_state.milestones.pop(idx)
+                                st.session_state.needs_recalculation = True
+                                st.rerun()
 
             if st.session_state.selected_colleges_for_projection:
                 st.sidebar.markdown("### Selected Colleges 🎓")
