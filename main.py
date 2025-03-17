@@ -5,7 +5,7 @@ from utils.data_processor import DataProcessor
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
 from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome
-# Assuming UserFavorites class exists and has a get_favorite_schools method.  This needs to be defined elsewhere.
+from models.user_favorites import UserFavorites  # Added import for UserFavorites
 
 def update_location(new_location: str):
     """Callback for location updates"""
@@ -53,6 +53,8 @@ def initialize_session_state():
 
 def main():
     initialize_session_state()
+    # Initialize UserFavorites session state
+    UserFavorites.init_session_state()
     st.title("Financial Projection Application")
 
     try:
