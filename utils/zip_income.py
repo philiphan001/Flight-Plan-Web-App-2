@@ -6,6 +6,10 @@ def load_zip_income_data(file_path: str = "aggregated_irs_data.csv") -> pd.DataF
     """Load income data by zip code from CSV file"""
     try:
         df = pd.read_csv(file_path)
+
+        # Clean up column names by stripping whitespace
+        df.columns = df.columns.str.strip()
+
         required_columns = ['zipcode', 'Number of returns', 'Total income amount', 'Mean Income']
         if not all(col in df.columns for col in required_columns):
             raise ValueError("Income CSV file missing required columns")
@@ -19,7 +23,6 @@ def load_zip_income_data(file_path: str = "aggregated_irs_data.csv") -> pd.DataF
         return df
     except Exception as e:
         raise Exception(f"Error loading zip code income data: {str(e)}")
-        return pd.DataFrame()
 
 def get_income_estimate(zip_code: str) -> Optional[dict]:
     """Get income estimates for a given zip code"""
