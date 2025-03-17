@@ -561,19 +561,21 @@ def main():
                         key="scenario_name"
                     )
                 with col_save2:
-                    if st.button("💾 Save Current Projection") and scenario_name:
-                        projection = {
-                            'name': scenario_name,
-                            'date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'),
-                            'location': st.session_state.selected_location,
-                            'occupation': st.session_state.selected_occupation,
-                            'investment_rate': investment_return_rate * 100,
-                            'final_net_worth': int(round(current_projections['net_worth'][-1]))
-                        }
-                        st.session_state.saved_projections.append(projection)
-                        st.success("Projection saved to your profile!")
-                    elif st.button("💾 Save Current Projection") and not scenario_name:
-                        st.warning("Please enter a name for this scenario before saving.")
+                    save_clicked = st.button("💾 Save Current Projection", key="save_projection_button")
+                    if save_clicked:
+                        if scenario_name:
+                            projection = {
+                                'name': scenario_name,
+                                'date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'),
+                                'location': st.session_state.selected_location,
+                                'occupation': st.session_state.selected_occupation,
+                                'investment_rate': investment_return_rate * 100,
+                                'final_net_worth': int(round(current_projections['net_worth'][-1]))
+                            }
+                            st.session_state.saved_projections.append(projection)
+                            st.success("Projection saved to your profile!")
+                        else:
+                            st.warning("Please enter a name for this scenario before saving.")
 
                 # Add profile link
                 st.markdown("---")
