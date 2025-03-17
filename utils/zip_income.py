@@ -12,7 +12,7 @@ def load_zip_income_data(file_path: str = "aggregated_irs_data.csv") -> pd.DataF
 
         required_columns = ['zipcode', 'Number of returns', 'Total income amount', 'Mean Income']
         if not all(col in df.columns for col in required_columns):
-            raise ValueError("Income CSV file missing required columns")
+            raise ValueError("COLI CSV file missing required columns")
 
         # Clean up the 'Mean Income' column by removing commas and dollar signs
         df['Mean Income'] = df['Mean Income'].str.replace('$', '').str.replace(',', '').str.replace(' ', '').astype(float)
@@ -22,7 +22,7 @@ def load_zip_income_data(file_path: str = "aggregated_irs_data.csv") -> pd.DataF
 
         return df
     except Exception as e:
-        raise Exception(f"Error loading zip code income data: {str(e)}")
+        raise Exception(f"Error loading COLI data: {str(e)}")
 
 def get_income_estimate(zip_code: str) -> Optional[dict]:
     """Get income estimates for a given zip code"""
