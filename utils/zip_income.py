@@ -18,7 +18,7 @@ def load_zip_income_data(file_path: str = "aggregated_irs_data.csv") -> pd.DataF
 
         return df
     except Exception as e:
-        print(f"Error loading zip code income data: {str(e)}")
+        raise Exception(f"Error loading zip code income data: {str(e)}")
         return pd.DataFrame()
 
 def get_income_estimate(zip_code: str) -> Optional[dict]:
