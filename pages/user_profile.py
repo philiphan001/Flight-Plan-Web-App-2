@@ -2,12 +2,42 @@
 import streamlit as st
 import pandas as pd
 from models.user_favorites import UserFavorites
+from utils.zip_income import get_income_estimate
 
 def load_user_profile_page():
     st.title("Your Profile 👤")
 
+    # Initialize session state
+    if 'user_zip_code' not in st.session_state:
+        st.session_state.user_zip_code = ""
+
     # Initialize favorites
     UserFavorites.init_session_state()
+
+    # Add zip code input at the top of the profile
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.subheader("Location Information")
+        zip_code = st.text_input(
+            "Enter your ZIP code",
+            value=st.session_state.user_zip_code,
+            max_chars=5,
+            help="Used to estimate household income in your area"
+        )
+
+        if zip_code:
+            # Validate zip code format
+            if len(zip_code) == 5 and zip_code.isdigit():
+                st.session_state.user_zip_code = zip_code
+                income_data = get_income_estimate(zip_code)
+                if income_data:
+                    st.write("**Estimated Household Income in Your Area:**")
+                    st.write(f"Median: ${income_data['median_income']:,}")
+                    st.write(f"Mean: ${income_data['mean_income']:,}")
+                else:
+                    st.warning("Income data not available for this ZIP code.")
+            else:
+                st.error("Please enter a valid 5-digit ZIP code.")
 
     # Create tabs for different sections of the profile
     tabs = st.tabs([
