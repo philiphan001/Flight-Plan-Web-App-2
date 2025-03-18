@@ -1,143 +1,70 @@
+"""Career suggestions and financial projections page"""
 import streamlit as st
 import json
 from services.career_suggestion import CareerSuggestionService
 from visualizations.plotter import FinancialPlotter
 from utils.data_processor import DataProcessor
 
-def load_career_game():
-    """Interactive game-based career exploration"""
-    st.subheader("🎮 Career Discovery Game")
+def show_financial_projections(financial_data):
+    """Display financial projections based on the provided data"""
+    st.title("Financial Projections 📊")
 
-    # Initialize game state if not already present
-    if 'game_stage' not in st.session_state:
-        st.session_state.game_stage = 0
-        st.session_state.game_responses = {
-            'interests': [],
-            'skills': [],
-            'work_style': None,
-            'education_level': None
-        }
+    # Display initial financial position
+    st.subheader("Current Financial Position")
+    col1, col2 = st.columns(2)
 
-    # Game stages definition
-    stages = [
-        {
-            'name': 'Desert Island',
-            'question': 'You\'re stranded on a desert island. Which three items would you choose to have with you?',
-            'options': [
-                ('Laptop and solar charger', {'interests': ['Technology'], 'skills': ['Problem Solving']}),
-                ('Medical supplies kit', {'interests': ['Healthcare'], 'skills': ['Helping Others']}),
-                ('Art supplies', {'interests': ['Arts'], 'skills': ['Creativity']}),
-                ('Books on survival', {'interests': ['Research'], 'skills': ['Planning']}),
-                ('Building tools', {'interests': ['Engineering'], 'skills': ['Hands-on Work']}),
-                ('Communication device', {'interests': ['Communication'], 'skills': ['Leadership']}),
-                ('Scientific equipment', {'interests': ['Science'], 'skills': ['Analysis']}),
-                ('Musical instrument', {'interests': ['Arts'], 'skills': ['Entertainment']}),
-                ('Teaching materials', {'interests': ['Education'], 'skills': ['Communication']}),
-                ('Business planning notebook', {'interests': ['Business'], 'skills': ['Organization']})
-            ]
-        },
-        {
-            'name': 'Dream Project',
-            'question': 'If you had unlimited resources, what kind of project would you start?',
-            'options': [
-                ('Tech startup', {'interests': ['Technology'], 'skills': ['Innovation', 'Business']}),
-                ('Environmental conservation', {'interests': ['Environment'], 'skills': ['Social Impact']}),
-                ('Community education center', {'interests': ['Education'], 'skills': ['Teaching']}),
-                ('Healthcare innovation lab', {'interests': ['Healthcare'], 'skills': ['Research']}),
-                ('Creative arts studio', {'interests': ['Arts'], 'skills': ['Design']}),
-                ('Social enterprise', {'interests': ['Business'], 'skills': ['Leadership']}),
-                ('Research institute', {'interests': ['Science'], 'skills': ['Analysis']}),
-                ('Engineering workshop', {'interests': ['Engineering'], 'skills': ['Innovation']}),
-                ('Financial advisory firm', {'interests': ['Finance'], 'skills': ['Analysis']}),
-                ('Digital media company', {'interests': ['Technology', 'Arts'], 'skills': ['Creativity']})
-            ]
-        },
-        {
-            'name': 'Work Style',
-            'question': 'How would you prefer to structure your workday?',
-            'options': [
-                ('Fixed schedule with clear tasks', {'work_style': 'Office-based'}),
-                ('Flexible hours working remotely', {'work_style': 'Remote'}),
-                ('Mix of office and remote work', {'work_style': 'Hybrid'}),
-                ('Different locations each day', {'work_style': 'Field work'}),
-                ('Project-based flexible schedule', {'work_style': 'Flexible'})
-            ]
-        },
-        {
-            'name': 'Learning Path',
-            'question': 'What\'s your ideal way to learn something new?',
-            'options': [
-                ('Traditional academic courses', {'education_level': "Bachelor's Degree"}),
-                ('Hands-on training programs', {'education_level': "Associate's Degree"}),
-                ('Self-paced online learning', {'education_level': 'Some College'}),
-                ('Advanced research projects', {'education_level': "Master's Degree"}),
-                ('Intensive specialized study', {'education_level': 'Doctorate'})
-            ]
-        }
-    ]
+    with col1:
+        st.metric("Annual Gross Income", f"${financial_data['base_income']:,.2f}")
+        st.metric("Total Tax Burden", f"${financial_data['initial_tax_burden']['total']:,.2f}")
 
-    # Check if game is complete
-    if st.session_state.game_stage >= len(stages):
-        st.success("🎉 Game Complete! Let's see your career matches!")
+    with col2:
+        st.metric("Net Annual Income", 
+                 f"${financial_data['base_income'] - financial_data['initial_tax_burden']['total']:,.2f}")
+        st.metric("Monthly Net Income", 
+                 f"${(financial_data['base_income'] - financial_data['initial_tax_burden']['total'])/12:,.2f}")
 
-        # Clean up and deduplicate responses
-        st.session_state.game_responses['interests'] = list(set(st.session_state.game_responses['interests']))
-        st.session_state.game_responses['skills'] = list(set(st.session_state.game_responses['skills']))
+    # Show monthly expense breakdown
+    st.subheader("Monthly Expense Breakdown")
+    expenses = {
+        "Housing": financial_data['housing'],
+        "Transportation": financial_data['transportation'],
+        "Food": financial_data['food'],
+        "Healthcare": financial_data['healthcare'],
+        "Insurance": financial_data['insurance'],
+        "Other": financial_data['other']
+    }
 
-        if st.button("View Career Suggestions"):
-            st.session_state.show_suggestions = True
-            st.session_state.hide_game = True
-            st.rerun()
-        return
+    # Create a bar chart of monthly expenses
+    st.bar_chart(expenses)
 
-    # Get current stage
-    current_stage = stages[st.session_state.game_stage]
+    # Show savings potential
+    monthly_net = (financial_data['base_income'] - financial_data['initial_tax_burden']['total'])/12
+    total_expenses = financial_data['monthly_expense']
+    potential_savings = monthly_net - total_expenses
 
-    # Display current stage
-    st.markdown(f"### 🎯 {current_stage['name']}")
-    st.write(current_stage['question'])
+    st.subheader("Monthly Savings Potential")
+    savings_col1, savings_col2 = st.columns(2)
 
-    # Handle multi-select stages (first two stages)
-    if st.session_state.game_stage < 2:
-        selected_options = st.multiselect(
-            "Choose up to three options:",
-            options=[opt[0] for opt in current_stage['options']],
-            max_selections=3
-        )
+    with savings_col1:
+        st.metric("Monthly Net Income", f"${monthly_net:,.2f}")
+        st.metric("Total Monthly Expenses", f"${total_expenses:,.2f}")
 
-        if selected_options:
-            if st.button("Next ➡️"):
-                # Process selections
-                for selection in selected_options:
-                    traits = next(opt[1] for opt in current_stage['options'] if opt[0] == selection)
-                    st.session_state.game_responses['interests'].extend(traits.get('interests', []))
-                    st.session_state.game_responses['skills'].extend(traits.get('skills', []))
-                st.session_state.game_stage += 1
-                st.rerun()
-
-    # Handle single-select stages (work style and education)
-    else:
-        for option, traits in current_stage['options']:
-            if st.button(option, key=f"option_{option}"):
-                if 'work_style' in traits:
-                    st.session_state.game_responses['work_style'] = traits['work_style']
-                if 'education_level' in traits:
-                    st.session_state.game_responses['education_level'] = traits['education_level']
-                st.session_state.game_stage += 1
-                st.rerun()
-
-    # Show progress
-    progress = st.session_state.game_stage / len(stages)
-    st.progress(progress)
-
+    with savings_col2:
+        st.metric("Potential Monthly Savings", 
+                 f"${potential_savings:,.2f}",
+                 delta="Target: 20% of net income" if potential_savings > 0 else "Consider expense reduction")
 
 def load_career_suggestions_page():
     """Main career suggestions page"""
-    st.title("AI Career Path Suggestions 🎯")
+    st.title("Career and Financial Planning 🎯")
 
     # Initialize session state variables
     if 'show_suggestions' not in st.session_state:
         st.session_state.show_suggestions = False
+    if 'show_financial_projections' not in st.session_state:
+        st.session_state.show_financial_projections = False
+    if 'financial_data' not in st.session_state:
+        st.session_state.financial_data = None
     if 'exploration_mode' not in st.session_state:
         st.session_state.exploration_mode = 'traditional'
     if 'hide_game' not in st.session_state:
@@ -146,14 +73,17 @@ def load_career_suggestions_page():
         st.session_state.location_selected = False
     if 'occupation_selected' not in st.session_state:
         st.session_state.occupation_selected = False
-    if 'financial_data' not in st.session_state:
-        st.session_state.financial_data = None
     if 'saved_career_suggestions' not in st.session_state:
         st.session_state.saved_career_suggestions = []
 
 
-    # Only show location/occupation selection if not showing suggestions
-    if not st.session_state.show_suggestions:
+    # Show financial projections if that state is active
+    if st.session_state.show_financial_projections and st.session_state.financial_data:
+        show_financial_projections(st.session_state.financial_data)
+        return
+
+    # Only show location/occupation selection if not showing suggestions or projections
+    if not st.session_state.show_suggestions and not st.session_state.show_financial_projections:
         try:
             coli_df = DataProcessor.load_coli_data("COLI by Location.csv")
             occupation_df = DataProcessor.load_occupation_data("Occupational Data.csv")
@@ -173,9 +103,6 @@ def load_career_suggestions_page():
             )
 
             if location and occupation:
-                st.session_state.location_selected = True
-                st.session_state.occupation_selected = True
-
                 # Process location and occupation data
                 financial_data = DataProcessor.process_location_data(
                     coli_df=coli_df,
@@ -216,14 +143,24 @@ def load_career_suggestions_page():
                     st.write(f"Effective Tax Rate: {tax_data['effective_rate']*100:.1f}%")
                     st.write(f"Net Annual Income: ${financial_data['base_income'] - tax_data['total']:,.2f}")
 
-                # Continue button - modified to be more prominent
+                # Continue buttons
                 st.markdown("---")
-                if st.button("Continue to Career Exploration ➡️", 
-                           key="continue_button",
-                           use_container_width=True,
-                           type="primary"):  # Make button more prominent
-                    st.session_state.show_suggestions = True
-                    st.experimental_rerun()  # Force a rerun to update the UI
+                col5, col6 = st.columns(2)
+
+                with col5:
+                    if st.button("View Financial Projections 📊", 
+                               key="projections_button",
+                               use_container_width=True,
+                               type="primary"):
+                        st.session_state.show_financial_projections = True
+                        st.experimental_rerun()
+
+                with col6:
+                    if st.button("Explore Career Paths 🎯", 
+                               key="careers_button",
+                               use_container_width=True):
+                        st.session_state.show_suggestions = True
+                        st.experimental_rerun()
 
         except Exception as e:
             st.error(f"Error loading data: {str(e)}")
@@ -388,6 +325,133 @@ def load_career_suggestions_page():
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
                 return
+
+def load_career_game():
+    """Interactive game-based career exploration"""
+    st.subheader("🎮 Career Discovery Game")
+
+    # Initialize game state if not already present
+    if 'game_stage' not in st.session_state:
+        st.session_state.game_stage = 0
+        st.session_state.game_responses = {
+            'interests': [],
+            'skills': [],
+            'work_style': None,
+            'education_level': None
+        }
+
+    # Game stages definition
+    stages = [
+        {
+            'name': 'Desert Island',
+            'question': 'You\'re stranded on a desert island. Which three items would you choose to have with you?',
+            'options': [
+                ('Laptop and solar charger', {'interests': ['Technology'], 'skills': ['Problem Solving']}),
+                ('Medical supplies kit', {'interests': ['Healthcare'], 'skills': ['Helping Others']}),
+                ('Art supplies', {'interests': ['Arts'], 'skills': ['Creativity']}),
+                ('Books on survival', {'interests': ['Research'], 'skills': ['Planning']}),
+                ('Building tools', {'interests': ['Engineering'], 'skills': ['Hands-on Work']}),
+                ('Communication device', {'interests': ['Communication'], 'skills': ['Leadership']}),
+                ('Scientific equipment', {'interests': ['Science'], 'skills': ['Analysis']}),
+                ('Musical instrument', {'interests': ['Arts'], 'skills': ['Entertainment']}),
+                ('Teaching materials', {'interests': ['Education'], 'skills': ['Communication']}),
+                ('Business planning notebook', {'interests': ['Business'], 'skills': ['Organization']})
+            ]
+        },
+        {
+            'name': 'Dream Project',
+            'question': 'If you had unlimited resources, what kind of project would you start?',
+            'options': [
+                ('Tech startup', {'interests': ['Technology'], 'skills': ['Innovation', 'Business']}),
+                ('Environmental conservation', {'interests': ['Environment'], 'skills': ['Social Impact']}),
+                ('Community education center', {'interests': ['Education'], 'skills': ['Teaching']}),
+                ('Healthcare innovation lab', {'interests': ['Healthcare'], 'skills': ['Research']}),
+                ('Creative arts studio', {'interests': ['Arts'], 'skills': ['Design']}),
+                ('Social enterprise', {'interests': ['Business'], 'skills': ['Leadership']}),
+                ('Research institute', {'interests': ['Science'], 'skills': ['Analysis']}),
+                ('Engineering workshop', {'interests': ['Engineering'], 'skills': ['Innovation']}),
+                ('Financial advisory firm', {'interests': ['Finance'], 'skills': ['Analysis']}),
+                ('Digital media company', {'interests': ['Technology', 'Arts'], 'skills': ['Creativity']})
+            ]
+        },
+        {
+            'name': 'Work Style',
+            'question': 'How would you prefer to structure your workday?',
+            'options': [
+                ('Fixed schedule with clear tasks', {'work_style': 'Office-based'}),
+                ('Flexible hours working remotely', {'work_style': 'Remote'}),
+                ('Mix of office and remote work', {'work_style': 'Hybrid'}),
+                ('Different locations each day', {'work_style': 'Field work'}),
+                ('Project-based flexible schedule', {'work_style': 'Flexible'})
+            ]
+        },
+        {
+            'name': 'Learning Path',
+            'question': 'What\'s your ideal way to learn something new?',
+            'options': [
+                ('Traditional academic courses', {'education_level': "Bachelor's Degree"}),
+                ('Hands-on training programs', {'education_level': "Associate's Degree"}),
+                ('Self-paced online learning', {'education_level': 'Some College'}),
+                ('Advanced research projects', {'education_level': "Master's Degree"}),
+                ('Intensive specialized study', {'education_level': 'Doctorate'})
+            ]
+        }
+    ]
+
+    # Check if game is complete
+    if st.session_state.game_stage >= len(stages):
+        st.success("🎉 Game Complete! Let's see your career matches!")
+
+        # Clean up and deduplicate responses
+        st.session_state.game_responses['interests'] = list(set(st.session_state.game_responses['interests']))
+        st.session_state.game_responses['skills'] = list(set(st.session_state.game_responses['skills']))
+
+        if st.button("View Career Suggestions"):
+            st.session_state.show_suggestions = True
+            st.session_state.hide_game = True
+            st.rerun()
+        return
+
+    # Get current stage
+    current_stage = stages[st.session_state.game_stage]
+
+    # Display current stage
+    st.markdown(f"### 🎯 {current_stage['name']}")
+    st.write(current_stage['question'])
+
+    # Handle multi-select stages (first two stages)
+    if st.session_state.game_stage < 2:
+        selected_options = st.multiselect(
+            "Choose up to three options:",
+            options=[opt[0] for opt in current_stage['options']],
+            max_selections=3
+        )
+
+        if selected_options:
+            if st.button("Next ➡️"):
+                # Process selections
+                for selection in selected_options:
+                    traits = next(opt[1] for opt in current_stage['options'] if opt[0] == selection)
+                    st.session_state.game_responses['interests'].extend(traits.get('interests', []))
+                    st.session_state.game_responses['skills'].extend(traits.get('skills', []))
+                st.session_state.game_stage += 1
+                st.rerun()
+
+    # Handle single-select stages (work style and education)
+    else:
+        for option, traits in current_stage['options']:
+            if st.button(option, key=f"option_{option}"):
+                if 'work_style' in traits:
+                    st.session_state.game_responses['work_style'] = traits['work_style']
+                if 'education_level' in traits:
+                    st.session_state.game_responses['education_level'] = traits['education_level']
+                st.session_state.game_stage += 1
+                st.rerun()
+
+    # Show progress
+    progress = st.session_state.game_stage / len(stages)
+    st.progress(progress)
+
 
 if __name__ == "__main__":
     load_career_suggestions_page()
