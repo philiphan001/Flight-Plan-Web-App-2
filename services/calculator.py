@@ -3,11 +3,17 @@ from models.financial_models import *
 
 class FinancialCalculator:
     def __init__(self, assets: List[Asset], liabilities: List[Liability],
-                 income: List[Income], expenses: List[Expense]):
+                 income: List[Income], expenses: List[Expense], 
+                 taxes: Optional[List[Tax]] = None):
         self.assets = assets
         self.liabilities = liabilities
         self.income = income
         self.expenses = expenses
+        self.taxes = taxes or [
+            FederalIncomeTax(),
+            PayrollTax(),
+            StateIncomeTax()
+        ]
 
     def calculate_yearly_projection(self, projection_years: int) -> Dict:
         projections = {
