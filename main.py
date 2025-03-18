@@ -128,7 +128,7 @@ def main():
                             st.session_state.previous_projections = None
                             # Enable projections view
                             st.session_state.show_projections = True
-                            st.experimental_rerun()
+                            st.rerun()
                         except Exception as e:
                             st.error(f"Error preparing projections: {str(e)}")
                             st.session_state.show_projections = False
@@ -713,7 +713,7 @@ def main():
                             milestone_details = []
                             for milestone in st.session_state.milestones:
                                 details = {
-                                    'type': milestone.__class__.__name__,
+                                    'type': milestone.__class__name__,
                                     'name': milestone.name,
                                     'year': milestone.trigger_year
                                 }
