@@ -68,6 +68,7 @@ def main():
         occupations = sorted([occ for occ in occupation_df['Occupation'].astype(str).unique().tolist()
                              if occ.lower() != 'nan'])
 
+        # Selection Interface
         if not st.session_state.show_projections:
             # Create two columns for location and occupation selection
             col1, col2 = st.columns(2)
@@ -86,8 +87,8 @@ def main():
                         if matching_locations:
                             st.markdown("#### Select from matches:")
                             for loc in matching_locations:
-                                if st.button(f"📍 {loc}", key=f"loc_{loc}", on_click=update_location,
-                                             args=(loc,)):
+                                if st.button(f"📍 {loc}", key=f"loc_{loc}"):
+                                    update_location(loc)
                                     st.rerun()
 
             with col2:
@@ -104,8 +105,8 @@ def main():
                         if matching_occupations:
                             st.markdown("#### Select from matches:")
                             for occ in matching_occupations:
-                                if st.button(f"💼 {occ}", key=f"occ_{occ}", on_click=update_occupation,
-                                             args=(occ,)):
+                                if st.button(f"💼 {occ}", key=f"occ_{occ}"):
+                                    update_occupation(occ)
                                     st.rerun()
 
             # Show continue button only if both selections are made
@@ -115,22 +116,12 @@ def main():
                 with col1:
                     st.markdown("✅ Location and occupation selected! Ready to view financial projections.")
                 with col2:
-                    # Debug logging
-                    st.write("Debug: Before button click")
-                    st.write(f"show_projections: {st.session_state.show_projections}")
-                    st.write(f"needs_recalculation: {st.session_state.needs_recalculation}")
-
                     if st.button("View Projections ➡️", use_container_width=True, key="view_projections_btn"):
                         st.session_state.show_projections = True
                         st.session_state.needs_recalculation = True
-
-                        # Debug logging
-                        st.write("Debug: After button click")
-                        st.write(f"show_projections: {st.session_state.show_projections}")
-                        st.write(f"needs_recalculation: {st.session_state.needs_recalculation}")
-
                         st.rerun()
 
+        # Projections Interface
         else:
             # Back button
             if st.button("← Back to Selection"):
@@ -711,7 +702,7 @@ def main():
                             for milestone in st.session_state.milestones:
                                 details = {
                                     'type': milestone.__class__.__name__,
-                                    '`name': milestone.name,
+                                    'name': milestone.name,
                                     'year': milestone.trigger_year
                                 }
 
@@ -719,7 +710,7 @@ def main():
                                 if hasattr(milestone, 'wedding_cost'):
                                     details.update({
                                         'wedding_cost': milestone.wedding_cost,
-                                        'spouse_occupation': st.session_state.selected_spouse_occ,
+                                        'spouse_occupation': st.session_state.selected_spouseocc,
                                         'lifestyle_adjustment': milestone.lifestyle_adjustment * 100,
                                         'spouse_savings': milestone.spouse_savings,
                                         'spouse_debt': milestone.spouse_debt
