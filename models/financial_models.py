@@ -303,10 +303,13 @@ class TaxExpense(Expense):
             return max(0, tax)
         return 0
 
-    def calculate_expense(self, year: int) -> float:
+    def calculate_expense(self, year: int, total_income: Optional[float] = None) -> float:
         """Calculate total tax expense for the given year"""
+        # Use total_income if provided, otherwise use annual_income
+        base_income = total_income if total_income is not None else self.annual_income
+        
         # Adjust income for inflation
-        adjusted_income = self.annual_income * (1 + self.inflation_rate) ** (year - self.tax_year)
+        adjusted_income = base_income * (1 + self.inflation_rate) ** (year - self.tax_year)
 
         # Calculate each type of tax with the adjusted income
         federal_tax = self.calculate_federal_income_tax(year, adjusted_income)
