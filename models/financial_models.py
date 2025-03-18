@@ -124,6 +124,8 @@ class Income(ABC):
         self.start_year = start_year
         self.tax_calculator = TaxCalculator()
         self.filing_status = 'single'  # Default to single, can be changed to 'married'
+        # Create associated tax expense
+        self.tax_expense = TaxExpense(f"{name} Taxes", self)
 
     def calculate_income(self, year: int) -> float:
         if year < self.start_year:
@@ -139,6 +141,10 @@ class Income(ABC):
     def set_filing_status(self, status: str):
         """Update filing status (e.g., when getting married)"""
         self.filing_status = status.lower()
+
+    def get_tax_expense(self) -> 'TaxExpense':
+        """Get the associated tax expense object"""
+        return self.tax_expense
 
 class Salary(Income):
     def __init__(self, annual_amount: float, location_adjustment: float = 1.0):
@@ -225,6 +231,8 @@ class Milestone:
 
     def add_income_adjustment(self, income: Income):
         self.income_adjustments.append(income)
+        # Add tax expense for the new income source
+        self.add_recurring_expense(income.get_tax_expense())
 
     def add_asset(self, asset: Asset):
         self.assets.append(asset)
