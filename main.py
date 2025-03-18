@@ -111,9 +111,14 @@ def main():
             # Show continue button only if both selections are made
             if st.session_state.selected_location and st.session_state.selected_occupation:
                 st.markdown("---")
-                if st.button("Continue to Financial Projections ➡️"):
-                    st.session_state.show_projections = True
-                    st.rerun()
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.markdown("✅ Location and occupation selected! Ready to view financial projections.")
+                with col2:
+                    if st.button("View Projections ➡️", use_container_width=True):
+                        st.session_state.show_projections = True
+                        st.session_state.needs_recalculation = True
+                        st.rerun()
 
         else:
             # Back button
