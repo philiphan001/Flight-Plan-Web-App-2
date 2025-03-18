@@ -132,9 +132,14 @@ class Salary(Income):
     def __init__(self, annual_amount: float, location_adjustment: float = 1.0):
         super().__init__("Primary Income", annual_amount)
         self.location_adjustment = location_adjustment
+        self.payroll_tax = None
 
     def calculate_income(self, year: int) -> float:
-        return super().calculate_income(year) * self.location_adjustment
+        adjusted_income = super().calculate_income(year) * self.location_adjustment
+        # Create payroll tax expense if not already created
+        if not self.payroll_tax:
+            self.payroll_tax = PayrollTaxExpense("Primary Income Payroll Tax", adjusted_income)
+        return adjusted_income
 
 class SpouseIncome(Income):
     def __init__(self, annual_amount: float, location_adjustment: float = 1.0,
@@ -147,13 +152,18 @@ class SpouseIncome(Income):
         self.initial_savings = initial_savings
         self.initial_debt = initial_debt
         self.insurance_cost = insurance_cost
+        self.payroll_tax = None
 
     def calculate_income(self, year: int) -> float:
-        # Adjust income based on location and lifestyle factors
+        # Calculate adjusted income as before
         base_income = super().calculate_income(year)
         adjusted_income = base_income * self.location_adjustment * (1 + self.lifestyle_adjustment)
-        # Subtract insurance cost from income
-        return adjusted_income - (self.insurance_cost if year >= self.start_year else 0)
+        final_income = adjusted_income - (self.insurance_cost if year >= self.start_year else 0)
+
+        # Create payroll tax expense if not already created and if there is income
+        if not self.payroll_tax and final_income > 0:
+            self.payroll_tax = PayrollTaxExpense("Spouse Income Payroll Tax", final_income)
+        return final_income
 
 
 class Expense(ABC):
@@ -176,6 +186,26 @@ class VariableExpense(Expense):
     def calculate_expense(self, year: int) -> float:
         base_expense = super().calculate_expense(year)
         return base_expense * (1 + self.volatility)
+
+class PayrollTaxExpense(FixedExpense):
+    """Handles payroll tax calculations for wage income"""
+    def __init__(self, name: str, annual_wage: float):
+        super().__init__(name, 0)  # Initialize with 0, we'll calculate the actual amount
+        self.annual_wage = annual_wage
+        self.ss_rate = 0.062  # Social Security tax rate
+        self.medicare_rate = 0.0145  # Medicare tax rate
+        self.ss_wage_base = 160200  # 2024 Social Security wage base limit
+
+    def calculate_expense(self, year: int) -> float:
+        # Calculate Social Security tax (subject to wage base limit)
+        ss_taxable_wage = min(self.annual_wage, self.ss_wage_base)
+        ss_tax = ss_taxable_wage * self.ss_rate
+
+        # Calculate Medicare tax (no wage base limit)
+        medicare_tax = self.annual_wage * self.medicare_rate
+
+        # Return total payroll tax
+        return ss_tax + medicare_tax
 
 class Milestone:
     def __init__(self, name: str, trigger_year: int, category: str):
