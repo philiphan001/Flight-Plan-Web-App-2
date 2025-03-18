@@ -148,155 +148,114 @@ def load_career_suggestions_page():
         st.session_state.occupation_selected = False
     if 'financial_data' not in st.session_state:
         st.session_state.financial_data = None
+    if 'saved_career_suggestions' not in st.session_state:
+        st.session_state.saved_career_suggestions = []
 
-    # Load location and occupation data
-    try:
-        coli_df = DataProcessor.load_coli_data("COLI by Location.csv")
-        occupation_df = DataProcessor.load_occupation_data("Occupational Data.csv")
 
-        # Location selection
-        location = st.selectbox(
-            "Select your preferred location",
-            options=coli_df['Cost of Living'].unique(),
-            key='location'
-        )
+    # Only show location/occupation selection if not showing suggestions
+    if not st.session_state.show_suggestions:
+        try:
+            coli_df = DataProcessor.load_coli_data("COLI by Location.csv")
+            occupation_df = DataProcessor.load_occupation_data("Occupational Data.csv")
 
-        # Occupation selection
-        occupation = st.selectbox(
-            "Select your occupation",
-            options=occupation_df['Occupation'].unique(),
-            key='occupation'
-        )
-
-        if location and occupation:
-            st.session_state.location_selected = True
-            st.session_state.occupation_selected = True
-
-            # Process location and occupation data
-            financial_data = DataProcessor.process_location_data(
-                coli_df=coli_df,
-                occupation_df=occupation_df,
-                location=location,
-                occupation=occupation,
-                investment_return_rate=0.07  # Default investment return rate
+            # Location selection
+            location = st.selectbox(
+                "Select your preferred location",
+                options=coli_df['Cost of Living'].unique(),
+                key='location'
             )
 
-            st.session_state.financial_data = financial_data
-
-            # Show financial summary
-            st.subheader("Financial Summary")
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.write(f"📍 Location: {location}")
-                st.write(f"💼 Occupation: {occupation}")
-                st.write(f"💰 Base Annual Income: ${financial_data['base_income']:,.2f}")
-
-            with col2:
-                st.write(f"🏠 Average Home Price: ${financial_data['home_price']:,.2f}")
-                st.write(f"📊 Cost of Living Index: {financial_data['location_adjustment']:.2f}")
-                st.write(f"💵 Monthly Expenses: ${financial_data['monthly_expense']:,.2f}")
-
-            # Show tax information
-            st.subheader("Tax Summary")
-            tax_data = financial_data['initial_tax_burden']
-            col3, col4 = st.columns(2)
-
-            with col3:
-                st.write(f"Federal Tax: ${tax_data['federal']:,.2f}")
-                st.write(f"State Tax: ${tax_data['state']:,.2f}")
-                st.write(f"FICA Tax: ${tax_data['fica']:,.2f}")
-
-            with col4:
-                st.write(f"Total Tax: ${tax_data['total']:,.2f}")
-                st.write(f"Effective Tax Rate: {tax_data['effective_rate']*100:.1f}%")
-                st.write(f"Net Annual Income: ${financial_data['base_income'] - tax_data['total']:,.2f}")
-
-            # Continue button
-            if st.button("Continue to Financial Projections", key="continue_button"):
-                st.session_state.show_suggestions = True
-                st.rerun()
-
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return
-
-    # Show appropriate interface based on mode and state
-    if st.session_state.exploration_mode == 'traditional' and not st.session_state.show_suggestions:
-        with st.form("career_input_form"):
-            st.subheader("Tell us about yourself")
-
-            interests = st.multiselect(
-                "What are your interests?",
-                options=[
-                    "Technology", "Science", "Arts", "Business",
-                    "Healthcare", "Education", "Engineering",
-                    "Environment", "Social Impact", "Finance"
-                ],
-                max_selections=5
+            # Occupation selection
+            occupation = st.selectbox(
+                "Select your occupation",
+                options=occupation_df['Occupation'].unique(),
+                key='occupation'
             )
 
-            skills = st.multiselect(
-                "What are your current skills?",
-                options=[
-                    "Programming", "Data Analysis", "Design",
-                    "Communication", "Leadership", "Problem Solving",
-                    "Project Management", "Research", "Writing",
-                    "Marketing", "Sales", "Customer Service"
-                ],
-                max_selections=5
-            )
+            if location and occupation:
+                st.session_state.location_selected = True
+                st.session_state.occupation_selected = True
 
-            education_level = st.selectbox(
-                "What is your education level?",
-                options=[
-                    "High School",
-                    "Some College",
-                    "Associate's Degree",
-                    "Bachelor's Degree",
-                    "Master's Degree",
-                    "Doctorate"
-                ]
-            )
-
-            work_style = st.selectbox(
-                "What is your preferred work style?",
-                options=[
-                    "Remote",
-                    "Hybrid",
-                    "Office-based",
-                    "Field work",
-                    "Flexible"
-                ]
-            )
-
-            col1, col2 = st.columns(2)
-            with col1:
-                preferred_industry = st.text_input(
-                    "Preferred industry (optional)",
-                    placeholder="e.g., Technology, Healthcare"
-                )
-            with col2:
-                salary_expectation = st.text_input(
-                    "Expected salary range (optional)",
-                    placeholder="e.g., $60,000 - $80,000"
+                # Process location and occupation data
+                financial_data = DataProcessor.process_location_data(
+                    coli_df=coli_df,
+                    occupation_df=occupation_df,
+                    location=location,
+                    occupation=occupation,
+                    investment_return_rate=0.07  # Default investment return rate
                 )
 
-            submitted = st.form_submit_button("Generate Career Suggestions")
+                st.session_state.financial_data = financial_data
 
-            if submitted:
-                st.session_state.show_suggestions = True
-                st.session_state.form_data = {
-                    'interests': interests,
-                    'skills': skills,
-                    'education_level': education_level,
-                    'work_style': work_style,
-                    'preferred_industry': preferred_industry,
-                    'salary_expectation': salary_expectation
+                # Show financial summary
+                st.subheader("Financial Summary")
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.write(f"📍 Location: {location}")
+                    st.write(f"💼 Occupation: {occupation}")
+                    st.write(f"💰 Base Annual Income: ${financial_data['base_income']:,.2f}")
+
+                with col2:
+                    st.write(f"🏠 Average Home Price: ${financial_data['home_price']:,.2f}")
+                    st.write(f"📊 Cost of Living Index: {financial_data['location_adjustment']:.2f}")
+                    st.write(f"💵 Monthly Expenses: ${financial_data['monthly_expense']:,.2f}")
+
+                # Show tax information
+                st.subheader("Tax Summary")
+                tax_data = financial_data['initial_tax_burden']
+                col3, col4 = st.columns(2)
+
+                with col3:
+                    st.write(f"Federal Tax: ${tax_data['federal']:,.2f}")
+                    st.write(f"State Tax: ${tax_data['state']:,.2f}")
+                    st.write(f"FICA Tax: ${tax_data['fica']:,.2f}")
+
+                with col4:
+                    st.write(f"Total Tax: ${tax_data['total']:,.2f}")
+                    st.write(f"Effective Tax Rate: {tax_data['effective_rate']*100:.1f}%")
+                    st.write(f"Net Annual Income: ${financial_data['base_income'] - tax_data['total']:,.2f}")
+
+                # Continue button - modified to be more prominent
+                st.markdown("---")
+                if st.button("Continue to Career Exploration ➡️", 
+                           key="continue_button",
+                           use_container_width=True,
+                           type="primary"):  # Make button more prominent
+                    st.session_state.show_suggestions = True
+                    st.experimental_rerun()  # Force a rerun to update the UI
+
+        except Exception as e:
+            st.error(f"Error loading data: {str(e)}")
+            return
+
+    # If show_suggestions is True, show the career exploration interface
+    elif st.session_state.show_suggestions:
+        st.write("Choose how you'd like to explore career paths:")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("📝 Traditional Form", 
+                        use_container_width=True,
+                        help="Fill out a form with your interests and preferences"):
+                st.session_state.exploration_mode = 'traditional'
+                st.session_state.hide_game = False
+                st.experimental_rerun()
+
+        with col2:
+            if st.button("🎮 Play Discovery Game", 
+                        use_container_width=True,
+                        help="Discover your career interests through interactive scenarios"):
+                st.session_state.exploration_mode = 'game'
+                st.session_state.game_stage = 0
+                st.session_state.game_responses = {
+                    'interests': [],
+                    'skills': [],
+                    'work_style': None,
+                    'education_level': None
                 }
-
-    elif st.session_state.exploration_mode == 'game' and not st.session_state.hide_game:
-        load_career_game()
+                st.session_state.hide_game = False
+                st.experimental_rerun()
 
     # Generate career suggestions if needed
     if st.session_state.show_suggestions:
