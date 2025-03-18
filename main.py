@@ -115,17 +115,28 @@ def main():
                 with col1:
                     st.markdown("✅ Location and occupation selected! Ready to view financial projections.")
                 with col2:
+                    # Debug logging
+                    st.write("Debug: Before button click")
+                    st.write(f"show_projections: {st.session_state.show_projections}")
+                    st.write(f"needs_recalculation: {st.session_state.needs_recalculation}")
+
                     if st.button("View Projections ➡️", use_container_width=True, key="view_projections_btn"):
                         st.session_state.show_projections = True
                         st.session_state.needs_recalculation = True
-                        st.experimental_rerun()
+
+                        # Debug logging
+                        st.write("Debug: After button click")
+                        st.write(f"show_projections: {st.session_state.show_projections}")
+                        st.write(f"needs_recalculation: {st.session_state.needs_recalculation}")
+
+                        st.rerun()
 
         else:
             # Back button
             if st.button("← Back to Selection"):
                 st.session_state.show_projections = False
                 st.session_state.needs_recalculation = True
-                st.experimental_rerun()
+                st.rerun()
 
             # Add location and occupation editing in sidebar
             st.sidebar.markdown("## Current Selections 📍")
@@ -700,7 +711,7 @@ def main():
                             for milestone in st.session_state.milestones:
                                 details = {
                                     'type': milestone.__class__.__name__,
-                                    'name': milestone.name,
+                                    '`name': milestone.name,
                                     'year': milestone.trigger_year
                                 }
 
