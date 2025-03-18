@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 from models.financial_models import *
 
 class FinancialCalculator:
@@ -28,7 +28,8 @@ class FinancialCalculator:
             'asset_breakdown': {},
             'liability_values': [],
             'liability_breakdown': {},
-            'investment_growth': []
+            'investment_growth': [],
+            'tax_expenses': []  # Added tax expenses tracking
         }
 
         # Initialize income streams
@@ -46,6 +47,9 @@ class FinancialCalculator:
             if category not in expense_categories:
                 expense_categories[category] = [0] * projection_years
 
+        # Add tax category
+        expense_categories['Taxes'] = [0] * projection_years
+
         # Initialize asset and liability breakdowns
         asset_breakdown = {}
         liability_breakdown = {}
@@ -53,37 +57,43 @@ class FinancialCalculator:
         cumulative_savings = 0
         for year in range(projection_years):
             # Calculate income streams for each income source
+            total_income = 0
             for inc in self.income:
                 income_amount = int(round(inc.calculate_income(year)))
                 income_streams[inc.name].append(income_amount)
+                total_income += income_amount
 
-            # Calculate total income
-            total_income = int(round(sum(inc.calculate_income(year) for inc in self.income)))
             projections['total_income'].append(total_income)
             projections['income_streams'] = income_streams
 
-            # Calculate expenses by category
-            total_expenses = 0
+            # Calculate tax expenses
+            total_tax = 0
+            for tax in self.taxes:
+                tax_amount = int(round(tax.calculate_tax(year, total_income)))
+                total_tax += tax_amount
+
+            # Add tax to expense categories
+            expense_categories['Taxes'][year] = total_tax
+
+            # Calculate regular expenses
+            total_regular_expenses = 0
             for expense in self.expenses:
                 category = expense.name
                 if "One-time Cost" in category:
                     milestone_name = category.replace(" One-time Cost", "")
                     category = f"One-time: {milestone_name}"
 
-                # Handle pre-projection expenses for education
-                if "Education:" in category and year == 0:
-                    # For pre-projection education expenses, add them to initial liabilities
-                    # but don't include in yearly expenses
-                    continue
-
                 expense_amount = int(round(expense.calculate_expense(year)))
                 expense_categories[category][year] = expense_amount
-                total_expenses += expense_amount
+                total_regular_expenses += expense_amount
 
+            # Total expenses including taxes
+            total_expenses = total_regular_expenses + total_tax
             projections['total_expenses'].append(total_expenses)
             projections['expense_categories'] = expense_categories
+            projections['tax_expenses'].append(total_tax)
 
-            # Calculate cash flow
+            # Calculate cash flow (after taxes)
             cash_flow = int(round(total_income - total_expenses))
             projections['cash_flow'].append(cash_flow)
 
@@ -120,7 +130,6 @@ class FinancialCalculator:
             # Calculate liability values
             total_liability_value = 0
             for liability in self.liabilities:
-                # For education liabilities marked as pre-projection, start them at year 0
                 liability_value = int(round(liability.get_balance(year)))
                 liability_type = liability.__class__.__name__
                 liability_key = f"{liability_type}: {liability.name}"
