@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 from datetime import date
-from models.tax_calculator import TaxCalculator
 
 class Asset(ABC):
     def __init__(self, name: str, initial_value: float):
@@ -117,80 +116,45 @@ class StudentLoan(Loan):
         super().__init__("Student Loan", principal, interest_rate, term_years)
 
 class Income(ABC):
-    def __init__(self, name: str, annual_amount: float, growth_rate: float = 0.03, 
-                 start_year: int = 0, location: str = "San Francisco, CA"):
+    def __init__(self, name: str, annual_amount: float, growth_rate: float = 0.03, start_year: int = 0):
         self.name = name
         self.annual_amount = annual_amount
         self.growth_rate = growth_rate
         self.start_year = start_year
-        self.location = location
-        self.tax_calculator = TaxCalculator()
-        self.is_married = False  # Will be updated when marriage milestone occurs
 
     def calculate_income(self, year: int) -> float:
-        """Calculate gross income for the year"""
         if year < self.start_year:
             return 0
         adjusted_year = year - self.start_year
         return self.annual_amount * (1 + self.growth_rate) ** adjusted_year
 
-    def calculate_net_income(self, year: int) -> Dict[str, float]:
-        """Calculate net income after taxes"""
-        gross_income = self.calculate_income(year)
-        if gross_income == 0:
-            return {
-                'gross_income': 0,
-                'federal_tax': 0,
-                'state_tax': 0,
-                'social_security': 0,
-                'medicare': 0,
-                'total_tax': 0,
-                'net_income': 0
-            }
-
-        # Calculate taxes using tax calculator
-        tax_breakdown = self.tax_calculator.calculate_total_tax(
-            income=gross_income,
-            location=self.location,
-            is_married=self.is_married
-        )
-
-        return {
-            'gross_income': gross_income,
-            'federal_tax': tax_breakdown['federal_tax'],
-            'state_tax': tax_breakdown['state_tax'],
-            'social_security': tax_breakdown['social_security'],
-            'medicare': tax_breakdown['medicare'],
-            'total_tax': tax_breakdown['total_tax'],
-            'net_income': gross_income - tax_breakdown['total_tax']
-        }
-
 class Salary(Income):
-    def __init__(self, annual_amount: float, location: str = "San Francisco, CA", 
-                 location_adjustment: float = 1.0):
-        super().__init__("Primary Income", annual_amount, location=location)
+    def __init__(self, annual_amount: float, location_adjustment: float = 1.0):
+        super().__init__("Primary Income", annual_amount)
         self.location_adjustment = location_adjustment
 
     def calculate_income(self, year: int) -> float:
         return super().calculate_income(year) * self.location_adjustment
 
 class SpouseIncome(Income):
-    def __init__(self, annual_amount: float, location: str = "San Francisco, CA",
-                 location_adjustment: float = 1.0, lifestyle_adjustment: float = 0.0,
-                 initial_savings: float = 0, initial_debt: float = 0,
-                 insurance_cost: float = 0, start_year: int = 0):
-        super().__init__("Spouse Income", annual_amount, start_year=start_year, location=location)
+    def __init__(self, annual_amount: float, location_adjustment: float = 1.0,
+                 lifestyle_adjustment: float = 0.0, initial_savings: float = 0,
+                 initial_debt: float = 0, insurance_cost: float = 0,
+                 start_year: int = 0):
+        super().__init__("Spouse Income", annual_amount, start_year=start_year)
         self.location_adjustment = location_adjustment
         self.lifestyle_adjustment = lifestyle_adjustment
         self.initial_savings = initial_savings
         self.initial_debt = initial_debt
         self.insurance_cost = insurance_cost
-        self.is_married = True  # Spouse income is always part of married filing
 
     def calculate_income(self, year: int) -> float:
+        # Adjust income based on location and lifestyle factors
         base_income = super().calculate_income(year)
         adjusted_income = base_income * self.location_adjustment * (1 + self.lifestyle_adjustment)
+        # Subtract insurance cost from income
         return adjusted_income - (self.insurance_cost if year >= self.start_year else 0)
+
 
 class Expense(ABC):
     def __init__(self, name: str, annual_amount: float, inflation_rate: float = 0.02):
@@ -212,14 +176,6 @@ class VariableExpense(Expense):
     def calculate_expense(self, year: int) -> float:
         base_expense = super().calculate_expense(year)
         return base_expense * (1 + self.volatility)
-
-class TaxExpense(Expense):
-    def __init__(self, name: str, tax_type: str, amount: float):
-        super().__init__(f"{tax_type} Tax", amount, inflation_rate=0)
-        self.tax_type = tax_type
-
-    def calculate_expense(self, year: int) -> float:
-        return self.annual_amount  # Tax amounts are calculated dynamically
 
 class Milestone:
     def __init__(self, name: str, trigger_year: int, category: str):
@@ -275,13 +231,11 @@ class MilestoneFactory:
         if initial_debt > 0:
             milestone.add_liability(Loan("Spouse Debt", initial_debt, 0.06, 10))  # Assuming 6% interest, 10-year term
 
-        # Add spouse income and update marital status
+        # Add spouse income
         if spouse_income:
             if isinstance(spouse_income, SpouseIncome):
                 spouse_income.start_year = trigger_year
             milestone.add_income_adjustment(spouse_income)
-            for income in milestone.income_adjustments:
-                income.is_married = True
 
         return milestone
 

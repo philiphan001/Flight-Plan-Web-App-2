@@ -1,6 +1,5 @@
 from typing import List, Dict
 from models.financial_models import *
-from models.tax_calculator import TaxCalculator
 
 class FinancialCalculator:
     def __init__(self, assets: List[Asset], liabilities: List[Liability],
@@ -9,7 +8,6 @@ class FinancialCalculator:
         self.liabilities = liabilities
         self.income = income
         self.expenses = expenses
-        self.tax_calculator = TaxCalculator()
 
     def calculate_yearly_projection(self, projection_years: int) -> Dict:
         projections = {
@@ -20,13 +18,6 @@ class FinancialCalculator:
             'income_streams': {},
             'total_expenses': [],
             'expense_categories': {},
-            'tax_breakdown': {
-                'federal_tax': [],
-                'state_tax': [],
-                'social_security': [],
-                'medicare': [],
-                'total_tax': []
-            },
             'asset_values': [],
             'asset_breakdown': {},
             'liability_values': [],
@@ -55,64 +46,38 @@ class FinancialCalculator:
 
         cumulative_savings = 0
         for year in range(projection_years):
-            # Calculate income and taxes for each income source
-            total_income = 0
-            year_federal_tax = 0
-            year_state_tax = 0
-            year_social_security = 0
-            year_medicare = 0
-            year_total_tax = 0
-
+            # Calculate income streams for each income source
             for inc in self.income:
-                income_details = inc.calculate_net_income(year)
-                income_amount = income_details['gross_income']
+                income_amount = int(round(inc.calculate_income(year)))
                 income_streams[inc.name].append(income_amount)
-                total_income += income_amount
 
-                # Accumulate tax totals
-                year_federal_tax += income_details['federal_tax']
-                year_state_tax += income_details['state_tax']
-                year_social_security += income_details['social_security']
-                year_medicare += income_details['medicare']
-                year_total_tax += income_details['total_tax']
-
-            # Update income and tax projections
+            # Calculate total income
+            total_income = int(round(sum(inc.calculate_income(year) for inc in self.income)))
             projections['total_income'].append(total_income)
             projections['income_streams'] = income_streams
-            projections['tax_breakdown']['federal_tax'].append(year_federal_tax)
-            projections['tax_breakdown']['state_tax'].append(year_state_tax)
-            projections['tax_breakdown']['social_security'].append(year_social_security)
-            projections['tax_breakdown']['medicare'].append(year_medicare)
-            projections['tax_breakdown']['total_tax'].append(year_total_tax)
 
-            # Add tax expenses to expense categories
-            expense_categories['Federal Income Tax'] = projections['tax_breakdown']['federal_tax']
-            expense_categories['State Income Tax'] = projections['tax_breakdown']['state_tax']
-            expense_categories['Social Security Tax'] = projections['tax_breakdown']['social_security']
-            expense_categories['Medicare Tax'] = projections['tax_breakdown']['medicare']
-
-
-            # Calculate other expenses
-            total_expenses = year_total_tax  # Start with tax expenses
+            # Calculate expenses by category
+            total_expenses = 0
             for expense in self.expenses:
-                if not isinstance(expense, TaxExpense):  # Skip tax expenses as they're handled above
-                    category = expense.name
-                    if "One-time Cost" in category:
-                        milestone_name = category.replace(" One-time Cost", "")
-                        category = f"One-time: {milestone_name}"
+                category = expense.name
+                if "One-time Cost" in category:
+                    milestone_name = category.replace(" One-time Cost", "")
+                    category = f"One-time: {milestone_name}"
 
-                    # Handle pre-projection expenses for education
-                    if "Education:" in category and year == 0:
-                        continue
+                # Handle pre-projection expenses for education
+                if "Education:" in category and year == 0:
+                    # For pre-projection education expenses, add them to initial liabilities
+                    # but don't include in yearly expenses
+                    continue
 
-                    expense_amount = int(round(expense.calculate_expense(year)))
-                    expense_categories[category][year] = expense_amount
-                    total_expenses += expense_amount
+                expense_amount = int(round(expense.calculate_expense(year)))
+                expense_categories[category][year] = expense_amount
+                total_expenses += expense_amount
 
             projections['total_expenses'].append(total_expenses)
             projections['expense_categories'] = expense_categories
 
-            # Calculate cash flow (after-tax)
+            # Calculate cash flow
             cash_flow = int(round(total_income - total_expenses))
             projections['cash_flow'].append(cash_flow)
 

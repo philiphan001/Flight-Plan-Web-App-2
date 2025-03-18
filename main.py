@@ -68,7 +68,6 @@ def main():
         occupations = sorted([occ for occ in occupation_df['Occupation'].astype(str).unique().tolist()
                              if occ.lower() != 'nan'])
 
-        # Selection Interface
         if not st.session_state.show_projections:
             # Create two columns for location and occupation selection
             col1, col2 = st.columns(2)
@@ -87,8 +86,8 @@ def main():
                         if matching_locations:
                             st.markdown("#### Select from matches:")
                             for loc in matching_locations:
-                                if st.button(f"📍 {loc}", key=f"loc_{loc}"):
-                                    update_location(loc)
+                                if st.button(f"📍 {loc}", key=f"loc_{loc}", on_click=update_location,
+                                             args=(loc,)):
                                     st.rerun()
 
             with col2:
@@ -105,23 +104,17 @@ def main():
                         if matching_occupations:
                             st.markdown("#### Select from matches:")
                             for occ in matching_occupations:
-                                if st.button(f"💼 {occ}", key=f"occ_{occ}"):
-                                    update_occupation(occ)
+                                if st.button(f"💼 {occ}", key=f"occ_{occ}", on_click=update_occupation,
+                                             args=(occ,)):
                                     st.rerun()
 
             # Show continue button only if both selections are made
             if st.session_state.selected_location and st.session_state.selected_occupation:
                 st.markdown("---")
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.markdown("✅ Location and occupation selected! Ready to view financial projections.")
-                with col2:
-                    if st.button("View Projections ➡️", use_container_width=True, key="view_projections_btn"):
-                        st.session_state.show_projections = True
-                        st.session_state.needs_recalculation = True
-                        st.rerun()
+                if st.button("Continue to Financial Projections ➡️"):
+                    st.session_state.show_projections = True
+                    st.rerun()
 
-        # Projections Interface
         else:
             # Back button
             if st.button("← Back to Selection"):
@@ -710,19 +703,19 @@ def main():
                                 if hasattr(milestone, 'wedding_cost'):
                                     details.update({
                                         'wedding_cost': milestone.wedding_cost,
-                                        'spouse_occupation': st.session_state.selected_spouseocc,
+                                        'spouse_occupation': st.session_state.selected_spouse_occ,
                                         'lifestyle_adjustment': milestone.lifestyle_adjustment * 100,
                                         'spouse_savings': milestone.spouse_savings,
                                         'spouse_debt': milestone.spouse_debt
                                     })
                                 elif hasattr(milestone, 'homeprice'):
-                                    details.update({
-                                        'home_price': milestone.home_price,
-                                        'down_payment': milestone.down_payment_percentage * 100,
-                                        'monthly_utilities': milestone.monthly_utilities,
-                                        'monthly_hoa': milestone.monthly_hoa,
-                                        'annual_renovation': milestone.annual_renovation
-                                    })
+                                        details.update({
+                                            'home_price': milestone.home_price,
+                                            'down_payment': milestone.down_payment_percentage * 100,
+                                            'monthly_utilities': milestone.monthly_utilities,
+                                            'monthly_hoa': milestone.monthly_hoa,
+                                            'annual_renovation': milestone.annual_renovation
+                                        })
                                 elif hasattr(milestone, 'car_price'):
                                     details.update({
                                         'car_price': milestone.car_price,
