@@ -29,7 +29,12 @@ class FinancialCalculator:
             'liability_values': [],
             'liability_breakdown': {},
             'investment_growth': [],
-            'tax_expenses': []  # Added tax expenses tracking
+            'tax_expenses': [],  # Total tax expenses
+            'tax_breakdown': {   # Detailed tax breakdown
+                'federal_income_tax': [],
+                'state_income_tax': [],
+                'payroll_tax': []
+            }
         }
 
         # Initialize income streams
@@ -47,8 +52,10 @@ class FinancialCalculator:
             if category not in expense_categories:
                 expense_categories[category] = [0] * projection_years
 
-        # Add tax category
-        expense_categories['Taxes'] = [0] * projection_years
+        # Add tax categories
+        expense_categories['Federal Income Tax'] = [0] * projection_years
+        expense_categories['State Income Tax'] = [0] * projection_years
+        expense_categories['Payroll Tax'] = [0] * projection_years
 
         # Initialize asset and liability breakdowns
         asset_breakdown = {}
@@ -66,14 +73,30 @@ class FinancialCalculator:
             projections['total_income'].append(total_income)
             projections['income_streams'] = income_streams
 
-            # Calculate tax expenses
-            total_tax = 0
+            # Calculate tax expenses by type
+            federal_tax = 0
+            state_tax = 0
+            payroll_tax = 0
+
             for tax in self.taxes:
                 tax_amount = int(round(tax.calculate_tax(year, total_income)))
-                total_tax += tax_amount
+                if isinstance(tax, FederalIncomeTax):
+                    federal_tax = tax_amount
+                    expense_categories['Federal Income Tax'][year] = federal_tax
+                elif isinstance(tax, StateIncomeTax):
+                    state_tax = tax_amount
+                    expense_categories['State Income Tax'][year] = state_tax
+                elif isinstance(tax, PayrollTax):
+                    payroll_tax = tax_amount
+                    expense_categories['Payroll Tax'][year] = payroll_tax
 
-            # Add tax to expense categories
-            expense_categories['Taxes'][year] = total_tax
+            # Update tax breakdown
+            projections['tax_breakdown']['federal_income_tax'].append(federal_tax)
+            projections['tax_breakdown']['state_income_tax'].append(state_tax)
+            projections['tax_breakdown']['payroll_tax'].append(payroll_tax)
+
+            total_tax = federal_tax + state_tax + payroll_tax
+            projections['tax_expenses'].append(total_tax)
 
             # Calculate regular expenses
             total_regular_expenses = 0
@@ -91,7 +114,6 @@ class FinancialCalculator:
             total_expenses = total_regular_expenses + total_tax
             projections['total_expenses'].append(total_expenses)
             projections['expense_categories'] = expense_categories
-            projections['tax_expenses'].append(total_tax)
 
             # Calculate cash flow (after taxes)
             cash_flow = int(round(total_income - total_expenses))
