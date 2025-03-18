@@ -7,7 +7,7 @@ def load_career_game():
     """Interactive game-based career exploration"""
     st.subheader("🎮 Career Discovery Game")
 
-    # Initialize game state
+    # Initialize game state if not already present
     if 'game_stage' not in st.session_state:
         st.session_state.game_stage = 0
         st.session_state.game_responses = {
@@ -17,7 +17,7 @@ def load_career_game():
             'education_level': None
         }
 
-    # Game stages
+    # Game stages definition
     stages = [
         {
             'name': 'Desert Island',
@@ -52,14 +52,14 @@ def load_career_game():
             ]
         },
         {
-            'name': 'Work Environment',
+            'name': 'Work Style',
             'question': 'How would you prefer to structure your workday?',
             'options': [
-                ('Fixed schedule, clear tasks', {'work_style': 'Office-based'}),
-                ('Flexible hours, remote work', {'work_style': 'Remote'}),
-                ('Mix of office and remote', {'work_style': 'Hybrid'}),
-                ('Different locations daily', {'work_style': 'Field work'}),
-                ('Project-based scheduling', {'work_style': 'Flexible'})
+                ('Fixed schedule with clear tasks', {'work_style': 'Office-based'}),
+                ('Flexible hours working remotely', {'work_style': 'Remote'}),
+                ('Mix of office and remote work', {'work_style': 'Hybrid'}),
+                ('Different locations each day', {'work_style': 'Field work'}),
+                ('Project-based flexible schedule', {'work_style': 'Flexible'})
             ]
         },
         {
@@ -79,6 +79,10 @@ def load_career_game():
     if st.session_state.game_stage >= len(stages):
         st.success("🎉 Game Complete! Let's see your career matches!")
 
+        # Clean up and deduplicate responses
+        st.session_state.game_responses['interests'] = list(set(st.session_state.game_responses['interests']))
+        st.session_state.game_responses['skills'] = list(set(st.session_state.game_responses['skills']))
+
         if st.button("View Career Suggestions"):
             st.session_state.show_suggestions = True
             st.session_state.hide_game = True
@@ -88,12 +92,12 @@ def load_career_game():
     # Get current stage
     current_stage = stages[st.session_state.game_stage]
 
-    # Display current game stage
+    # Display current stage
     st.markdown(f"### 🎯 {current_stage['name']}")
     st.write(current_stage['question'])
 
-    # Handle options based on stage type
-    if st.session_state.game_stage < 2:  # Multi-select stages
+    # Handle multi-select stages (first two stages)
+    if st.session_state.game_stage < 2:
         selected_options = st.multiselect(
             "Choose up to three options:",
             options=[opt[0] for opt in current_stage['options']],
@@ -101,19 +105,17 @@ def load_career_game():
         )
 
         if selected_options:
-            # Map selections to interests and skills
-            for selection in selected_options:
-                traits = next(opt[1] for opt in current_stage['options'] if opt[0] == selection)
-                if 'interests' in traits:
-                    st.session_state.game_responses['interests'].extend(traits['interests'])
-                if 'skills' in traits:
-                    st.session_state.game_responses['skills'].extend(traits['skills'])
-
             if st.button("Next ➡️"):
+                # Process selections
+                for selection in selected_options:
+                    traits = next(opt[1] for opt in current_stage['options'] if opt[0] == selection)
+                    st.session_state.game_responses['interests'].extend(traits.get('interests', []))
+                    st.session_state.game_responses['skills'].extend(traits.get('skills', []))
                 st.session_state.game_stage += 1
                 st.rerun()
 
-    else:  # Single-select stages
+    # Handle single-select stages (work style and education)
+    else:
         for option, traits in current_stage['options']:
             if st.button(option, key=f"option_{option}"):
                 if 'work_style' in traits:
@@ -131,7 +133,7 @@ def load_career_suggestions_page():
     """Main career suggestions page"""
     st.title("AI Career Path Suggestions 🎯")
 
-    # Initialize all session state variables
+    # Initialize session state variables
     if 'show_suggestions' not in st.session_state:
         st.session_state.show_suggestions = False
     if 'exploration_mode' not in st.session_state:
@@ -184,7 +186,6 @@ def load_career_suggestions_page():
 
     # Show appropriate interface based on mode and state
     if st.session_state.exploration_mode == 'traditional' and not st.session_state.show_suggestions:
-        # Traditional form interface
         with st.form("career_input_form"):
             st.subheader("Tell us about yourself")
 
@@ -258,27 +259,27 @@ def load_career_suggestions_page():
                 }
 
     elif st.session_state.exploration_mode == 'game' and not st.session_state.hide_game:
-        # Game interface
         load_career_game()
 
     # Generate career suggestions if needed
     if st.session_state.show_suggestions:
-        # Get data based on mode
         if st.session_state.exploration_mode == 'game':
-            interests = st.session_state.game_responses.get('interests', [])
-            skills = st.session_state.game_responses.get('skills', [])
-            education_level = st.session_state.game_responses.get('education_level')
-            work_style = st.session_state.game_responses.get('work_style')
-            preferred_industry = None  # Game mode doesn't collect this
-            salary_expectation = None  # Game mode doesn't collect this
+            # Get data from game responses
+            interests = list(set(st.session_state.game_responses['interests']))
+            skills = list(set(st.session_state.game_responses['skills']))
+            education_level = st.session_state.game_responses['education_level']
+            work_style = st.session_state.game_responses['work_style']
+            preferred_industry = None
+            salary_expectation = None
         else:
+            # Get data from form
             form_data = st.session_state.form_data
-            interests = form_data.get('interests', [])
-            skills = form_data.get('skills', [])
-            education_level = form_data.get('education_level')
-            work_style = form_data.get('work_style')
-            preferred_industry = form_data.get('preferred_industry')
-            salary_expectation = form_data.get('salary_expectation')
+            interests = form_data['interests']
+            skills = form_data['skills']
+            education_level = form_data['education_level']
+            work_style = form_data['work_style']
+            preferred_industry = form_data['preferred_industry']
+            salary_expectation = form_data['salary_expectation']
 
         # Validate data
         if not interests or not skills:
@@ -311,17 +312,17 @@ def load_career_suggestions_page():
                 plotter = FinancialPlotter()
                 plotter.plot_career_roadmap(career_data)
 
-                # Display primary career path with save option
+                # Display primary career path
                 st.subheader("🎯 Primary Career Path")
                 with st.expander(f"📋 {career_data['primary_path']['title']}", expanded=True):
-                    st.write(career_data['primary_path']['description'])
+                    st.write(f"**Description:** {career_data['primary_path']['description']}")
+
                     st.write("**Career Timeline:**")
                     for milestone in career_data['primary_path']['timeline']:
                         st.write(f"Year {milestone['year']}: {milestone['milestone']}")
                         st.write(f"- Required Skills: {', '.join(milestone['skills_needed'])}")
                         st.write(f"- Estimated Salary: ${milestone['estimated_salary']:,}")
 
-                    # Save button for primary path
                     if st.button("💾 Save to Profile", key="save_primary"):
                         saved_career = {
                             'type': 'primary',
@@ -336,18 +337,18 @@ def load_career_suggestions_page():
                         st.session_state.saved_career_suggestions.append(saved_career)
                         st.success(f"Saved {career_data['primary_path']['title']} to your profile!")
 
-                # Display alternative paths with save options
+                # Display alternative paths
                 st.subheader("🔄 Alternative Career Paths")
                 for idx, alt_path in enumerate(career_data['alternative_paths']):
                     with st.expander(f"📋 {alt_path['title']}", expanded=False):
-                        st.write(alt_path['description'])
+                        st.write(f"**Description:** {alt_path['description']}")
+
                         st.write("**Career Timeline:**")
                         for milestone in alt_path['timeline']:
                             st.write(f"Year {milestone['year']}: {milestone['milestone']}")
                             st.write(f"- Required Skills: {', '.join(milestone['skills_needed'])}")
                             st.write(f"- Estimated Salary: ${milestone['estimated_salary']:,}")
 
-                        # Save button for alternative path
                         if st.button("💾 Save to Profile", key=f"save_alt_{idx}"):
                             saved_career = {
                                 'type': 'alternative',
@@ -362,39 +363,28 @@ def load_career_suggestions_page():
                             st.session_state.saved_career_suggestions.append(saved_career)
                             st.success(f"Saved {alt_path['title']} to your profile!")
 
-                # Get skill recommendations for primary path
+                # Get skill recommendations
+                st.subheader("📚 Recommended Skills Development")
                 primary_path_title = career_data['primary_path']['title']
                 skill_recommendations = career_service.get_skill_recommendations(primary_path_title)
                 skill_data = json.loads(skill_recommendations)
 
-                if "error" not in skill_data:
-                    st.subheader("📚 Recommended Skills Development")
-                    if "technical_skills" in skill_data:
-                        st.write("**Technical Skills to Develop:**")
-                        for skill in skill_data["technical_skills"]:
-                            st.write(f"- {skill}")
+                if "technical_skills" in skill_data:
+                    st.write("**Technical Skills to Develop:**")
+                    for skill in skill_data["technical_skills"]:
+                        st.write(f"- {skill}")
 
-                    if "soft_skills" in skill_data:
-                        st.write("**Soft Skills to Enhance:**")
-                        for skill in skill_data["soft_skills"]:
-                            st.write(f"- {skill}")
+                if "soft_skills" in skill_data:
+                    st.write("**Soft Skills to Enhance:**")
+                    for skill in skill_data["soft_skills"]:
+                        st.write(f"- {skill}")
 
-                    if "certifications" in skill_data:
-                        st.write("**Recommended Certifications:**")
-                        for cert in skill_data["certifications"]:
-                            st.write(f"- {cert}")
+                if "certifications" in skill_data:
+                    st.write("**Recommended Certifications:**")
+                    for cert in skill_data["certifications"]:
+                        st.write(f"- {cert}")
 
-                    if "learning_resources" in skill_data:
-                        st.write("**Learning Resources:**")
-                        for resource in skill_data["learning_resources"]:
-                            with st.expander(f"📚 {resource['name']}"):
-                                st.write(f"Type: {resource['type']}")
-                                if 'url' in resource and resource['url']:
-                                    st.write(f"Link: {resource['url']}")
-                                if 'estimated_duration' in resource:
-                                    st.write(f"Duration: {resource['estimated_duration']}")
-
-                # Add view profile button
+                # Add profile navigation
                 st.markdown("---")
                 if st.button("👤 View Your Profile"):
                     st.switch_page("pages/user_profile.py")
