@@ -222,9 +222,9 @@ class TaxExpense(Expense):
                 (731201, float('inf'), 0.37)
             ]
 
-    def calculate_federal_income_tax(self, year: int) -> float:
+    def calculate_federal_income_tax(self, year: int, income: float) -> float:
         """Calculate federal income tax"""
-        taxable_income = max(0, self.annual_income - self.deductions)
+        taxable_income = max(0, income - self.deductions)
         tax = 0
         brackets = self.calculate_federal_tax_brackets(year)
 
@@ -238,22 +238,22 @@ class TaxExpense(Expense):
 
         return max(0, tax - self.credits)
 
-    def calculate_payroll_tax(self) -> float:
+    def calculate_payroll_tax(self, income: float) -> float:
         """Calculate payroll taxes (Social Security and Medicare)"""
         # Social Security tax (6.2% up to wage base limit)
         ss_wage_base = 168600  # 2024 wage base
-        ss_tax = min(self.annual_income, ss_wage_base) * 0.062
+        ss_tax = min(income, ss_wage_base) * 0.062
 
         # Medicare tax (1.45% + 0.9% for high earners)
-        medicare_base_tax = self.annual_income * 0.0145
+        medicare_base_tax = income * 0.0145
 
         # Additional Medicare tax for high earners
         medicare_threshold = 200000 if self.filing_status == "single" else 250000
-        additional_medicare = max(0, self.annual_income - medicare_threshold) * 0.009
+        additional_medicare = max(0, income - medicare_threshold) * 0.009
 
         return ss_tax + medicare_base_tax + additional_medicare
 
-    def calculate_state_income_tax(self, year: int) -> float:
+    def calculate_state_income_tax(self, year: int, income: float) -> float:
         """Calculate state income tax based on state"""
         # Determine filing status based on marriage milestone
         current_filing_status = "married" if (
@@ -262,7 +262,7 @@ class TaxExpense(Expense):
         ) else "single"
 
         if self.state == "CA":
-            taxable_income = max(0, self.annual_income - self.deductions)
+            taxable_income = max(0, income - self.deductions)
             # CA tax brackets for 2024 (single filer)
             if current_filing_status == "single":
                 ca_brackets = [
@@ -308,18 +308,21 @@ class TaxExpense(Expense):
         # Adjust income for inflation
         adjusted_income = self.annual_income * (1 + self.inflation_rate) ** (year - self.tax_year)
 
-        # Store current income and calculate taxes
-        current_income = self.annual_income
-        self.annual_income = adjusted_income
+        # Calculate each type of tax with the adjusted income
+        federal_tax = self.calculate_federal_income_tax(year, adjusted_income)
+        payroll_tax = self.calculate_payroll_tax(adjusted_income)
+        state_tax = self.calculate_state_income_tax(year, adjusted_income)
 
-        total_tax = (
-            self.calculate_federal_income_tax(year) +
-            self.calculate_payroll_tax() +
-            self.calculate_state_income_tax(year)
-        )
+        # Sum all taxes
+        total_tax = federal_tax + payroll_tax + state_tax
 
-        # Restore original income
-        self.annual_income = current_income
+        print(f"Tax calculation for year {year}:")
+        print(f"Adjusted income: ${adjusted_income:,.2f}")
+        print(f"Federal tax: ${federal_tax:,.2f}")
+        print(f"Payroll tax: ${payroll_tax:,.2f}")
+        print(f"State tax: ${state_tax:,.2f}")
+        print(f"Total tax: ${total_tax:,.2f}")
+
         return total_tax
 
 class Milestone:
