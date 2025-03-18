@@ -178,7 +178,7 @@ class VariableExpense(Expense):
         return base_expense * (1 + self.volatility)
 
 class TaxExpense(Expense):
-    """Simplified tax expense calculator for both payroll and income taxes"""
+    """Tax expense calculator for both payroll and income taxes"""
     def __init__(self, name: str, base_income: float, tax_year: int = 2024):
         super().__init__(name, 0)  # Initialize with 0 as amount will be calculated
         self.base_income = base_income
@@ -194,7 +194,10 @@ class TaxExpense(Expense):
         self._spouse_income = spouse_income
 
     def _calculate_payroll_tax(self, earned_income: float) -> float:
-        """Calculate payroll taxes (Social Security and Medicare)"""
+        """Calculate payroll taxes (Social Security and Medicare) on earned income only"""
+        if earned_income <= 0:
+            return 0.0
+
         # Social Security tax (6.2% up to wage base limit)
         ss_wage_base = 168600  # 2024 wage base
         ss_tax = min(earned_income, ss_wage_base) * 0.062
@@ -202,19 +205,29 @@ class TaxExpense(Expense):
         # Medicare tax (1.45%)
         medicare_tax = earned_income * 0.0145
 
-        return ss_tax + medicare_tax
+        total_payroll_tax = ss_tax + medicare_tax
+        print(f"Payroll tax calculation for earned income ${earned_income:,.2f}:")
+        print(f"- Social Security tax: ${ss_tax:,.2f}")
+        print(f"- Medicare tax: ${medicare_tax:,.2f}")
+        print(f"- Total payroll tax: ${total_payroll_tax:,.2f}")
+
+        return total_payroll_tax
 
     def _calculate_income_tax(self, total_income: float, is_married: bool) -> float:
         """Calculate federal income tax based on filing status"""
+        if total_income <= 0:
+            return 0.0
+
         # Standard deduction for 2024
         standard_deduction = 29200 if is_married else 14600
 
         # Calculate taxable income
         taxable_income = max(0, total_income - standard_deduction)
 
-        print(f"Calculating income tax - Total Income: ${total_income:,.2f}")
-        print(f"Standard Deduction: ${standard_deduction:,.2f}")
-        print(f"Taxable Income: ${taxable_income:,.2f}")
+        print(f"Income tax calculation:")
+        print(f"- Total income: ${total_income:,.2f}")
+        print(f"- Standard deduction: ${standard_deduction:,.2f}")
+        print(f"- Taxable income: ${taxable_income:,.2f}")
 
         # Tax brackets for 2024
         if is_married:
@@ -245,51 +258,59 @@ class TaxExpense(Expense):
                 taxable_amount = min(taxable_income - lower, upper - lower)
                 bracket_tax = taxable_amount * rate
                 tax += bracket_tax
-                print(f"Bracket {rate*100}% ({lower:,.0f} - {upper:,.0f}): ${bracket_tax:,.2f}")
+                print(f"- Bracket {rate*100}% ({lower:,.0f} - {upper:,.0f}): ${bracket_tax:,.2f}")
             if taxable_income <= upper:
                 break
 
+        print(f"- Total income tax: ${tax:,.2f}")
         return tax
 
     def calculate_expense(self, year: int) -> float:
         """Calculate total tax expense for the given year"""
         print(f"\nCalculating taxes for year {year}")
-        print(f"Base Income (before inflation): ${self.base_income:,.2f}")
 
-        # Adjust income for inflation
+        # Adjust base earned income (primary salary) for inflation
         inflation_factor = (1 + self.inflation_rate) ** (year - self.tax_year)
         adjusted_base_income = self.base_income * inflation_factor
-        print(f"Inflation factor: {inflation_factor:.3f}")
-        print(f"Adjusted base income: ${adjusted_base_income:,.2f}")
 
-        # Determine filing status and spouse income
+        print(f"Primary salary (base income):")
+        print(f"- Before inflation: ${self.base_income:,.2f}")
+        print(f"- Inflation factor: {inflation_factor:.3f}")
+        print(f"- After inflation: ${adjusted_base_income:,.2f}")
+
+        # Calculate spouse's earned income if married
         is_married = self._marriage_year is not None and year >= self._marriage_year
         adjusted_spouse_income = 0
         if is_married:
             adjusted_spouse_income = self._spouse_income * inflation_factor
-            print(f"Married filing jointly, spouse income: ${adjusted_spouse_income:,.2f}")
-        else:
-            print("Filing single")
+            print(f"\nSpouse salary:")
+            print(f"- Before inflation: ${self._spouse_income:,.2f}")
+            print(f"- After inflation: ${adjusted_spouse_income:,.2f}")
 
-        # Calculate total earned income
+        # Total earned income (subject to payroll tax)
         total_earned_income = adjusted_base_income + adjusted_spouse_income
-        print(f"Total earned income: ${total_earned_income:,.2f}")
+        print(f"\nTotal earned income: ${total_earned_income:,.2f}")
 
-        # Calculate payroll tax on earned income separately
+        # Calculate payroll tax for primary income
         primary_payroll_tax = self._calculate_payroll_tax(adjusted_base_income)
-        spouse_payroll_tax = self._calculate_payroll_tax(adjusted_spouse_income) if is_married else 0
-        total_payroll_tax = primary_payroll_tax + spouse_payroll_tax
-        print(f"Primary payroll tax: ${primary_payroll_tax:,.2f}")
+
+        # Calculate payroll tax for spouse income if married
+        spouse_payroll_tax = 0
         if is_married:
-            print(f"Spouse payroll tax: ${spouse_payroll_tax:,.2f}")
+            spouse_payroll_tax = self._calculate_payroll_tax(adjusted_spouse_income)
+
+        # Total payroll tax
+        total_payroll_tax = primary_payroll_tax + spouse_payroll_tax
 
         # Calculate income tax on total income
         income_tax = self._calculate_income_tax(total_earned_income, is_married)
-        print(f"Income tax: ${income_tax:,.2f}")
 
         # Total tax
         total_tax = total_payroll_tax + income_tax
-        print(f"Total tax: ${total_tax:,.2f}\n")
+        print(f"\nFinal tax calculation:")
+        print(f"- Total payroll tax: ${total_payroll_tax:,.2f}")
+        print(f"- Total income tax: ${income_tax:,.2f}")
+        print(f"- Total tax: ${total_tax:,.2f}\n")
 
         return total_tax
 

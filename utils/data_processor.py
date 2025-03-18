@@ -80,7 +80,15 @@ class DataProcessor:
         income = []
         expenses = []
 
-        # Find marriage milestone if it exists
+        # Create primary salary income
+        base_salary = Salary(location_data['base_income'], location_data['location_adjustment'])
+        income.append(base_salary)
+
+        # Create Investment asset
+        investment = Investment("Savings", 0, location_data['investment_return_rate'])
+        assets.append(investment)
+
+        # Find marriage milestone and spouse income if exists
         marriage_year = None
         spouse_income = None
         if milestones:
@@ -94,18 +102,10 @@ class DataProcessor:
                             break
                     break
 
-        # Create Income objects
-        base_salary = Salary(location_data['base_income'], location_data['location_adjustment'])
-        income.append(base_salary)
-
-        # Create Investment asset
-        investment = Investment("Savings", 0, location_data['investment_return_rate'])
-        assets.append(investment)
-
-        # Create tax expense with proper marriage milestone handling
+        # Create tax expense with marriage information if applicable
         tax_expense = TaxExpense(
             name="Taxes",
-            base_income=location_data['base_income'],
+            base_income=location_data['base_income'] * location_data['location_adjustment'],  # Use adjusted base income
             tax_year=2024
         )
 
