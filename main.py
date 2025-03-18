@@ -115,17 +115,17 @@ def main():
                 with col1:
                     st.markdown("✅ Location and occupation selected! Ready to view financial projections.")
                 with col2:
-                    if st.button("View Projections ➡️", use_container_width=True):
+                    if st.button("View Projections ➡️", use_container_width=True, key="view_projections_btn"):
                         st.session_state.show_projections = True
                         st.session_state.needs_recalculation = True
-                        st.rerun()
+                        st.experimental_rerun()
 
         else:
             # Back button
             if st.button("← Back to Selection"):
                 st.session_state.show_projections = False
                 st.session_state.needs_recalculation = True
-                st.rerun()
+                st.experimental_rerun()
 
             # Add location and occupation editing in sidebar
             st.sidebar.markdown("## Current Selections 📍")
@@ -714,13 +714,13 @@ def main():
                                         'spouse_debt': milestone.spouse_debt
                                     })
                                 elif hasattr(milestone, 'homeprice'):
-                                        details.update({
-                                            'home_price': milestone.home_price,
-                                            'down_payment': milestone.down_payment_percentage * 100,
-                                            'monthly_utilities': milestone.monthly_utilities,
-                                            'monthly_hoa': milestone.monthly_hoa,
-                                            'annual_renovation': milestone.annual_renovation
-                                        })
+                                    details.update({
+                                        'home_price': milestone.home_price,
+                                        'down_payment': milestone.down_payment_percentage * 100,
+                                        'monthly_utilities': milestone.monthly_utilities,
+                                        'monthly_hoa': milestone.monthly_hoa,
+                                        'annual_renovation': milestone.annual_renovation
+                                    })
                                 elif hasattr(milestone, 'car_price'):
                                     details.update({
                                         'car_price': milestone.car_price,
