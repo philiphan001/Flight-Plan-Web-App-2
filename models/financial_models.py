@@ -414,12 +414,10 @@ class MilestoneFactory:
 
         return milestone
 
-
 class Tax(ABC):
-    def __init__(self, name: str, tax_year: int = 2024, inflation_rate: float = 0.02):
+    def __init__(self, name: str, tax_year: int = 2024):
         self.name = name
         self.tax_year = tax_year
-        self.inflation_rate = inflation_rate
 
     @abstractmethod
     def calculate_tax(self, year: int, income: float) -> float:
@@ -429,7 +427,7 @@ class FederalIncomeTax(Tax):
     def __init__(self, filing_status: str = "single"):
         super().__init__("Federal Income Tax")
         self.filing_status = filing_status
-        
+
     def calculate_tax(self, year: int, income: float) -> float:
         # 2024 tax brackets
         if self.filing_status == "single":
@@ -452,7 +450,7 @@ class FederalIncomeTax(Tax):
                 (487451, 731200, 0.35),
                 (731201, float('inf'), 0.37)
             ]
-        
+
         tax = 0
         for i, (lower, upper, rate) in enumerate(brackets):
             if income > lower:
@@ -466,7 +464,7 @@ class PayrollTax(Tax):
     def __init__(self):
         super().__init__("Payroll Tax")
         self.social_security_cap = 168600  # 2024 cap
-        
+
     def calculate_tax(self, year: int, income: float) -> float:
         ss_tax = min(income, self.social_security_cap) * 0.062  # 6.2% Social Security
         medicare_tax = income * 0.0145  # 1.45% Medicare
@@ -479,7 +477,7 @@ class StateIncomeTax(Tax):
         super().__init__("State Income Tax")
         self.state = state
         self.filing_status = filing_status
-        
+
     def calculate_tax(self, year: int, income: float) -> float:
         # Example using CA tax brackets
         if self.state == "CA":
@@ -494,7 +492,7 @@ class StateIncomeTax(Tax):
                 (406365, 677275, 0.113),
                 (677276, float('inf'), 0.123)
             ]
-            
+
             tax = 0
             for lower, upper, rate in brackets:
                 if income > lower:
