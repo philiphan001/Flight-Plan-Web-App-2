@@ -65,7 +65,8 @@ class DataProcessor:
                 'home_price': float(location_data['Average Price of Starter Home']),
                 'location_adjustment': float(location_data['Income Adjustment Factor']),
                 'base_income': float(occupation_data['Monthly Income']) * 12,  # Convert to annual
-                'investment_return_rate': investment_return_rate
+                'investment_return_rate': investment_return_rate,
+                'location': location  # Add location to the returned data
             }
         except ValueError as e:
             raise ValueError(str(e))
@@ -74,7 +75,7 @@ class DataProcessor:
 
     @staticmethod
     def create_financial_objects(location_data: Dict, 
-                               milestones: Optional[List[Milestone]] = None) -> Tuple[List[Asset], List[Liability], List[Income], List[Expense]]:
+                            milestones: Optional[List[Milestone]] = None) -> Tuple[List[Asset], List[Liability], List[Income], List[Expense]]:
         assets = []
         liabilities = []
         income = []
@@ -112,24 +113,23 @@ class DataProcessor:
 
             def calculate_expense(self, year: int) -> float:
                 # Check if there's an active car in this year
-                # A car remains active from its purchase year onwards until a new car is purchased
                 has_car = False
                 if self.car_purchase_years:
-                    # Sort purchase years to find the most recent purchase before current year
                     relevant_purchases = [y for y in sorted(self.car_purchase_years) if y <= year]
-                    has_car = bool(relevant_purchases)  # True if any purchase year is before or equal to current year
+                    has_car = bool(relevant_purchases)
 
                 base_expense = super().calculate_expense(year)
                 return base_expense * 0.2 if has_car else base_expense
 
         # Add tax expense calculation
         annual_income = location_data['base_income']
+        location_str = location_data['location']  # Get location from the data dictionary
         tax_expense = TaxExpense(
             name="Taxes",
             annual_income=annual_income,
             tax_year=2024,
             filing_status="single",
-            state=location.split(',')[-1].strip() if ',' in location else 'CA'
+            state=location_str.split(',')[-1].strip() if ',' in location_str else 'CA'
         )
         expenses.append(tax_expense)
 
@@ -157,7 +157,7 @@ class DataProcessor:
             # If no home purchase milestone, add regular rent expense
             expenses.append(FixedExpense("Rent", location_data['housing'] * 12))
 
-        # Add milestone-related financial objects
+        # Add milestone-related financial objects if provided
         if milestones:
             for milestone in milestones:
                 # Handle one-time expenses
@@ -170,78 +170,20 @@ class DataProcessor:
                         def calculate_expense(self, year: int) -> float:
                             return self.annual_amount if year == self.trigger_year else 0
 
-                    one_time_exp = OneTimeExpense(
-                        f"{milestone.name} Down Payment",
+                    expenses.append(OneTimeExpense(
+                        f"{milestone.name} One-time Cost",
                         milestone.one_time_expense,
                         milestone.trigger_year
-                    )
-                    expenses.append(one_time_exp)
+                    ))
 
-                # Add recurring expenses starting from milestone year
-                for expense in milestone.recurring_expenses:
-                    class PostMilestoneExpense(expense.__class__):
-                        def __init__(self, base_expense, trigger_year):
-                            super().__init__(base_expense.name, base_expense.annual_amount)
-                            self.trigger_year = trigger_year
-                            self.inflation_rate = base_expense.inflation_rate  # Preserve inflation rate
+                # Add all recurring expenses
+                expenses.extend(milestone.recurring_expenses)
 
-                        def calculate_expense(self, year: int) -> float:
-                            if year < self.trigger_year:
-                                return 0
-                            # For years after trigger, calculate with inflation from the start year
-                            years_since_start = year - self.trigger_year
-                            return self.annual_amount * (1 + self.inflation_rate) ** years_since_start
+                # Add all assets and liabilities
+                assets.extend(milestone.assets)
+                liabilities.extend(milestone.liabilities)
 
-                    expenses.append(PostMilestoneExpense(expense, milestone.trigger_year))
-
-                # Add assets and liabilities with timing
-                for asset in milestone.assets:
-                    class TimedAsset(asset.__class__):
-                        def __init__(self, base_asset, start_year):
-                            self.name = base_asset.name
-                            self.initial_value = base_asset.initial_value
-                            self.start_year = start_year
-                            for attr, value in base_asset.__dict__.items():
-                                if attr not in ['name', 'initial_value']:
-                                    setattr(self, attr, value)
-
-                        def calculate_value(self, year: int) -> float:
-                            if year >= self.start_year:
-                                return super().calculate_value(year - self.start_year)
-                            return 0
-
-                    assets.append(TimedAsset(asset, milestone.trigger_year))
-
-                for liability in milestone.liabilities:
-                    class TimedLiability:
-                        def __init__(self, base_liability, start_year):
-                            self.name = base_liability.name
-                            self.principal = base_liability.principal
-                            self.interest_rate = base_liability.interest_rate
-                            self.term_years = base_liability.term_years
-                            self.start_year = start_year
-                            self._payment = self.calculate_payment()  # Calculate payment once
-
-                        def calculate_payment(self) -> float:
-                            monthly_rate = self.interest_rate / 12
-                            num_payments = self.term_years * 12
-                            return (self.principal * monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
-
-                        def get_balance(self, year: int) -> float:
-                            if year < self.start_year:
-                                return 0
-                            adjusted_year = year - self.start_year
-                            if adjusted_year >= self.term_years:
-                                return 0
-                            monthly_rate = self.interest_rate / 12
-                            remaining_payments = (self.term_years - adjusted_year) * 12
-                            return (self._payment * ((1 - (1 + monthly_rate)**(-remaining_payments)) / monthly_rate))
-
-                        def get_annual_payment(self) -> float:
-                            return self._payment * 12
-
-                    liabilities.append(TimedLiability(liability, milestone.trigger_year))
-
+                # Add all income adjustments
                 income.extend(milestone.income_adjustments)
 
         return assets, liabilities, income, expenses
