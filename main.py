@@ -111,9 +111,21 @@ def main():
             # Show continue button only if both selections are made
             if st.session_state.selected_location and st.session_state.selected_occupation:
                 st.markdown("---")
-                if st.button("Continue to Financial Projections ➡️"):
-                    st.session_state.show_projections = True
-                    st.rerun()
+                try:
+                    if st.button("Continue to Financial Projections ➡️", key="continue_to_projections"):
+                        # Initialize all necessary state variables
+                        st.session_state.show_projections = True
+                        st.session_state.needs_recalculation = True
+                        st.session_state.previous_projections = None
+                        if 'milestones' not in st.session_state:
+                            st.session_state.milestones = []
+                        print(f"Debug: Transitioning to projections. Location: {st.session_state.selected_location}, Occupation: {st.session_state.selected_occupation}")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Error transitioning to projections: {str(e)}")
+                    print(f"Debug: Error in transition: {str(e)}")
+                    st.session_state.show_projections = False
+                    st.session_state.needs_recalculation = True
 
         else:
             # Back button
@@ -709,13 +721,13 @@ def main():
                                         'spouse_debt': milestone.spouse_debt
                                     })
                                 elif hasattr(milestone, 'homeprice'):
-                                        details.update({
-                                            'home_price': milestone.home_price,
-                                            'down_payment': milestone.down_payment_percentage * 100,
-                                            'monthly_utilities': milestone.monthly_utilities,
-                                            'monthly_hoa': milestone.monthly_hoa,
-                                            'annual_renovation': milestone.annual_renovation
-                                        })
+                                    details.update({
+                                        'home_price': milestone.home_price,
+                                        'down_payment': milestone.down_payment_percentage * 100,
+                                        'monthly_utilities': milestone.monthly_utilities,
+                                        'monthly_hoa': milestone.monthly_hoa,
+                                        'annual_renovation': milestone.annual_renovation
+                                    })
                                 elif hasattr(milestone, 'car_price'):
                                     details.update({
                                         'car_price': milestone.car_price,
