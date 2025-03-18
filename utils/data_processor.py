@@ -83,26 +83,17 @@ class DataProcessor:
 
         # Find marriage milestone year if it exists
         marriage_year = None
+        spouse_income_obj = None
         if milestones:
             for milestone in milestones:
                 if milestone.name == "Marriage":
                     marriage_year = milestone.trigger_year
+                    # Find spouse income in marriage milestone
+                    for inc in milestone.income_adjustments:
+                        if isinstance(inc, SpouseIncome):
+                            spouse_income_obj = inc
+                            break
                     break
-
-        # Find home purchase milestone year if it exists
-        home_purchase_year = None
-        if milestones:
-            for milestone in milestones:
-                if milestone.name == "Home Purchase":
-                    home_purchase_year = milestone.trigger_year
-                    break
-
-        # Find car purchase milestone years if they exist
-        car_purchase_years = []
-        if milestones:
-            for milestone in milestones:
-                if milestone.name == "Car Purchase":
-                    car_purchase_years.append(milestone.trigger_year)
 
         # Create Income objects
         base_salary = Salary(location_data['base_income'], location_data['location_adjustment'])
@@ -123,6 +114,11 @@ class DataProcessor:
             state=location_str.split(',')[-1].strip() if ',' in location_str else 'CA',
             marriage_milestone_year=marriage_year
         )
+
+        # Update spouse income if marriage milestone exists
+        if spouse_income_obj:
+            tax_expense.update_spouse_income(spouse_income_obj.annual_amount)
+
         expenses.append(tax_expense)
 
         # Add basic living expenses

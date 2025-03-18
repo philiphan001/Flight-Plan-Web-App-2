@@ -184,13 +184,14 @@ class TaxExpense(Expense):
                  marriage_milestone_year: Optional[int] = None,
                  deductions: float = 0, credits: float = 0):
         super().__init__(name, 0)  # Initialize with 0 as amount will be calculated
-        self.annual_income = annual_income
+        self.annual_income = annual_income  # Primary earned income
         self.tax_year = tax_year
         self.filing_status = filing_status
         self.state = state
         self.deductions = deductions
         self.credits = credits
         self.marriage_milestone_year = marriage_milestone_year
+        self.spouse_income = 0  # Will be updated when spouse income is added
 
     def calculate_federal_tax_brackets(self, year: int) -> List[tuple]:
         """Get federal tax brackets based on filing status and tax year"""
@@ -222,9 +223,9 @@ class TaxExpense(Expense):
                 (731201, float('inf'), 0.37)
             ]
 
-    def calculate_federal_income_tax(self, year: int, income: float) -> float:
-        """Calculate federal income tax"""
-        taxable_income = max(0, income - self.deductions)
+    def calculate_federal_income_tax(self, year: int, total_income: float) -> float:
+        """Calculate federal income tax on total income"""
+        taxable_income = max(0, total_income - self.deductions)
         tax = 0
         brackets = self.calculate_federal_tax_brackets(year)
 
@@ -238,22 +239,22 @@ class TaxExpense(Expense):
 
         return max(0, tax - self.credits)
 
-    def calculate_payroll_tax(self, income: float) -> float:
-        """Calculate payroll taxes (Social Security and Medicare)"""
+    def calculate_payroll_tax(self, earned_income: float) -> float:
+        """Calculate payroll taxes (Social Security and Medicare) on earned income only"""
         # Social Security tax (6.2% up to wage base limit)
         ss_wage_base = 168600  # 2024 wage base
-        ss_tax = min(income, ss_wage_base) * 0.062
+        ss_tax = min(earned_income, ss_wage_base) * 0.062
 
         # Medicare tax (1.45% + 0.9% for high earners)
-        medicare_base_tax = income * 0.0145
+        medicare_base_tax = earned_income * 0.0145
 
         # Additional Medicare tax for high earners
         medicare_threshold = 200000 if self.filing_status == "single" else 250000
-        additional_medicare = max(0, income - medicare_threshold) * 0.009
+        additional_medicare = max(0, earned_income - medicare_threshold) * 0.009
 
         return ss_tax + medicare_base_tax + additional_medicare
 
-    def calculate_state_income_tax(self, year: int, income: float) -> float:
+    def calculate_state_income_tax(self, year: int, total_income: float) -> float:
         """Calculate state income tax based on state"""
         # Determine filing status based on marriage milestone
         current_filing_status = "married" if (
@@ -262,7 +263,7 @@ class TaxExpense(Expense):
         ) else "single"
 
         if self.state == "CA":
-            taxable_income = max(0, income - self.deductions)
+            taxable_income = max(0, total_income - self.deductions)
             # CA tax brackets for 2024 (single filer)
             if current_filing_status == "single":
                 ca_brackets = [
@@ -303,28 +304,42 @@ class TaxExpense(Expense):
             return max(0, tax)
         return 0
 
+    def update_spouse_income(self, spouse_income: float):
+        """Update spouse income when marriage milestone is reached"""
+        self.spouse_income = spouse_income
+
     def calculate_expense(self, year: int, total_income: Optional[float] = None) -> float:
         """Calculate total tax expense for the given year"""
-        # Use total_income if provided, otherwise use annual_income
-        base_income = total_income if total_income is not None else self.annual_income
-        
         # Adjust income for inflation
-        adjusted_income = base_income * (1 + self.inflation_rate) ** (year - self.tax_year)
+        adjusted_primary_income = self.annual_income * (1 + self.inflation_rate) ** (year - self.tax_year)
 
-        # Calculate each type of tax with the adjusted income
-        federal_tax = self.calculate_federal_income_tax(year, adjusted_income)
-        payroll_tax = self.calculate_payroll_tax(adjusted_income)
-        state_tax = self.calculate_state_income_tax(year, adjusted_income)
+        # Calculate adjusted spouse income if married
+        adjusted_spouse_income = 0
+        if self.marriage_milestone_year is not None and year >= self.marriage_milestone_year:
+            adjusted_spouse_income = self.spouse_income * (1 + self.inflation_rate) ** (year - self.tax_year)
+
+        # Calculate total earned income for payroll tax
+        total_earned_income = adjusted_primary_income + adjusted_spouse_income
+
+        # Use total_income parameter if provided, otherwise use earned income
+        total_taxable_income = total_income if total_income is not None else total_earned_income
+
+        # Calculate each type of tax
+        federal_tax = self.calculate_federal_income_tax(year, total_taxable_income)
+        payroll_tax = self.calculate_payroll_tax(total_earned_income)
+        state_tax = self.calculate_state_income_tax(year, total_taxable_income)
 
         # Sum all taxes
         total_tax = federal_tax + payroll_tax + state_tax
 
-        print(f"Tax calculation for year {year}:")
-        print(f"Adjusted income: ${adjusted_income:,.2f}")
+        print(f"\nTax calculation for year {year}:")
+        print(f"Primary income: ${adjusted_primary_income:,.2f}")
+        print(f"Spouse income: ${adjusted_spouse_income:,.2f}")
+        print(f"Total taxable income: ${total_taxable_income:,.2f}")
         print(f"Federal tax: ${federal_tax:,.2f}")
         print(f"Payroll tax: ${payroll_tax:,.2f}")
         print(f"State tax: ${state_tax:,.2f}")
-        print(f"Total tax: ${total_tax:,.2f}")
+        print(f"Total tax: ${total_tax:,.2f}\n")
 
         return total_tax
 
