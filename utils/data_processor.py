@@ -81,6 +81,14 @@ class DataProcessor:
         income = []
         expenses = []
 
+        # Find marriage milestone year if it exists
+        marriage_year = None
+        if milestones:
+            for milestone in milestones:
+                if milestone.name == "Marriage":
+                    marriage_year = milestone.trigger_year
+                    break
+
         # Find home purchase milestone year if it exists
         home_purchase_year = None
         if milestones:
@@ -104,6 +112,19 @@ class DataProcessor:
         investment = Investment("Savings", 0, location_data['investment_return_rate'])
         assets.append(investment)
 
+        # Add tax expense calculation with marriage information
+        annual_income = location_data['base_income']
+        location_str = location_data['location']
+        tax_expense = TaxExpense(
+            name="Taxes",
+            annual_income=annual_income,
+            tax_year=2024,
+            filing_status="single",
+            state=location_str.split(',')[-1].strip() if ',' in location_str else 'CA',
+            marriage_milestone_year=marriage_year
+        )
+        expenses.append(tax_expense)
+
         # Add basic living expenses
         # Transportation expense adjusted for car ownership
         class AdjustedTransportationExpense(FixedExpense):
@@ -120,18 +141,6 @@ class DataProcessor:
 
                 base_expense = super().calculate_expense(year)
                 return base_expense * 0.2 if has_car else base_expense
-
-        # Add tax expense calculation
-        annual_income = location_data['base_income']
-        location_str = location_data['location']  # Get location from the data dictionary
-        tax_expense = TaxExpense(
-            name="Taxes",
-            annual_income=annual_income,
-            tax_year=2024,
-            filing_status="single",
-            state=location_str.split(',')[-1].strip() if ',' in location_str else 'CA'
-        )
-        expenses.append(tax_expense)
 
         expenses.append(AdjustedTransportationExpense("Transportation", location_data['transportation'] * 12, car_purchase_years))
         expenses.append(VariableExpense("Food", location_data['food'] * 12))

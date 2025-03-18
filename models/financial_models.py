@@ -181,6 +181,7 @@ class TaxExpense(Expense):
     """Tax expense calculator for both payroll and income taxes"""
     def __init__(self, name: str, annual_income: float, tax_year: int = 2024,
                  filing_status: str = "single", state: str = "CA",
+                 marriage_milestone_year: Optional[int] = None,
                  deductions: float = 0, credits: float = 0):
         super().__init__(name, 0)  # Initialize with 0 as amount will be calculated
         self.annual_income = annual_income
@@ -189,11 +190,18 @@ class TaxExpense(Expense):
         self.state = state
         self.deductions = deductions
         self.credits = credits
+        self.marriage_milestone_year = marriage_milestone_year
 
-    def calculate_federal_tax_brackets(self) -> List[tuple]:
+    def calculate_federal_tax_brackets(self, year: int) -> List[tuple]:
         """Get federal tax brackets based on filing status and tax year"""
-        # 2024 tax brackets (example)
-        if self.filing_status == "single":
+        # Determine filing status based on marriage milestone
+        current_filing_status = "married" if (
+            self.marriage_milestone_year is not None and 
+            year >= self.marriage_milestone_year
+        ) else "single"
+
+        # 2024 tax brackets
+        if current_filing_status == "single":
             return [
                 (0, 11600, 0.10),
                 (11601, 47150, 0.12),
@@ -203,14 +211,22 @@ class TaxExpense(Expense):
                 (243726, 609350, 0.35),
                 (609351, float('inf'), 0.37)
             ]
-        # Add other filing statuses as needed
-        return []
+        else:  # married filing jointly
+            return [
+                (0, 23200, 0.10),
+                (23201, 94300, 0.12),
+                (94301, 201050, 0.22),
+                (201051, 383900, 0.24),
+                (383901, 487450, 0.32),
+                (487451, 731200, 0.35),
+                (731201, float('inf'), 0.37)
+            ]
 
-    def calculate_federal_income_tax(self) -> float:
+    def calculate_federal_income_tax(self, year: int) -> float:
         """Calculate federal income tax"""
         taxable_income = max(0, self.annual_income - self.deductions)
         tax = 0
-        brackets = self.calculate_federal_tax_brackets()
+        brackets = self.calculate_federal_tax_brackets(year)
 
         for lower, upper, rate in brackets:
             if taxable_income > lower:
@@ -237,24 +253,43 @@ class TaxExpense(Expense):
 
         return ss_tax + medicare_base_tax + additional_medicare
 
-    def calculate_state_income_tax(self) -> float:
+    def calculate_state_income_tax(self, year: int) -> float:
         """Calculate state income tax based on state"""
-        # Example for California (simplified)
+        # Determine filing status based on marriage milestone
+        current_filing_status = "married" if (
+            self.marriage_milestone_year is not None and 
+            year >= self.marriage_milestone_year
+        ) else "single"
+
         if self.state == "CA":
             taxable_income = max(0, self.annual_income - self.deductions)
-            # Simplified CA tax brackets for 2024
-            ca_brackets = [
-                (0, 10099, 0.01),
-                (10100, 23942, 0.02),
-                (23943, 37788, 0.04),
-                (37789, 52455, 0.06),
-                (52456, 66295, 0.08),
-                (66296, 338639, 0.093),
-                (338640, 406364, 0.103),
-                (406365, 677275, 0.113),
-                (677276, 1000000, 0.123),
-                (1000001, float('inf'), 0.133)
-            ]
+            # CA tax brackets for 2024 (single filer)
+            if current_filing_status == "single":
+                ca_brackets = [
+                    (0, 10099, 0.01),
+                    (10100, 23942, 0.02),
+                    (23943, 37788, 0.04),
+                    (37789, 52455, 0.06),
+                    (52456, 66295, 0.08),
+                    (66296, 338639, 0.093),
+                    (338640, 406364, 0.103),
+                    (406365, 677275, 0.113),
+                    (677276, 1000000, 0.123),
+                    (1000001, float('inf'), 0.133)
+                ]
+            else:  # married filing jointly
+                ca_brackets = [
+                    (0, 20198, 0.01),
+                    (20199, 47884, 0.02),
+                    (47885, 75576, 0.04),
+                    (75577, 104910, 0.06),
+                    (104911, 132590, 0.08),
+                    (132591, 677278, 0.093),
+                    (677279, 812728, 0.103),
+                    (812729, 1354550, 0.113),
+                    (1354551, 2000000, 0.123),
+                    (2000001, float('inf'), 0.133)
+                ]
 
             tax = 0
             for lower, upper, rate in ca_brackets:
@@ -270,7 +305,7 @@ class TaxExpense(Expense):
 
     def calculate_expense(self, year: int) -> float:
         """Calculate total tax expense for the given year"""
-        # Adjust income for inflation if needed
+        # Adjust income for inflation
         adjusted_income = self.annual_income * (1 + self.inflation_rate) ** (year - self.tax_year)
 
         # Store current income and calculate taxes
@@ -278,9 +313,9 @@ class TaxExpense(Expense):
         self.annual_income = adjusted_income
 
         total_tax = (
-            self.calculate_federal_income_tax() +
+            self.calculate_federal_income_tax(year) +
             self.calculate_payroll_tax() +
-            self.calculate_state_income_tax()
+            self.calculate_state_income_tax(year)
         )
 
         # Restore original income
