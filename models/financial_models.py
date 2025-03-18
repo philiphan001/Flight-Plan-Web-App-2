@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 from datetime import date
+from services.tax_calculator import TaxCalculator
 
 class Asset(ABC):
     def __init__(self, name: str, initial_value: float):
@@ -121,12 +122,23 @@ class Income(ABC):
         self.annual_amount = annual_amount
         self.growth_rate = growth_rate
         self.start_year = start_year
+        self.tax_calculator = TaxCalculator()
+        self.filing_status = 'single'  # Default to single, can be changed to 'married'
 
     def calculate_income(self, year: int) -> float:
         if year < self.start_year:
             return 0
         adjusted_year = year - self.start_year
         return self.annual_amount * (1 + self.growth_rate) ** adjusted_year
+
+    def calculate_taxes(self, year: int) -> Dict[str, float]:
+        """Calculate taxes on this income stream"""
+        income = self.calculate_income(year)
+        return self.tax_calculator.calculate_total_tax_burden(income, self.filing_status)
+
+    def set_filing_status(self, status: str):
+        """Update filing status (e.g., when getting married)"""
+        self.filing_status = status.lower()
 
 class Salary(Income):
     def __init__(self, annual_amount: float, location_adjustment: float = 1.0):
@@ -147,14 +159,19 @@ class SpouseIncome(Income):
         self.initial_savings = initial_savings
         self.initial_debt = initial_debt
         self.insurance_cost = insurance_cost
+        self.primary_income = None  # Will be set when calculating joint taxes
 
-    def calculate_income(self, year: int) -> float:
-        # Adjust income based on location and lifestyle factors
-        base_income = super().calculate_income(year)
-        adjusted_income = base_income * self.location_adjustment * (1 + self.lifestyle_adjustment)
-        # Subtract insurance cost from income
-        return adjusted_income - (self.insurance_cost if year >= self.start_year else 0)
+    def set_primary_income(self, primary_income: Income):
+        """Set reference to primary income for joint tax calculations"""
+        self.primary_income = primary_income
 
+    def calculate_taxes(self, year: int) -> Dict[str, float]:
+        """Calculate taxes considering joint filing if applicable"""
+        income = self.calculate_income(year)
+        if self.primary_income and self.filing_status == 'married':
+            primary_amount = self.primary_income.calculate_income(year)
+            return self.tax_calculator.calculate_joint_tax_burden(primary_amount, income)
+        return self.tax_calculator.calculate_total_tax_burden(income, self.filing_status)
 
 class Expense(ABC):
     def __init__(self, name: str, annual_amount: float, inflation_rate: float = 0.02):
@@ -176,6 +193,18 @@ class VariableExpense(Expense):
     def calculate_expense(self, year: int) -> float:
         base_expense = super().calculate_expense(year)
         return base_expense * (1 + self.volatility)
+
+class TaxExpense(Expense):
+    """Represents tax expenses including both payroll and income taxes"""
+    def __init__(self, name: str, income_source: Income):
+        super().__init__(name, 0)  # Initial amount will be calculated based on income
+        self.income_source = income_source
+
+    def calculate_expense(self, year: int) -> float:
+        """Calculate tax expense based on income for the year"""
+        tax_calculation = self.income_source.calculate_taxes(year)
+        return tax_calculation['total_tax']
+
 
 class Milestone:
     def __init__(self, name: str, trigger_year: int, category: str):
@@ -210,8 +239,7 @@ class MilestoneFactory:
                        initial_debt: float = 0, insurance_cost: float = 0) -> Milestone:
         milestone = Milestone("Marriage", trigger_year, "Family")
 
-        # Add wedding cost as a one-time expense with specific year
-        expense_name = f"Marriage One-time Cost Year {trigger_year}"
+        # Add wedding cost as a one-time expense
         milestone.add_one_time_expense(cost)
 
         # Add joint lifestyle expenses adjusted by the lifestyle change percentage
@@ -229,12 +257,13 @@ class MilestoneFactory:
 
         # Add spouse's initial debt as a liability
         if initial_debt > 0:
-            milestone.add_liability(Loan("Spouse Debt", initial_debt, 0.06, 10))  # Assuming 6% interest, 10-year term
+            milestone.add_liability(Loan("Spouse Debt", initial_debt, 0.06, 10))
 
-        # Add spouse income
+        # Add spouse income and configure tax status
         if spouse_income:
             if isinstance(spouse_income, SpouseIncome):
                 spouse_income.start_year = trigger_year
+                spouse_income.set_filing_status('married')  # Update spouse's tax filing status
             milestone.add_income_adjustment(spouse_income)
 
         return milestone

@@ -22,13 +22,21 @@ class FinancialCalculator:
             'asset_breakdown': {},
             'liability_values': [],
             'liability_breakdown': {},
-            'investment_growth': []
+            'investment_growth': [],
+            'tax_breakdown': {}  # New field for tax details
         }
 
         # Initialize income streams
         income_streams = {}
         for inc in self.income:
             income_streams[inc.name] = []
+
+        # Initialize tax categories
+        tax_categories = {
+            'payroll_taxes': [],
+            'income_taxes': [],
+            'total_taxes': []
+        }
 
         # Initialize expense categories
         expense_categories = {}
@@ -46,13 +54,32 @@ class FinancialCalculator:
 
         cumulative_savings = 0
         for year in range(projection_years):
-            # Calculate income streams for each income source
+            # Calculate income and taxes for each income source
+            total_income = 0
+            total_taxes = 0
+            payroll_taxes = 0
+            income_taxes = 0
+
             for inc in self.income:
                 income_amount = int(round(inc.calculate_income(year)))
                 income_streams[inc.name].append(income_amount)
+                total_income += income_amount
 
-            # Calculate total income
-            total_income = int(round(sum(inc.calculate_income(year) for inc in self.income)))
+                # Calculate taxes for this income stream
+                tax_calc = inc.calculate_taxes(year)
+                payroll_taxes += tax_calc['fica_taxes']['total_fica']
+                income_taxes += tax_calc['federal_taxes']['federal_tax']
+
+            total_taxes = payroll_taxes + income_taxes
+
+            # Add tax information to projections
+            tax_categories['payroll_taxes'].append(int(round(payroll_taxes)))
+            tax_categories['income_taxes'].append(int(round(income_taxes)))
+            tax_categories['total_taxes'].append(int(round(total_taxes)))
+
+            # Update projections with tax breakdown
+            projections['tax_breakdown'] = tax_categories
+
             projections['total_income'].append(total_income)
             projections['income_streams'] = income_streams
 
@@ -66,8 +93,6 @@ class FinancialCalculator:
 
                 # Handle pre-projection expenses for education
                 if "Education:" in category and year == 0:
-                    # For pre-projection education expenses, add them to initial liabilities
-                    # but don't include in yearly expenses
                     continue
 
                 expense_amount = int(round(expense.calculate_expense(year)))
@@ -78,7 +103,7 @@ class FinancialCalculator:
             projections['expense_categories'] = expense_categories
 
             # Calculate cash flow
-            cash_flow = int(round(total_income - total_expenses))
+            cash_flow = int(round(total_income - total_expenses - total_taxes)) # Subtract taxes from cash flow
             projections['cash_flow'].append(cash_flow)
 
             # Add cash flow to cumulative savings
