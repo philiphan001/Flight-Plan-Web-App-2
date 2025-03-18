@@ -7,8 +7,7 @@ class FinancialCalculator:
         self.assets = assets
         self.liabilities = liabilities
         self.income = income
-        # Include tax expenses from income sources
-        self.expenses = expenses + [inc.get_tax_expense() for inc in income]
+        self.expenses = expenses
 
     def calculate_yearly_projection(self, projection_years: int) -> Dict:
         projections = {
@@ -23,8 +22,7 @@ class FinancialCalculator:
             'asset_breakdown': {},
             'liability_values': [],
             'liability_breakdown': {},
-            'investment_growth': [],
-            'tax_breakdown': {}
+            'investment_growth': []
         }
 
         # Initialize income streams
@@ -32,67 +30,55 @@ class FinancialCalculator:
         for inc in self.income:
             income_streams[inc.name] = []
 
-        # Initialize expense categories including taxes
+        # Initialize expense categories
         expense_categories = {}
         for expense in self.expenses:
             category = expense.name
-            if isinstance(expense, TaxExpense):
-                category = "Taxes"  # Group all tax expenses under "Taxes" category
+            if "One-time Cost" in category:
+                milestone_name = category.replace(" One-time Cost", "")
+                category = f"One-time: {milestone_name}"
             if category not in expense_categories:
                 expense_categories[category] = [0] * projection_years
 
-        # Initialize tax breakdown
-        tax_categories = {
-            'payroll_taxes': [0] * projection_years,
-            'income_taxes': [0] * projection_years,
-            'total_taxes': [0] * projection_years
-        }
+        # Initialize asset and liability breakdowns
+        asset_breakdown = {}
+        liability_breakdown = {}
 
         cumulative_savings = 0
         for year in range(projection_years):
-            # Calculate income streams
-            total_income = 0
+            # Calculate income streams for each income source
             for inc in self.income:
                 income_amount = int(round(inc.calculate_income(year)))
                 income_streams[inc.name].append(income_amount)
-                total_income += income_amount
 
+            # Calculate total income
+            total_income = int(round(sum(inc.calculate_income(year) for inc in self.income)))
             projections['total_income'].append(total_income)
             projections['income_streams'] = income_streams
 
-            # Calculate expenses including tax expenses
+            # Calculate expenses by category
             total_expenses = 0
-            total_taxes = 0
-            payroll_taxes = 0
-            income_taxes = 0
-
             for expense in self.expenses:
                 category = expense.name
-                if isinstance(expense, TaxExpense):
-                    category = "Taxes"
-                    # Get detailed tax breakdown
-                    tax_calc = expense.income_source.calculate_taxes(year)
-                    payroll_taxes += tax_calc['fica_taxes']['total_fica']
-                    income_taxes += tax_calc['federal_taxes']['federal_tax']
+                if "One-time Cost" in category:
+                    milestone_name = category.replace(" One-time Cost", "")
+                    category = f"One-time: {milestone_name}"
+
+                # Handle pre-projection expenses for education
+                if "Education:" in category and year == 0:
+                    # For pre-projection education expenses, add them to initial liabilities
+                    # but don't include in yearly expenses
+                    continue
 
                 expense_amount = int(round(expense.calculate_expense(year)))
-                expense_categories[category][year] += expense_amount
-
-                if isinstance(expense, TaxExpense):
-                    total_taxes += expense_amount
+                expense_categories[category][year] = expense_amount
                 total_expenses += expense_amount
-
-            # Update tax breakdown
-            tax_categories['payroll_taxes'][year] = int(round(payroll_taxes))
-            tax_categories['income_taxes'][year] = int(round(income_taxes))
-            tax_categories['total_taxes'][year] = int(round(total_taxes))
 
             projections['total_expenses'].append(total_expenses)
             projections['expense_categories'] = expense_categories
-            projections['tax_breakdown'] = tax_categories
 
-            # Calculate cash flow (income minus all expenses including taxes)
-            cash_flow = total_income - total_expenses
+            # Calculate cash flow
+            cash_flow = int(round(total_income - total_expenses))
             projections['cash_flow'].append(cash_flow)
 
             # Add cash flow to cumulative savings

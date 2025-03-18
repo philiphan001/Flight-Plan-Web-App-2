@@ -111,28 +111,9 @@ def main():
             # Show continue button only if both selections are made
             if st.session_state.selected_location and st.session_state.selected_occupation:
                 st.markdown("---")
-                st.markdown("### Ready to see your financial projections?")
-
-                # Create two columns for layout
-                col1, col2 = st.columns([3, 2])
-
-                with col1:
-                    st.info(f"Location: {st.session_state.selected_location}\n\n" +
-                           f"Occupation: {st.session_state.selected_occupation}")
-
-                with col2:
-                    if st.button("View Projections ➡️", use_container_width=True):
-                        try:
-                            # Reset calculation flags
-                            st.session_state.needs_recalculation = True
-                            st.session_state.previous_projections = None
-                            # Enable projections view
-                            st.session_state.show_projections = True
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error preparing projections: {str(e)}")
-                            st.session_state.show_projections = False
-                            return
+                if st.button("Continue to Financial Projections ➡️"):
+                    st.session_state.show_projections = True
+                    st.rerun()
 
         else:
             # Back button
@@ -713,13 +694,14 @@ def main():
                             milestone_details = []
                             for milestone in st.session_state.milestones:
                                 details = {
-                                    'type': milestone.__class__name__,
+                                    'type': milestone.__class__.__name__,
                                     'name': milestone.name,
                                     'year': milestone.trigger_year
                                 }
 
                                 # Add specific details based on milestone type
-                                if hasattr(milestone, 'wedding_cost'):                                    details.update({
+                                if hasattr(milestone, 'wedding_cost'):
+                                    details.update({
                                         'wedding_cost': milestone.wedding_cost,
                                         'spouse_occupation': st.session_state.selected_spouse_occ,
                                         'lifestyle_adjustment': milestone.lifestyle_adjustment * 100,
