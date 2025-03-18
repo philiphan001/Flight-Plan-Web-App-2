@@ -177,6 +177,116 @@ class VariableExpense(Expense):
         base_expense = super().calculate_expense(year)
         return base_expense * (1 + self.volatility)
 
+class TaxExpense(Expense):
+    """Tax expense calculator for both payroll and income taxes"""
+    def __init__(self, name: str, annual_income: float, tax_year: int = 2024,
+                 filing_status: str = "single", state: str = "CA",
+                 deductions: float = 0, credits: float = 0):
+        super().__init__(name, 0)  # Initialize with 0 as amount will be calculated
+        self.annual_income = annual_income
+        self.tax_year = tax_year
+        self.filing_status = filing_status
+        self.state = state
+        self.deductions = deductions
+        self.credits = credits
+
+    def calculate_federal_tax_brackets(self) -> List[tuple]:
+        """Get federal tax brackets based on filing status and tax year"""
+        # 2024 tax brackets (example)
+        if self.filing_status == "single":
+            return [
+                (0, 11600, 0.10),
+                (11601, 47150, 0.12),
+                (47151, 100525, 0.22),
+                (100526, 191950, 0.24),
+                (191951, 243725, 0.32),
+                (243726, 609350, 0.35),
+                (609351, float('inf'), 0.37)
+            ]
+        # Add other filing statuses as needed
+        return []
+
+    def calculate_federal_income_tax(self) -> float:
+        """Calculate federal income tax"""
+        taxable_income = max(0, self.annual_income - self.deductions)
+        tax = 0
+        brackets = self.calculate_federal_tax_brackets()
+
+        for lower, upper, rate in brackets:
+            if taxable_income > lower:
+                taxable_amount = min(taxable_income - lower, upper - lower)
+                tax += taxable_amount * rate
+
+            if taxable_income <= upper:
+                break
+
+        return max(0, tax - self.credits)
+
+    def calculate_payroll_tax(self) -> float:
+        """Calculate payroll taxes (Social Security and Medicare)"""
+        # Social Security tax (6.2% up to wage base limit)
+        ss_wage_base = 168600  # 2024 wage base
+        ss_tax = min(self.annual_income, ss_wage_base) * 0.062
+
+        # Medicare tax (1.45% + 0.9% for high earners)
+        medicare_base_tax = self.annual_income * 0.0145
+
+        # Additional Medicare tax for high earners
+        medicare_threshold = 200000 if self.filing_status == "single" else 250000
+        additional_medicare = max(0, self.annual_income - medicare_threshold) * 0.009
+
+        return ss_tax + medicare_base_tax + additional_medicare
+
+    def calculate_state_income_tax(self) -> float:
+        """Calculate state income tax based on state"""
+        # Example for California (simplified)
+        if self.state == "CA":
+            taxable_income = max(0, self.annual_income - self.deductions)
+            # Simplified CA tax brackets for 2024
+            ca_brackets = [
+                (0, 10099, 0.01),
+                (10100, 23942, 0.02),
+                (23943, 37788, 0.04),
+                (37789, 52455, 0.06),
+                (52456, 66295, 0.08),
+                (66296, 338639, 0.093),
+                (338640, 406364, 0.103),
+                (406365, 677275, 0.113),
+                (677276, 1000000, 0.123),
+                (1000001, float('inf'), 0.133)
+            ]
+
+            tax = 0
+            for lower, upper, rate in ca_brackets:
+                if taxable_income > lower:
+                    taxable_amount = min(taxable_income - lower, upper - lower)
+                    tax += taxable_amount * rate
+
+                if taxable_income <= upper:
+                    break
+
+            return max(0, tax)
+        return 0
+
+    def calculate_expense(self, year: int) -> float:
+        """Calculate total tax expense for the given year"""
+        # Adjust income for inflation if needed
+        adjusted_income = self.annual_income * (1 + self.inflation_rate) ** (year - self.tax_year)
+
+        # Store current income and calculate taxes
+        current_income = self.annual_income
+        self.annual_income = adjusted_income
+
+        total_tax = (
+            self.calculate_federal_income_tax() +
+            self.calculate_payroll_tax() +
+            self.calculate_state_income_tax()
+        )
+
+        # Restore original income
+        self.annual_income = current_income
+        return total_tax
+
 class Milestone:
     def __init__(self, name: str, trigger_year: int, category: str):
         self.name = name

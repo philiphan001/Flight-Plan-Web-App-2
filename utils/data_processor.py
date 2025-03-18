@@ -122,6 +122,17 @@ class DataProcessor:
                 base_expense = super().calculate_expense(year)
                 return base_expense * 0.2 if has_car else base_expense
 
+        # Add tax expense calculation
+        annual_income = location_data['base_income']
+        tax_expense = TaxExpense(
+            name="Taxes",
+            annual_income=annual_income,
+            tax_year=2024,
+            filing_status="single",
+            state=location.split(',')[-1].strip() if ',' in location else 'CA'
+        )
+        expenses.append(tax_expense)
+
         expenses.append(AdjustedTransportationExpense("Transportation", location_data['transportation'] * 12, car_purchase_years))
         expenses.append(VariableExpense("Food", location_data['food'] * 12))
         expenses.append(FixedExpense("Healthcare", location_data['healthcare'] * 12))
