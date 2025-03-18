@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 from datetime import date
-from utils.tax_calculator import TaxCalculator
 
 class Asset(ABC):
     def __init__(self, name: str, initial_value: float):
@@ -122,50 +121,12 @@ class Income(ABC):
         self.annual_amount = annual_amount
         self.growth_rate = growth_rate
         self.start_year = start_year
-        self.tax_calculator = TaxCalculator()
-        self._location = None
-        self._filing_status = 'single'
-
-    def set_location(self, location: str):
-        """Set the location for state tax purposes"""
-        self._location = location
-
-    def set_filing_status(self, status: str):
-        """Set tax filing status (single/married)"""
-        self._filing_status = status
 
     def calculate_income(self, year: int) -> float:
-        """Calculate gross income for the given year"""
         if year < self.start_year:
             return 0
         adjusted_year = year - self.start_year
         return self.annual_amount * (1 + self.growth_rate) ** adjusted_year
-
-    def calculate_after_tax_income(self, year: int, additional_income: float = 0) -> Dict[str, float]:
-        """Calculate after-tax income including any additional income (e.g., spouse)"""
-        gross_income = self.calculate_income(year)
-        if gross_income == 0:
-            return {'gross': 0, 'net': 0, 'total_tax': 0}
-
-        # Get state code from location
-        state = self.tax_calculator.get_state_from_city(self._location) if self._location else None
-
-        # Calculate total taxes
-        tax_result = self.tax_calculator.calculate_total_tax(
-            income=gross_income,
-            state=state or 'NY',  # Default to NY if no state specified
-            filing_status=self._filing_status,
-            spouse_income=additional_income
-        )
-
-        return {
-            'gross': gross_income + additional_income,
-            'net': tax_result['net_income'],
-            'total_tax': tax_result['total_tax'],
-            'federal_tax': tax_result['federal_tax'],
-            'state_tax': tax_result['state_tax'],
-            'fica_tax': tax_result['fica_tax']
-        }
 
 class Salary(Income):
     def __init__(self, annual_amount: float, location_adjustment: float = 1.0):
@@ -188,19 +149,12 @@ class SpouseIncome(Income):
         self.insurance_cost = insurance_cost
 
     def calculate_income(self, year: int) -> float:
-        # Base income calculation remains the same
-        base_income = super().calculate_income(year)
-        if base_income == 0:
-            return 0
-
         # Adjust income based on location and lifestyle factors
+        base_income = super().calculate_income(year)
         adjusted_income = base_income * self.location_adjustment * (1 + self.lifestyle_adjustment)
+        # Subtract insurance cost from income
+        return adjusted_income - (self.insurance_cost if year >= self.start_year else 0)
 
-        # Subtract insurance cost if applicable
-        if year >= self.start_year:
-            adjusted_income -= self.insurance_cost
-
-        return adjusted_income
 
 class Expense(ABC):
     def __init__(self, name: str, annual_amount: float, inflation_rate: float = 0.02):

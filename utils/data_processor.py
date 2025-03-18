@@ -1,7 +1,6 @@
 import pandas as pd
 from typing import Dict, List, Tuple, Optional
 from models.financial_models import *
-from utils.tax_calculator import TaxCalculator
 
 class DataProcessor:
     @staticmethod
@@ -32,7 +31,7 @@ class DataProcessor:
     def process_location_data(coli_df: pd.DataFrame, occupation_df: pd.DataFrame,
                         location: str, occupation: str, investment_return_rate: float) -> Dict:
         """
-        Process location and occupation data, with proper error handling and tax considerations
+        Process location and occupation data, with proper error handling
         """
         try:
             # Validate inputs
@@ -51,20 +50,6 @@ class DataProcessor:
                 raise ValueError(f"Occupation '{occupation}' not found in the database")
             occupation_data = occupation_matches.iloc[0]
 
-            # Initialize tax calculator
-            tax_calculator = TaxCalculator()
-            state = tax_calculator.get_state_from_city(location)
-
-            # Calculate base annual income
-            base_income = float(occupation_data['Monthly Income']) * 12
-
-            # Get initial tax calculation for single status
-            tax_result = tax_calculator.calculate_total_tax(
-                income=base_income,
-                state=state,
-                filing_status='single'
-            )
-
             # Process the data
             return {
                 'housing': float(location_data['Housing']),
@@ -79,16 +64,8 @@ class DataProcessor:
                 'monthly_expense': float(location_data['Monthly Expense']),
                 'home_price': float(location_data['Average Price of Starter Home']),
                 'location_adjustment': float(location_data['Income Adjustment Factor']),
-                'base_income': base_income,
-                'investment_return_rate': investment_return_rate,
-                'state': state,
-                'initial_tax_burden': {
-                    'federal': tax_result['federal_tax'],
-                    'state': tax_result['state_tax'],
-                    'fica': tax_result['fica_tax'],
-                    'total': tax_result['total_tax'],
-                    'effective_rate': tax_result['effective_tax_rate']
-                }
+                'base_income': float(occupation_data['Monthly Income']) * 12,  # Convert to annual
+                'investment_return_rate': investment_return_rate
             }
         except ValueError as e:
             raise ValueError(str(e))
@@ -98,9 +75,6 @@ class DataProcessor:
     @staticmethod
     def create_financial_objects(location_data: Dict, 
                                milestones: Optional[List[Milestone]] = None) -> Tuple[List[Asset], List[Liability], List[Income], List[Expense]]:
-        """
-        Create financial objects with tax considerations
-        """
         assets = []
         liabilities = []
         income = []
@@ -108,17 +82,21 @@ class DataProcessor:
 
         # Find home purchase milestone year if it exists
         home_purchase_year = None
-        marriage_year = None
         if milestones:
             for milestone in milestones:
                 if milestone.name == "Home Purchase":
                     home_purchase_year = milestone.trigger_year
-                elif milestone.name == "Marriage":
-                    marriage_year = milestone.trigger_year
+                    break
 
-        # Create Income objects with tax considerations
+        # Find car purchase milestone years if they exist
+        car_purchase_years = []
+        if milestones:
+            for milestone in milestones:
+                if milestone.name == "Car Purchase":
+                    car_purchase_years.append(milestone.trigger_year)
+
+        # Create Income objects
         base_salary = Salary(location_data['base_income'], location_data['location_adjustment'])
-        base_salary.set_location(location_data.get('state'))
         income.append(base_salary)
 
         # Create Investment asset for savings (starts at 0)
