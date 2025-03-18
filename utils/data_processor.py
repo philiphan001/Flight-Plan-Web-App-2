@@ -8,8 +8,8 @@ class DataProcessor:
         try:
             df = pd.read_csv(file_path)
             required_columns = ['Cost of Living', 'Housing', 'Transportation', 'Food', 'Healthcare', 
-                                  'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
-                                  'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
+                              'Personal Insurance', 'Apparel', 'Services', 'Entertainment', 'Other',
+                              'Monthly Expense', 'Income Adjustment Factor', 'Average Price of Starter Home']
             if not all(col in df.columns for col in required_columns):
                 raise ValueError("COLI CSV file missing required columns")
             return df
@@ -30,9 +30,7 @@ class DataProcessor:
     @staticmethod
     def process_location_data(coli_df: pd.DataFrame, occupation_df: pd.DataFrame,
                         location: str, occupation: str, investment_return_rate: float) -> Dict:
-        """
-        Process location and occupation data, with proper error handling
-        """
+        """Process location and occupation data"""
         try:
             # Validate inputs
             if not location or not occupation:
@@ -66,7 +64,7 @@ class DataProcessor:
                 'location_adjustment': float(location_data['Income Adjustment Factor']),
                 'base_income': float(occupation_data['Monthly Income']) * 12,  # Convert to annual
                 'investment_return_rate': investment_return_rate,
-                'location': location  # Add location to the returned data
+                'location': location
             }
         except ValueError as e:
             raise ValueError(str(e))
@@ -76,14 +74,15 @@ class DataProcessor:
     @staticmethod
     def create_financial_objects(location_data: Dict, 
                             milestones: Optional[List[Milestone]] = None) -> Tuple[List[Asset], List[Liability], List[Income], List[Expense]]:
+        """Create financial objects based on location data and milestones"""
         assets = []
         liabilities = []
         income = []
         expenses = []
 
-        # Find marriage milestone year if it exists
+        # Find marriage milestone if it exists
         marriage_year = None
-        spouse_income_obj = None
+        spouse_income = None
         if milestones:
             for milestone in milestones:
                 if milestone.name == "Marriage":
@@ -91,7 +90,7 @@ class DataProcessor:
                     # Find spouse income in marriage milestone
                     for inc in milestone.income_adjustments:
                         if isinstance(inc, SpouseIncome):
-                            spouse_income_obj = inc
+                            spouse_income = inc
                             break
                     break
 
@@ -99,96 +98,54 @@ class DataProcessor:
         base_salary = Salary(location_data['base_income'], location_data['location_adjustment'])
         income.append(base_salary)
 
-        # Create Investment asset for savings (starts at 0)
+        # Create Investment asset
         investment = Investment("Savings", 0, location_data['investment_return_rate'])
         assets.append(investment)
 
-        # Add tax expense calculation with marriage information
-        annual_income = location_data['base_income']
-        location_str = location_data['location']
+        # Create tax expense with proper marriage milestone handling
         tax_expense = TaxExpense(
             name="Taxes",
-            annual_income=annual_income,
-            tax_year=2024,
-            filing_status="single",
-            state=location_str.split(',')[-1].strip() if ',' in location_str else 'CA',
-            marriage_milestone_year=marriage_year
+            base_income=location_data['base_income'],
+            tax_year=2024
         )
 
-        # Update spouse income if marriage milestone exists
-        if spouse_income_obj:
-            tax_expense.update_spouse_income(spouse_income_obj.annual_amount)
+        # Set marriage information if applicable
+        if marriage_year is not None and spouse_income is not None:
+            tax_expense.set_marriage_info(marriage_year, spouse_income.annual_amount)
 
         expenses.append(tax_expense)
 
         # Add basic living expenses
-        # Transportation expense adjusted for car ownership
-        class AdjustedTransportationExpense(FixedExpense):
-            def __init__(self, name: str, annual_amount: float, car_purchase_years: List[int]):
-                super().__init__(name, annual_amount)
-                self.car_purchase_years = car_purchase_years
+        expenses.extend([
+            FixedExpense("Housing", location_data['housing'] * 12),
+            FixedExpense("Transportation", location_data['transportation'] * 12),
+            VariableExpense("Food", location_data['food'] * 12),
+            FixedExpense("Healthcare", location_data['healthcare'] * 12),
+            FixedExpense("Insurance", location_data['insurance'] * 12),
+            VariableExpense("Apparel", location_data['apparel'] * 12),
+            VariableExpense("Services", location_data['services'] * 12),
+            VariableExpense("Entertainment", location_data['entertainment'] * 12),
+            VariableExpense("Other", location_data['other'] * 12)
+        ])
 
-            def calculate_expense(self, year: int) -> float:
-                # Check if there's an active car in this year
-                has_car = False
-                if self.car_purchase_years:
-                    relevant_purchases = [y for y in sorted(self.car_purchase_years) if y <= year]
-                    has_car = bool(relevant_purchases)
-
-                base_expense = super().calculate_expense(year)
-                return base_expense * 0.2 if has_car else base_expense
-
-        expenses.append(AdjustedTransportationExpense("Transportation", location_data['transportation'] * 12, car_purchase_years))
-        expenses.append(VariableExpense("Food", location_data['food'] * 12))
-        expenses.append(FixedExpense("Healthcare", location_data['healthcare'] * 12))
-        expenses.append(FixedExpense("Insurance", location_data['insurance'] * 12))
-        expenses.append(VariableExpense("Apparel", location_data['apparel'] * 12))
-        expenses.append(VariableExpense("Services", location_data['services'] * 12))
-        expenses.append(VariableExpense("Entertainment", location_data['entertainment'] * 12))
-        expenses.append(VariableExpense("Other", location_data['other'] * 12))
-
-        # Add rent expense that only applies before home purchase (if applicable)
-        if home_purchase_year is not None:
-            class PreHomeRentExpense(FixedExpense):
-                def __init__(self, name: str, annual_amount: float, trigger_year: int):
-                    super().__init__(name, annual_amount)
-                    self.trigger_year = trigger_year
-
-                def calculate_expense(self, year: int) -> float:
-                    return super().calculate_expense(year) if year < self.trigger_year else 0
-
-            expenses.append(PreHomeRentExpense("Rent", location_data['housing'] * 12, home_purchase_year))
-        else:
-            # If no home purchase milestone, add regular rent expense
-            expenses.append(FixedExpense("Rent", location_data['housing'] * 12))
-
-        # Add milestone-related financial objects if provided
+        # Add milestone-related financial objects
         if milestones:
             for milestone in milestones:
                 # Handle one-time expenses
                 if milestone.one_time_expense > 0:
-                    class OneTimeExpense(FixedExpense):
-                        def __init__(self, name: str, amount: float, trigger_year: int):
-                            super().__init__(name, amount, inflation_rate=0)
-                            self.trigger_year = trigger_year
-
-                        def calculate_expense(self, year: int) -> float:
-                            return self.annual_amount if year == self.trigger_year else 0
-
-                    expenses.append(OneTimeExpense(
+                    expenses.append(FixedExpense(
                         f"{milestone.name} One-time Cost",
-                        milestone.one_time_expense,
-                        milestone.trigger_year
+                        milestone.one_time_expense
                     ))
 
-                # Add all recurring expenses
+                # Add recurring expenses
                 expenses.extend(milestone.recurring_expenses)
 
-                # Add all assets and liabilities
+                # Add assets and liabilities
                 assets.extend(milestone.assets)
                 liabilities.extend(milestone.liabilities)
 
-                # Add all income adjustments
+                # Add income adjustments
                 income.extend(milestone.income_adjustments)
 
         return assets, liabilities, income, expenses
