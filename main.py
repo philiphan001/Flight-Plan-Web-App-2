@@ -4,7 +4,7 @@ from difflib import get_close_matches
 from utils.data_processor import DataProcessor
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
-from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome, Home, MortgageLoan, FixedExpense
+from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome, Home, MortgageLoan, FixedExpense, VariableExpense
 from models.user_favorites import UserFavorites  # Added import for UserFavorites
 
 def update_location(new_location: str):
@@ -602,17 +602,31 @@ def main():
                                         insurance_rate = 0.005
                                         maintenance_rate = 0.01
 
-                                        # Remove old expenses and add updated ones
+                                        # Remove all home-related expenses
                                         milestone.recurring_expenses = [exp for exp in milestone.recurring_expenses 
                                                                       if not any(name in exp.name for name in 
-                                                                               ["Mortgage Payment", "Property Tax", "Home Insurance", "Home Maintenance"])]
+                                                                               ["Mortgage Payment", "Property Tax", "Home Insurance", 
+                                                                                "Home Maintenance", "Utilities", "HOA Fees", "Renovation"])]
 
-                                        # Add updated recurring expenses
+                                        # Add all updated recurring expenses
                                         monthly_payment = new_mortgage.calculate_payment()
                                         milestone.add_recurring_expense(FixedExpense("Mortgage Payment", monthly_payment * 12, inflation_rate=0))
                                         milestone.add_recurring_expense(FixedExpense("Property Tax", new_price * property_tax_rate))
                                         milestone.add_recurring_expense(FixedExpense("Home Insurance", new_price * insurance_rate))
                                         milestone.add_recurring_expense(FixedExpense("Home Maintenance", new_price * maintenance_rate))
+
+                                        # Add utility, HOA, and renovation expenses
+                                        if new_monthly_utilities > 0:
+                                            milestone.add_recurring_expense(VariableExpense("Utilities", new_monthly_utilities * 12))
+                                        if new_monthly_hoa > 0:
+                                            milestone.add_recurring_expense(FixedExpense("HOA Fees", new_monthly_hoa * 12))
+                                        if new_annual_renovation > 0:
+                                            milestone.add_recurring_expense(VariableExpense("Renovation", new_annual_renovation))
+
+                                        # Add home office deduction if applicable
+                                        if new_home_office and new_office_area_pct > 0:
+                                            deduction = new_price * (new_office_area_pct / 100) * 0.05  # Simplified deduction calculation
+                                            milestone.add_recurring_expense(FixedExpense("Home Office Deduction", -deduction))
 
                                         st.session_state.needs_recalculation = True
                                         st.rerun()
@@ -676,7 +690,7 @@ def main():
                 for college_name in st.session_state.selected_colleges_for_projection:
                     # Find the college data from favorites
                     college = next((school for school in UserFavorites.get_favorite_schools()
-                                   if school['name'] == college_name), None)
+                                   if school['name'] == collegename), None)
                     if college:
                         st.sidebar.markdown(f"**{college['name']}**")
                         if 'avg_net_price.private' in college and pd.notna(college['avg_net_price.private']):
