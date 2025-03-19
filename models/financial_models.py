@@ -121,8 +121,37 @@ class CarLoan(Loan):
         super().__init__("Car Loan", principal, interest_rate, term_years)
 
 class StudentLoan(Loan):
-    def __init__(self, principal: float, interest_rate: float, term_years: int = 10):
+    def __init__(self, principal: float, interest_rate: float, term_years: int = 10, deferment_years: int = 0):
         super().__init__("Student Loan", principal, interest_rate, term_years)
+        self.deferment_years = deferment_years
+
+    def calculate_payment(self) -> float:
+        # Standard 10-year repayment calculation
+        monthly_rate = self.interest_rate / 12
+        num_payments = self.term_years * 12
+        return (self.principal * monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
+
+    def get_balance(self, year: int) -> float:
+        # During deferment, balance grows with interest
+        if year < self.deferment_years:
+            return self.principal * (1 + self.interest_rate) ** year
+
+        # After deferment, calculate remaining balance based on payments
+        payment_year = year - self.deferment_years
+        if payment_year >= self.term_years:
+            return 0
+
+        monthly_rate = self.interest_rate / 12
+        num_payments = self.term_years * 12
+        payment = self.calculate_payment()
+        remaining_payments = (self.term_years - payment_year) * 12
+        return (payment * ((1 - (1 + monthly_rate)**(-remaining_payments)) / monthly_rate))
+
+    def get_payment(self, year: int) -> float:
+        """Get the annual payment amount, considering deferment period"""
+        if year < self.deferment_years or year >= (self.deferment_years + self.term_years):
+            return 0
+        return self.calculate_payment() * 12
 
 class Income(ABC):
     def __init__(self, name: str, annual_amount: float, growth_rate: float = 0.03, start_year: int = 0):
@@ -414,10 +443,10 @@ class MilestoneFactory:
 
     @staticmethod
     def create_grad_school(trigger_year: int, yearly_costs: List[float], years: int,
-                          yearly_loans: List[float] = None,  # Added yearly_loans parameter
-                          part_time_income: float = 0, scholarship_amount: float = 0,
-                          salary_increase_percentage: float = 0.3,
-                          networking_cost: float = 0) -> Milestone:
+                      yearly_loans: List[float] = None,  # Added yearly_loans parameter
+                      part_time_income: float = 0, scholarship_amount: float = 0,
+                      salary_increase_percentage: float = 0.3,
+                      networking_cost: float = 0) -> Milestone:
         # Create specialized graduate school milestone with duration
         milestone = GraduateSchoolMilestone(trigger_year, years)
 
@@ -443,10 +472,18 @@ class MilestoneFactory:
 
                 # Create a loan for this year's borrowed amount, starting in the year it's taken
                 if loan_amount > 0:
-                    year_loan = StudentLoan(loan_amount, 0.06, term_years=10)
-                    # We'll track when this loan starts in the calculator
+                    # Calculate deferment period (years until graduation + 1)
+                    deferment_years = (years - year_index)
+                    year_loan = StudentLoan(loan_amount, 0.06, term_years=10, deferment_years=deferment_years)
                     year_loan.name = f"Graduate School Year {year_index + 1} Loan"
                     milestone.add_liability(year_loan)
+
+                    # Add loan payment as a recurring expense starting after deferment
+                    payment = FixedExpense(
+                        f"Graduate School Year {year_index + 1} Loan Payment",
+                        year_loan.calculate_payment() * 12  # Annual payment amount
+                    )
+                    milestone.add_recurring_expense(payment)
 
         # Add networking and professional development costs if specified
         if networking_cost > 0:

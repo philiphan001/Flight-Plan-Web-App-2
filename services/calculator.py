@@ -112,6 +112,17 @@ class FinancialCalculator:
                         category = f"One-time: {category}"  # Categorize as one-time expense
                     else:
                         expense_amount = 0
+                elif "Graduate School Year" in category and "Loan Payment" in category:
+                    # Extract loan year and find corresponding loan
+                    year_num = int(category.split("Year ")[1].split(" ")[0]) - 1
+                    loan_name = f"Graduate School Year {year_num + 1} Loan"
+                    # Find the corresponding loan
+                    loan = next((l for l in self.liabilities if l.name == loan_name), None)
+                    if loan and isinstance(loan, StudentLoan):
+                        # Only apply payment after deferment period
+                        expense_amount = int(round(loan.get_payment(year)))
+                    else:
+                        expense_amount = 0
                 elif "One-time Cost" in category:
                     milestone_name = category.replace(" One-time Cost", "")
                     category = f"One-time: {milestone_name}"
