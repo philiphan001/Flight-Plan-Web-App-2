@@ -53,6 +53,20 @@ def initialize_session_state():
 
 def main():
     initialize_session_state()
+    # Debug information
+    with st.sidebar.expander("Debug Information", expanded=False):
+        st.write("Session State:")
+        st.json({
+            "show_projections": st.session_state.get("show_projections", False),
+            "needs_recalculation": st.session_state.get("needs_recalculation", True),
+            "selected_location": st.session_state.get("selected_location", None),
+            "selected_occupation": st.session_state.get("selected_occupation", None),
+            "num_milestones": len(st.session_state.get("milestones", [])),
+            "has_home_milestone": any(
+                getattr(m, "name", "") == "Home Purchase"
+                for m in st.session_state.get("milestones", [])
+            )
+        })
     # Initialize UserFavorites session state
     UserFavorites.init_session_state()
     st.title("Financial Projection Application")
@@ -403,8 +417,8 @@ def main():
 
                 if st.button("Add Home Purchase Milestone"):
                     try:
-                        # Create the milestone
-                        milestone = MilestoneFactory.create_home_purchase(
+                        # Create milestone first
+                        new_milestone = MilestoneFactory.create_home_purchase(
                             home_year, home_price, down_payment_pct,
                             monthly_utilities=monthly_utilities,
                             monthly_hoa=monthly_hoa,
@@ -413,16 +427,26 @@ def main():
                             office_percentage=office_area_pct if home_office else 0
                         )
 
-                        # Add to milestones list and set recalculation flag
-                        st.session_state.milestones.append(milestone)
+                        # Add to milestones
+                        if 'milestones' not in st.session_state:
+                            st.session_state.milestones = []
+                        st.session_state.milestones.append(new_milestone)
+
+                        # Set calculation flag
                         st.session_state.needs_recalculation = True
 
-                        # Add success message
-                        st.sidebar.success(f"Home purchase milestone added for year {home_year}")
+                        # Keep projections visible
+                        st.session_state.show_projections = True
+
+                        # Show success message
+                        st.sidebar.success(f"Added home purchase milestone for year {home_year}")
+
+                        # Force rerun to update the UI
+                        st.experimental_rerun()
 
                     except Exception as e:
-                        st.error(f"Error adding home purchase milestone: {str(e)}")
-                        st.write("Debug info:", e)
+                        st.error(f"Failed to add home purchase milestone: {str(e)}")
+                        st.sidebar.error("Please try again or contact support if the error persists.")
 
             # Car Purchase Milestone
             with st.sidebar.expander("🚗 Car Purchase"):
@@ -703,7 +727,7 @@ def main():
                                     elif hasattr(milestone, 'home_price'):
                                         details.update({
                                             'home_price': milestone.home_price,
-                                            'down_payment': milestone.down_payment_percentage * 100,
+                                            'down_payment': milestone.downpayment_percentage * 100,
                                             'monthly_utilities': milestone.monthly_utilities,
                                             'monthly_hoa': milestone.monthly_hoa,
                                             'annual_renovation': milestone.annual_renovation
@@ -711,7 +735,7 @@ def main():
                                     elif hasattr(milestone, 'car_price'):
                                         details.update({
                                             'car_price': milestone.car_price,
-                                            'car_down_payment': milestone.down_payment_percentage * 100,
+                                            'car_downpayment': milestone.down_payment_percentage * 100,
                                             'vehicle_type': milestone.vehicle_type,
                                             'monthly_fuel': milestone.monthly_fuel,
                                             'monthly_parking': milestone.monthly_parking,
