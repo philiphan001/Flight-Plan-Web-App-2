@@ -708,7 +708,7 @@ def main():
                                 # Create a list of milestone details
                                 milestone_details = []
                                 for milestone in st.session_state.milestones:
-                                    details = {
+                                    details= {
                                         'type': milestone.__class__.__name__,
                                         'name': milestone.name,
                                         'year': milestone.trigger_year
@@ -789,28 +789,33 @@ def main():
                     tab_list = ["Net Worth Projection 📈", "Cash Flow Analysis 💰", "Assets & Liabilities ⚖️"]
 
                     # Add Home Equity tab if there's a home purchase milestone
-                    has_home_milestone = any(
-                        hasattr(milestone, 'home_price') and milestone.name == "Home Purchase"
-                        for milestone in st.session_state.milestones
-                    )
+                    has_home_milestone = False
+                    for milestone in st.session_state.milestones:
+                        if milestone.name == "Home Purchase":
+                            has_home_milestone = True
+                            break
 
                     # Debug information about milestone detection
                     with st.sidebar.expander("🔍 Milestone Detection", expanded=False):
                         st.write("Checking for home purchase milestone:")
-                        st.write(f"- Found home milestone: {has_home_milestone}")
-                        if has_home_milestone:
-                            home_milestone = next(
-                                m for m in st.session_state.milestones 
-                                if hasattr(m, 'home_price') and m.name == "Home Purchase"
-                            )
-                            st.write(f"- Trigger year: {home_milestone.trigger_year}")
-                            st.write(f"- Home price: ${home_milestone.home_price:,.2f}")
+                        st.write(f"Number of milestones: {len(st.session_state.milestones)}")
+                        st.write(f"Has home milestone: {has_home_milestone}")
+                        for idx, milestone in enumerate(st.session_state.milestones):
+                            st.write(f"Milestone {idx + 1}:")
+                            st.write(f"- Name: {milestone.name}")
+                            st.write(f"- Year: {milestone.trigger_year}")
+                            if hasattr(milestone, 'home_price'):
+                                st.write(f"- Home price: ${milestone.home_price:,.2f}")
 
-                    # Continue with tab creation and visualization
+                    # Add the Home Equity tab if we found a home milestone
                     if has_home_milestone:
                         tab_list.append("Home Equity Analysis 🏠")
+                        st.sidebar.write("Home tab will be added")
+                        st.sidebar.write(f"Current tab list: {tab_list}")
 
+                    # Create the tabs
                     tabs = st.tabs(tab_list)
+                    st.sidebar.write(f"Number of tabs created: {len(tabs)}")
 
                     with tabs[0]:
                         st.markdown("### Net Worth Over Time")
