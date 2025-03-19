@@ -40,6 +40,7 @@ def toggle_projections():
     st.session_state.show_projections = True
     st.session_state.needs_recalculation = True
 
+
 def main():
     initialize_session_state()
     # Initialize UserFavorites session state
