@@ -49,6 +49,10 @@ def initialize_session_state():
         st.session_state.saved_projections = []
     if 'selected_colleges_for_projection' not in st.session_state:
         st.session_state.selected_colleges_for_projection = []
+    if 'add_home_milestone' not in st.session_state:
+        st.session_state.add_home_milestone = False
+    if 'home_milestone_params' not in st.session_state:
+        st.session_state.home_milestone_params = {}
 
 
 def main():
@@ -384,7 +388,6 @@ def main():
                 home_price = st.number_input("Home Price ($)", 100000, 2000000, 300000, step=50000)
                 down_payment_pct = st.slider("Down Payment %", 5, 40, 20) / 100
 
-                # New home variables
                 monthly_utilities = st.number_input(
                     "Estimated Monthly Utilities ($)",
                     100, 1000, 300,
@@ -408,6 +411,7 @@ def main():
                     help="Include home office tax deduction",
                     key="home_office"
                 )
+                office_area_pct = 0
                 if home_office:
                     office_area_pct = st.slider(
                         "Office Area % of Home",
@@ -415,37 +419,18 @@ def main():
                         key="office_area"
                     )
 
-                # Create a column for the add button
-                col1, col2 = st.columns([3, 1])
-                add_home = col2.button("Add", key="add_home_milestone")
-
-                if add_home:
-                    try:
-                        # Store current milestone count
-                        current_milestone_count = len(st.session_state.milestones)
-
-                        # Create the milestone object
-                        milestone = MilestoneFactory.create_home_purchase(
-                            home_year, home_price, down_payment_pct,
-                            monthly_utilities=monthly_utilities,
-                            monthly_hoa=monthly_hoa,
-                            annual_renovation=annual_renovation,
-                            home_office_deduction=home_office,
-                            office_percentage=office_area_pct if home_office else 0
-                        )
-
-                        # Add milestone to the list without triggering a rerun
-                        st.session_state.milestones.append(milestone)
-                        st.session_state.needs_recalculation = True
-
-                        # Verify milestone was added
-                        if len(st.session_state.milestones) > current_milestone_count:
-                            col1.success("✓ Home purchase milestone added")
-                        else:
-                            col1.error("Failed to add milestone")
-
-                    except Exception as e:
-                        col1.error(f"Error: {str(e)}")
+                if st.button("Add Home Purchase", key="add_home_btn"):
+                    st.session_state.add_home_milestone = True
+                    st.session_state.home_milestone_params = {
+                        'year': home_year,
+                        'price': home_price,
+                        'down_payment_pct': down_payment_pct,
+                        'monthly_utilities': monthly_utilities,
+                        'monthly_hoa': monthly_hoa,
+                        'annual_renovation': annual_renovation,
+                        'home_office': home_office,
+                        'office_area_pct': office_area_pct
+                    }
 
             # Car Purchase Milestone
             with st.sidebar.expander("🚗 Car Purchase"):
@@ -534,6 +519,30 @@ def main():
                     st.session_state.milestones.append(milestone)
                     st.session_state.needs_recalculation = True
                     st.rerun()
+
+            # Add this block AFTER all other milestone expanders
+            if st.session_state.add_home_milestone:
+                try:
+                    params = st.session_state.home_milestone_params
+                    milestone = MilestoneFactory.create_home_purchase(
+                        params['year'], 
+                        params['price'],
+                        params['down_payment_pct'],
+                        monthly_utilities=params['monthly_utilities'],
+                        monthly_hoa=params['monthly_hoa'],
+                        annual_renovation=params['annual_renovation'],
+                        home_office_deduction=params['home_office'],
+                        office_percentage=params['office_area_pct'] if params['home_office'] else 0
+                    )
+                    st.session_state.milestones.append(milestone)
+                    st.session_state.needs_recalculation = True
+                    st.sidebar.success("Home purchase milestone added successfully!")
+                except Exception as e:
+                    st.sidebar.error(f"Error adding home purchase milestone: {str(e)}")
+                finally:
+                    st.session_state.add_home_milestone = False
+                    st.session_state.home_milestone_params = {}
+
 
             # Display current milestones
             if st.session_state.milestones:
@@ -696,7 +705,7 @@ def main():
                     # Add save projection button
                     col_save1, col_save2 = st.columns([3, 1])
                     with col_save1:
-                        scenario_name = st.text_input(
+                        scenario_name= st.text_input(
                             "Name this scenario",
                             placeholder="e.g., Base Case, With Graduate School, etc.",
                             key="scenario_name"
@@ -721,7 +730,7 @@ def main():
                                             'spouse_occupation': st.session_state.selected_spouse_occ,
                                             'lifestyle_adjustment': milestone.lifestyle_adjustment * 100,
                                             'spouse_savings': milestone.spouse_savings,
-'spouse_debt': milestone.spouse_debt
+                                            'spouse_debt': milestone.spouse_debt
                                         })
                                     elif hasattr(milestone, 'home_price'):
                                         details.update({
@@ -916,22 +925,22 @@ def main():
                                             else:
                                                 mortgage_values[i] = 0
 
-                            if any(home_values) and any(mortgage_values):
-                                FinancialPlotter.plot_home_value_breakdown(
-                                    current_projections['years'],
-                                    home_values,
-                                    mortgage_values
-                                )
+                                if any(home_values) and any(mortgage_values):
+                                    FinancialPlotter.plot_home_value_breakdown(
+                                        current_projections['years'],
+                                        home_values,
+                                        mortgage_values
+                                    )
 
-                                # Add a summary of the home purchase details
-                                st.markdown("### Home Purchase Details")
-                                col1, col2, col3 = st.columns(3)
-                                with col1:
-                                    st.metric("Purchase Price", f"${home_milestone.home_price:,.0f}")
-                                with col2:
-                                    st.metric("Down Payment", f"${down_payment:,.0f}")
-                                with col3:
-                                    st.metric("Initial Mortgage", f"${mortgage_amount:,.0f}")
+                                    # Add a summary of the home purchase details
+                                    st.markdown("### Home Purchase Details")
+                                    col1, col2, col3 = st.columns(3)
+                                    with col1:
+                                        st.metric("Purchase Price", f"${home_milestone.home_price:,.0f}")
+                                    with col2:
+                                        st.metric("Down Payment", f"${down_payment:,.0f}")
+                                    with col3:
+                                        st.metric("Initial Mortgage", f"${mortgage_amount:,.0f}")
                             else:
                                 st.warning("Home purchase is scheduled for a future year. The equity analysis will be available once the purchase occurs.")
 
