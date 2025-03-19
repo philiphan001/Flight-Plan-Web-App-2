@@ -415,9 +415,15 @@ def main():
                         key="office_area"
                     )
 
-                if st.button("Add Home Purchase Milestone"):
-                    # Basic milestone creation with minimal state changes
+                # Create a column for the add button
+                col1, col2 = st.columns([3, 1])
+                add_home = col2.button("Add", key="add_home_milestone")
+
+                if add_home:
                     try:
+                        # Store current milestone count
+                        current_milestone_count = len(st.session_state.milestones)
+
                         # Create the milestone object
                         milestone = MilestoneFactory.create_home_purchase(
                             home_year, home_price, down_payment_pct,
@@ -428,15 +434,18 @@ def main():
                             office_percentage=office_area_pct if home_office else 0
                         )
 
-                        # Simply append to milestones and mark for recalculation
+                        # Add milestone to the list without triggering a rerun
                         st.session_state.milestones.append(milestone)
                         st.session_state.needs_recalculation = True
 
-                        # Success message only
-                        st.sidebar.success(f"Home purchase milestone added for year {home_year}")
+                        # Verify milestone was added
+                        if len(st.session_state.milestones) > current_milestone_count:
+                            col1.success("✓ Home purchase milestone added")
+                        else:
+                            col1.error("Failed to add milestone")
 
                     except Exception as e:
-                        st.error(f"Could not add home purchase milestone: {str(e)}")
+                        col1.error(f"Error: {str(e)}")
 
             # Car Purchase Milestone
             with st.sidebar.expander("🚗 Car Purchase"):
@@ -712,7 +721,7 @@ def main():
                                             'spouse_occupation': st.session_state.selected_spouse_occ,
                                             'lifestyle_adjustment': milestone.lifestyle_adjustment * 100,
                                             'spouse_savings': milestone.spouse_savings,
-                                            'spouse_debt': milestone.spouse_debt
+'spouse_debt': milestone.spouse_debt
                                         })
                                     elif hasattr(milestone, 'home_price'):
                                         details.update({
