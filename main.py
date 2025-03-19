@@ -709,13 +709,13 @@ def main():
                                         'spouse_debt': milestone.spouse_debt
                                     })
                                 elif hasattr(milestone, 'homeprice'):
-                                        details.update({
-                                            'home_price': milestone.home_price,
-                                            'down_payment': milestone.down_payment_percentage * 100,
-                                            'monthly_utilities': milestone.monthly_utilities,
-                                            'monthly_hoa': milestone.monthly_hoa,
-                                            'annual_renovation': milestone.annual_renovation
-                                        })
+                                    details.update({
+                                        'home_price': milestone.home_price,
+                                        'down_payment': milestone.down_payment_percentage * 100,
+                                        'monthlyutilities': milestone.monthly_utilities,
+                                        'monthly_hoa': milestone.monthly_hoa,
+                                        'annual_renovation': milestone.annual_renovation
+                                    })
                                 elif hasattr(milestone, 'car_price'):
                                     details.update({
                                         'car_price': milestone.car_price,
@@ -770,13 +770,19 @@ def main():
                     st.switch_page("pages/user_profile.py")
 
                 # Create tabs for different visualizations
-                tab1, tab2, tab3 = st.tabs([
-                    "Net Worth Projection 📈",
-                    "Cash Flow Analysis 💰",
-                    "Assets & Liabilities ⚖️"
-                ])
+                tab_list = ["Net Worth Projection 📈", "Cash Flow Analysis 💰", "Assets & Liabilities ⚖️"]
 
-                with tab1:
+                # Add Home Equity tab if there's a home purchase milestone
+                has_home_milestone = any(
+                    milestone.__class__.__name__ == "HomePurchase"
+                    for milestone in st.session_state.milestones
+                )
+                if has_home_milestone:
+                    tab_list.append("Home Equity Analysis 🏠")
+
+                tabs = st.tabs(tab_list)
+
+                with tabs[0]:
                     st.markdown("### Net Worth Over Time")
                     FinancialPlotter.plot_net_worth(
                         current_projections['years'],
@@ -785,7 +791,7 @@ def main():
                         current_projections['liability_values']
                     )
 
-                with tab2:
+                with tabs[1]:
                     st.markdown("### Cash Flow Analysis")
                     FinancialPlotter.plot_cash_flow(
                         current_projections['years'],
@@ -796,7 +802,7 @@ def main():
                         current_projections['income_streams']
                     )
 
-                with tab3:
+                with tabs[2]:
                     st.markdown("### Assets and Liabilities")
                     FinancialPlotter.plot_assets_liabilities(
                         current_projections['years'],
@@ -805,6 +811,25 @@ def main():
                         current_projections['asset_breakdown'],
                         current_projections['liability_breakdown']
                     )
+
+                # Add Home Equity Analysis tab content if applicable
+                if has_home_milestone and len(tabs) > 3:
+                    with tabs[3]:
+                        st.markdown("### Home Equity Analysis")
+                        # Extract home value and mortgage data from asset/liability breakdowns
+                        if ('Home' in current_projections['asset_breakdown'] and
+                            'Mortgage' in current_projections['liability_breakdown']):
+
+                            home_values = current_projections['asset_breakdown']['Home']
+                            mortgage_values = current_projections['liability_breakdown']['Mortgage']
+
+                            FinancialPlotter.plot_home_value_breakdown(
+                                current_projections['years'],
+                                home_values,
+                                mortgage_values
+                            )
+                        else:
+                            st.warning("Home value or mortgage data not found in projections.")
 
                 # Store current projections as previous before any new milestone is added
                 st.session_state.previous_projections = current_projections
