@@ -437,8 +437,8 @@ class MilestoneFactory:
                 # Create a separate milestone for each year's expense
                 year_milestone = Milestone(expense_name, trigger_year + year_index, "Education")
                 year_milestone.add_one_time_expense(net_cost)
-                # Add this milestone's one-time expense to the main milestone's expenses
-                milestone.add_one_time_expense(net_cost)
+                # Add this year's milestone to the main milestone's expenses
+                milestone.recurring_expenses.extend(year_milestone.recurring_expenses)
 
         # Add networking and professional development costs if specified
         if networking_cost > 0:
