@@ -205,7 +205,7 @@ class Milestone:
         self.duration_years = None  # For time-limited milestones
 
     def add_one_time_expense(self, amount: float):
-        self.one_time_expense = amount
+        self.one_time_expense += amount #modified
 
     def add_recurring_expense(self, expense: Expense):
         expense._milestone = self  # Set the reference to this milestone
@@ -424,15 +424,21 @@ class MilestoneFactory:
         total_cost = sum(yearly_costs)
 
         # Add student loan with reduced principal if scholarship available
-        milestone.add_liability(StudentLoan(total_cost - scholarship_amount * years, 0.06))
+        loan_amount = total_cost - (scholarship_amount * years)
+        if loan_amount > 0:
+            milestone.add_liability(StudentLoan(loan_amount, 0.06))
 
-        # Add each year's expenses separately
+        # Add each year's cost as a one-time expense for that specific year
         for year_index, year_cost in enumerate(yearly_costs):
-            # Reduce cost by scholarship amount for each year
-            annual_cost = year_cost - scholarship_amount
-            expense_name = f"Graduate School Year {year_index + 1}"
-            grad_school_expense = FixedExpense(expense_name, annual_cost)
-            milestone.add_recurring_expense(grad_school_expense)
+            # Apply scholarship reduction to each year's cost
+            net_cost = year_cost - scholarship_amount
+            if net_cost > 0:
+                expense_name = f"Graduate School Year {year_index + 1} Cost"
+                # Create a separate milestone for each year's expense
+                year_milestone = Milestone(expense_name, trigger_year + year_index, "Education")
+                year_milestone.add_one_time_expense(net_cost)
+                # Add this milestone's one-time expense to the main milestone's expenses
+                milestone.add_one_time_expense(net_cost)
 
         # Add networking and professional development costs if specified
         if networking_cost > 0:

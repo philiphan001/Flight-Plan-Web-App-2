@@ -73,7 +73,7 @@ class FinancialCalculator:
             projections['total_income'].append(total_income)
             projections['income_streams'] = income_streams
 
-            # Calculate tax expenses by type
+            # Calculate tax expenses
             federal_tax = 0
             state_tax = 0
             payroll_tax = 0
@@ -90,7 +90,6 @@ class FinancialCalculator:
                     payroll_tax = tax_amount
                     expense_categories['Payroll Tax'][year] = payroll_tax
 
-            # Update tax breakdown
             projections['tax_breakdown']['federal_income_tax'].append(federal_tax)
             projections['tax_breakdown']['state_income_tax'].append(state_tax)
             projections['tax_breakdown']['payroll_tax'].append(payroll_tax)
@@ -100,22 +99,34 @@ class FinancialCalculator:
 
             # Calculate regular expenses
             total_regular_expenses = 0
-            # Handle time-limited milestone expenses differently
             for expense in self.expenses:
                 category = expense.name
-                if "One-time Cost" in category:
+                # For graduate school expenses, check if it's a one-time cost
+                if "Graduate School Year" in category and "Cost" in category:
+                    year_num = int(category.split("Year ")[1].split(" ")[0]) - 1
+                    target_year = expense._milestone.trigger_year + year_num
+                    if year == target_year:
+                        expense_amount = int(round(expense.annual_amount))
+                    else:
+                        expense_amount = 0
+                elif "One-time Cost" in category:
                     milestone_name = category.replace(" One-time Cost", "")
                     category = f"One-time: {milestone_name}"
-
-                # For expenses within milestones, check duration
-                if hasattr(expense, '_milestone') and hasattr(expense._milestone, 'duration_years'):
-                    milestone = expense._milestone
-                    if year >= milestone.trigger_year and year < (milestone.trigger_year + milestone.duration_years):
-                        expense_amount = int(round(expense.calculate_expense(year - milestone.trigger_year)))
+                    # Only apply one-time expenses in their specific year
+                    if hasattr(expense, '_milestone') and year == expense._milestone.trigger_year:
+                        expense_amount = int(round(expense.annual_amount))
                     else:
                         expense_amount = 0
                 else:
-                    expense_amount = int(round(expense.calculate_expense(year)))
+                    # Regular recurring expenses
+                    if hasattr(expense, '_milestone') and hasattr(expense._milestone, 'duration_years'):
+                        milestone = expense._milestone
+                        if year >= milestone.trigger_year and year < (milestone.trigger_year + milestone.duration_years):
+                            expense_amount = int(round(expense.calculate_expense(year - milestone.trigger_year)))
+                        else:
+                            expense_amount = 0
+                    else:
+                        expense_amount = int(round(expense.calculate_expense(year)))
 
                 expense_categories[category][year] = expense_amount
                 total_regular_expenses += expense_amount
