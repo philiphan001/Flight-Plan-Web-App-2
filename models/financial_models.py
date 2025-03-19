@@ -127,13 +127,12 @@ class StudentLoan(Loan):
         self._milestone = None  # Reference to the milestone this loan belongs to
 
     def calculate_payment(self) -> float:
-        """Calculate monthly payment amount"""
+        # Standard 10-year repayment calculation
         monthly_rate = self.interest_rate / 12
         num_payments = self.term_years * 12
         return (self.principal * monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
 
     def get_balance(self, year: int) -> float:
-        """Get the loan balance for a given year"""
         # During deferment, balance grows with interest
         if year < self.deferment_years:
             return self.principal * (1 + self.interest_rate) ** year
@@ -461,7 +460,7 @@ class MilestoneFactory:
                 loan_amount = yearly_loans[year_index] if yearly_loans else 0
                 out_of_pocket = net_cost - loan_amount
 
-                # Create a one-time expense for the out-of-pocket amount in this specific year
+                # Create a one-time expense for the out-of-pocket amount
                 if out_of_pocket > 0:
                     milestone.add_one_time_expense(out_of_pocket)
 

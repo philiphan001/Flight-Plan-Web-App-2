@@ -70,6 +70,9 @@ class FinancialCalculator:
                 income_streams[inc.name].append(income_amount)
                 total_income += income_amount
 
+            projections['total_income'].append(total_income)
+            projections['income_streams'] = income_streams
+
             # Calculate tax expenses
             federal_tax = 0
             state_tax = 0
@@ -87,7 +90,14 @@ class FinancialCalculator:
                     payroll_tax = tax_amount
                     expense_categories['Payroll Tax'][year] = payroll_tax
 
-            # Calculate regular expenses and loan payments
+            projections['tax_breakdown']['federal_income_tax'].append(federal_tax)
+            projections['tax_breakdown']['state_income_tax'].append(state_tax)
+            projections['tax_breakdown']['payroll_tax'].append(payroll_tax)
+
+            total_tax = federal_tax + state_tax + payroll_tax
+            projections['tax_expenses'].append(total_tax)
+
+            # Calculate regular expenses
             total_regular_expenses = 0
             for expense in self.expenses:
                 category = expense.name
@@ -114,9 +124,24 @@ class FinancialCalculator:
                         category = f"Loan Payment: Graduate School Year {year_num + 1}"  # Categorize loan payments
                     else:
                         expense_amount = 0
+                elif "One-time Cost" in category:
+                    milestone_name = category.replace(" One-time Cost", "")
+                    category = f"One-time: {milestone_name}"
+                    # Only apply one-time expenses in their specific year
+                    if hasattr(expense, '_milestone') and year == expense._milestone.trigger_year:
+                        expense_amount = int(round(expense.annual_amount))
+                    else:
+                        expense_amount = 0
                 else:
                     # Regular recurring expenses
-                    expense_amount = int(round(expense.calculate_expense(year)))
+                    if hasattr(expense, '_milestone') and hasattr(expense._milestone, 'duration_years'):
+                        milestone = expense._milestone
+                        if year >= milestone.trigger_year and year < (milestone.trigger_year + milestone.duration_years):
+                            expense_amount = int(round(expense.calculate_expense(year - milestone.trigger_year)))
+                        else:
+                            expense_amount = 0
+                    else:
+                        expense_amount = int(round(expense.calculate_expense(year)))
 
                 # Add to expense categories
                 if category not in expense_categories:
@@ -124,27 +149,22 @@ class FinancialCalculator:
                 expense_categories[category][year] = expense_amount
                 total_regular_expenses += expense_amount
 
-            # Update projections
-            projections['total_income'].append(total_income)
-            projections['income_streams'] = income_streams
-
-            total_tax = federal_tax + state_tax + payroll_tax
-            projections['tax_expenses'].append(total_tax)
-            projections['tax_breakdown']['federal_income_tax'].append(federal_tax)
-            projections['tax_breakdown']['state_income_tax'].append(state_tax)
-            projections['tax_breakdown']['payroll_tax'].append(payroll_tax)
-
             # Total expenses including taxes
             total_expenses = total_regular_expenses + total_tax
             projections['total_expenses'].append(total_expenses)
             projections['expense_categories'] = expense_categories
 
             # Calculate cash flow (after taxes)
-            cash_flow = total_income - total_expenses
+            cash_flow = int(round(total_income - total_expenses))
             projections['cash_flow'].append(cash_flow)
 
             # Add cash flow to cumulative savings
             cumulative_savings += cash_flow
+
+            # Update the investment asset with new savings
+            for asset in self.assets:
+                if isinstance(asset, Investment) and asset.name == "Savings":
+                    asset.add_contribution(cash_flow)
 
             # Calculate asset values
             total_asset_value = 0
@@ -156,6 +176,17 @@ class FinancialCalculator:
                     asset_breakdown[asset_key] = [0] * projection_years
                 asset_breakdown[asset_key][year] = asset_value
                 total_asset_value += asset_value
+
+            projections['asset_values'].append(total_asset_value)
+            projections['asset_breakdown'] = asset_breakdown
+
+            # Calculate investment growth
+            investment_growth = int(round(next(
+                (asset.calculate_value(year) for asset in self.assets
+                 if isinstance(asset, Investment) and asset.name == "Savings"),
+                0
+            )))
+            projections['investment_growth'].append(investment_growth)
 
             # Calculate liability values
             total_liability_value = 0
@@ -181,11 +212,11 @@ class FinancialCalculator:
                 liability_breakdown[liability_key][year] = liability_value
                 total_liability_value += liability_value
 
-            # Update remaining projections
-            projections['asset_values'].append(total_asset_value)
-            projections['asset_breakdown'] = asset_breakdown
             projections['liability_values'].append(total_liability_value)
             projections['liability_breakdown'] = liability_breakdown
-            projections['net_worth'].append(total_asset_value - total_liability_value)
+
+            # Calculate net worth
+            net_worth = int(round(total_asset_value - total_liability_value))
+            projections['net_worth'].append(net_worth)
 
         return projections
