@@ -197,14 +197,17 @@ class FinancialPlotter:
         # Create and display tables for income and expenses
         df_income = pd.DataFrame({
             'Year': years,
-            'Total Income': ['${:,.0f}'.format(x) for x in income],
-            'Total Expenses': ['${:,.0f}'.format(x) for x in total_expenses],
-            'Net Cash Flow': ['${:,.0f}'.format(x) for x in cash_flow],
+            'Total Income': ['${:,.0f}'.format(x) for x in income[:max_len]],
+            'Total Expenses': ['${:,.0f}'.format(x) for x in total_expenses[:max_len]],
+            'Net Cash Flow': ['${:,.0f}'.format(x) for x in cash_flow[:max_len]],
         })
 
-        # Add individual income streams
-        for stream_name, values in income_streams.items():
-            df_income[stream_name] = ['${:,.0f}'.format(x) for x in values]
+        # Add individual income streams with proper padding
+        if income_streams:
+            for stream_name, values in income_streams.items():
+                # Pad array with zeros if needed
+                padded_values = values + [0] * (max_len - len(values)) if len(values) < max_len else values[:max_len]
+                df_income[stream_name] = ['${:,.0f}'.format(x) for x in padded_values]
 
         st.subheader("Income and Cash Flow Details")
         st.dataframe(df_income, use_container_width=True)
@@ -212,7 +215,9 @@ class FinancialPlotter:
         # Create and display expenses breakdown
         expense_data = {'Year': years}
         for category, values in expenses.items():
-            expense_data[category] = ['${:,.0f}'.format(x) for x in values]
+            # Pad expense values if needed
+            padded_values = values + [0] * (max_len - len(values)) if len(values) < max_len else values[:max_len]
+            expense_data[category] = ['${:,.0f}'.format(x) for x in padded_values]
 
         df_expenses = pd.DataFrame(expense_data)
         st.subheader("Expense Breakdown")
