@@ -420,46 +420,25 @@ class MilestoneFactory:
         # Create specialized graduate school milestone with duration
         milestone = GraduateSchoolMilestone(trigger_year, years)
 
-        # Add loans and expenses for each year separately
-        total_loan_payment = 0
+        # Calculate total cost for loan purposes
+        total_cost = sum(yearly_costs)
+
+        # Add student loan with reduced principal if scholarship available
+        loan_amount = total_cost - (scholarship_amount * years)
+        if loan_amount > 0:
+            milestone.add_liability(StudentLoan(loan_amount, 0.06))
+
+        # Add each year's cost as a one-time expense for that specific year
         for year_index, year_cost in enumerate(yearly_costs):
             # Apply scholarship reduction to each year's cost
             net_cost = year_cost - scholarship_amount
             if net_cost > 0:
-                # Create a separate student loan for this year's cost
-                year_loan = StudentLoan(net_cost, 0.06)  # 6% interest rate
-                year_loan.name = f"Graduate School Year {year_index + 1} Loan"
-
-                # Add the loan starting in the year it's needed
-                year_milestone = Milestone(
-                    f"Graduate School Year {year_index + 1}",
-                    trigger_year + year_index,
-                    "Education"
-                )
-                year_milestone.add_liability(year_loan)
+                expense_name = f"Graduate School Year {year_index + 1} Cost"
+                # Create a separate milestone for each year's expense
+                year_milestone = Milestone(expense_name, trigger_year + year_index, "Education")
                 year_milestone.add_one_time_expense(net_cost)
-
                 # Add this year's milestone to the main milestone's expenses
                 milestone.recurring_expenses.extend(year_milestone.recurring_expenses)
-                milestone.liabilities.extend(year_milestone.liabilities)
-
-                # Calculate monthly payment for this loan
-                total_loan_payment += year_loan.calculate_payment()
-
-        # Add loan repayment as a recurring expense starting after graduation
-        if total_loan_payment > 0:
-            loan_repayment = FixedExpense(
-                "Graduate School Loan Repayment",
-                total_loan_payment * 12,  # Convert monthly to annual
-                inflation_rate=0  # Loan payments are fixed
-            )
-            repayment_milestone = Milestone(
-                "Graduate School Loan Repayment",
-                trigger_year + years,  # Start repayment after graduation
-                "Education"
-            )
-            repayment_milestone.add_recurring_expense(loan_repayment)
-            milestone.recurring_expenses.extend(repayment_milestone.recurring_expenses)
 
         # Add networking and professional development costs if specified
         if networking_cost > 0:
@@ -471,7 +450,7 @@ class MilestoneFactory:
             part_time.end_year = trigger_year + years
             milestone.add_income_adjustment(part_time)
 
-        # Add post-graduation salary increase as a new income stream
+        # Add post-graduation salary increase as a new income stream, not replacing existing
         if salary_increase_percentage > 0:
             # Calculate the increased portion only
             base_salary = 30000  # Base salary
