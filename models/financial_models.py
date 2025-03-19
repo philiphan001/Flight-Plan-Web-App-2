@@ -428,17 +428,20 @@ class MilestoneFactory:
         if loan_amount > 0:
             milestone.add_liability(StudentLoan(loan_amount, 0.06))
 
-        # Add each year's cost as a one-time expense for that specific year
+        # For each year, create a one-time expense in that specific year
         for year_index, year_cost in enumerate(yearly_costs):
             # Apply scholarship reduction to each year's cost
             net_cost = year_cost - scholarship_amount
             if net_cost > 0:
-                expense_name = f"Graduate School Year {year_index + 1} Cost"
-                # Create a separate milestone for each year's expense
-                year_milestone = Milestone(expense_name, trigger_year + year_index, "Education")
-                year_milestone.add_one_time_expense(net_cost)
-                # Add this year's milestone to the main milestone's expenses
-                milestone.recurring_expenses.extend(year_milestone.recurring_expenses)
+                # Create a one-time expense milestone for this year's cost
+                year_expense = Milestone(
+                    f"Graduate School Year {year_index + 1} Cost",
+                    trigger_year + year_index,
+                    "Education"
+                )
+                year_expense.add_one_time_expense(net_cost)
+                # Add this year's milestone's expense to our expenses list
+                milestone.recurring_expenses.extend(year_expense.recurring_expenses)
 
         # Add networking and professional development costs if specified
         if networking_cost > 0:
@@ -450,7 +453,7 @@ class MilestoneFactory:
             part_time.end_year = trigger_year + years
             milestone.add_income_adjustment(part_time)
 
-        # Add post-graduation salary increase as a new income stream, not replacing existing
+        # Add post-graduation salary increase as a new income stream
         if salary_increase_percentage > 0:
             # Calculate the increased portion only
             base_salary = 30000  # Base salary

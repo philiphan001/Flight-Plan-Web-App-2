@@ -101,12 +101,15 @@ class FinancialCalculator:
             total_regular_expenses = 0
             for expense in self.expenses:
                 category = expense.name
-                # For graduate school expenses, check if it's a one-time cost
+                # For graduate school expenses, handle as one-time costs
                 if "Graduate School Year" in category and "Cost" in category:
+                    # Extract the year number and calculate target year
                     year_num = int(category.split("Year ")[1].split(" ")[0]) - 1
                     target_year = expense._milestone.trigger_year + year_num
+                    # Only apply the expense in its specific year
                     if year == target_year:
                         expense_amount = int(round(expense.annual_amount))
+                        category = f"One-time: {category}"  # Categorize as one-time expense
                     else:
                         expense_amount = 0
                 elif "One-time Cost" in category:
@@ -128,6 +131,7 @@ class FinancialCalculator:
                     else:
                         expense_amount = int(round(expense.calculate_expense(year)))
 
+                # Add to expense categories
                 expense_categories[category][year] = expense_amount
                 total_regular_expenses += expense_amount
 
