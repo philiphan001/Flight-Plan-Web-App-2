@@ -414,19 +414,12 @@ class MilestoneFactory:
 
     @staticmethod
     def create_grad_school(trigger_year: int, yearly_costs: List[float], years: int,
+                          yearly_loans: List[float] = None,  # Added yearly_loans parameter
                           part_time_income: float = 0, scholarship_amount: float = 0,
                           salary_increase_percentage: float = 0.3,
                           networking_cost: float = 0) -> Milestone:
         # Create specialized graduate school milestone with duration
         milestone = GraduateSchoolMilestone(trigger_year, years)
-
-        # Calculate total cost for loan purposes
-        total_cost = sum(yearly_costs)
-
-        # Add student loan with reduced principal if scholarship available
-        loan_amount = total_cost - (scholarship_amount * years)
-        if loan_amount > 0:
-            milestone.add_liability(StudentLoan(loan_amount, 0.06))
 
         # For each year, create a one-time expense in that specific year
         for year_index, year_cost in enumerate(yearly_costs):
@@ -439,9 +432,20 @@ class MilestoneFactory:
                     trigger_year + year_index,
                     "Education"
                 )
-                year_expense.add_one_time_expense(net_cost)
-                # Add this year's milestone's expense to our expenses list
-                milestone.recurring_expenses.extend(year_expense.recurring_expenses)
+
+                # Calculate out of pocket amount for this year
+                loan_amount = yearly_loans[year_index] if yearly_loans else 0
+                out_of_pocket = net_cost - loan_amount
+
+                # Add out of pocket amount as one-time expense
+                if out_of_pocket > 0:
+                    year_expense.add_one_time_expense(out_of_pocket)
+                    milestone.recurring_expenses.extend(year_expense.recurring_expenses)
+
+                # Create a loan for this year's borrowed amount
+                if loan_amount > 0:
+                    year_loan = StudentLoan(loan_amount, 0.06, term_years=10)
+                    milestone.add_liability(year_loan)
 
         # Add networking and professional development costs if specified
         if networking_cost > 0:

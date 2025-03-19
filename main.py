@@ -453,16 +453,38 @@ def main():
                 grad_year = st.slider("Start Year", 1, projection_years, 2, key="grad_year")
                 program_years = st.slider("Program Length (Years)", 1, 4, 2)
 
+                # Scholarship amount applies to each year
+                scholarship_amount = st.number_input(
+                    "Expected Annual Scholarship ($)",
+                    0, 50000, 0,
+                    step=1000,
+                    key="scholarship"
+                )
+
                 # Create yearly cost inputs based on program length
                 yearly_costs = []
+                yearly_loans = []
                 for year in range(program_years):
+                    st.markdown(f"#### Year {year + 1} Costs")
                     cost = st.number_input(
-                        f"Year {year + 1} Cost ($)",
+                        f"Total Cost for Year {year + 1} ($)",
                         10000, 100000, 50000,
                         step=1000,
                         key=f"grad_year_{year}_cost"
                     )
+                    loan_amount = st.number_input(
+                        f"Amount to Borrow for Year {year + 1} ($)",
+                        0, cost, cost,  # Max loan is the total cost
+                        step=1000,
+                        key=f"grad_year_{year}_loan"
+                    )
+                    # Show out of pocket cost for this year
+                    out_of_pocket = cost - loan_amount - scholarship_amount
+                    st.markdown(f"**Out of Pocket for Year {year + 1}: ${out_of_pocket:,.2f}**")
+                    st.markdown("---")
+
                     yearly_costs.append(cost)
+                    yearly_loans.append(loan_amount)
 
                 # Other graduate school variables
                 part_time_income = st.number_input(
@@ -470,12 +492,6 @@ def main():
                     0, 5000, 0,
                     step=100,
                     key="part_time"
-                )
-                scholarship_amount = st.number_input(
-                    "Expected Annual Scholarship ($)",
-                    0, 50000, 0,
-                    step=1000,
-                    key="scholarship"
                 )
                 expected_salary_increase = st.slider(
                     "Expected Salary Increase After Graduation (%)",
@@ -493,6 +509,7 @@ def main():
                 if st.button("Add Graduate School Milestone"):
                     milestone = MilestoneFactory.create_grad_school(
                         grad_year, yearly_costs, program_years,
+                        yearly_loans=yearly_loans,  # Add yearly loan amounts
                         part_time_income=part_time_income * 12,
                         scholarship_amount=scholarship_amount,
                         salary_increase_percentage=expected_salary_increase / 100,
@@ -682,7 +699,7 @@ def main():
                                                     if "Tuition" in exp.name:
                                                         exp.name = f"{school['name']} Tuition"
                                                         exp.annual_amount = new_annual_cost
-                                                st.session_state.needs_recalculation = True
+                                                st.session_state.needsrecalculation = True
                                                 st.rerun()
 
                         # Add remove button and separator for all milestone types
