@@ -392,6 +392,9 @@ def main():
                     )
 
                 if st.button("Add Home Purchase Milestone"):
+                    # Keep track of current state
+                    current_show_projections = st.session_state.show_projections
+
                     milestone = MilestoneFactory.create_home_purchase(
                         home_year, home_price, down_payment_pct,
                         monthly_utilities=monthly_utilities,
@@ -402,8 +405,9 @@ def main():
                     )
                     st.session_state.milestones.append(milestone)
                     st.session_state.needs_recalculation = True
-                    # Remove the st.rerun() here as it's causing the full page reset
-                    # Instead, just set needs_recalculation to True
+
+                    # Restore state
+                    st.session_state.show_projections = current_show_projections
 
             # Car Purchase Milestone
             with st.sidebar.expander("🚗 Car Purchase"):
@@ -720,7 +724,7 @@ def main():
                                     'name': scenario_name,
                                     'date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'),
                                     'location': st.session_state.selected_location,
-                                    'occupation': st.sessionstate.selected_occupation,
+                                    'occupation': st.session_state.selected_occupation,
                                     'investment_rate': investment_return_rate * 100,
                                     'final_net_worth': int(round(current_projections['net_worth'][-1])),
                                     'milestones': milestone_details,
