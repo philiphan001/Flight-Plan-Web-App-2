@@ -49,28 +49,10 @@ def initialize_session_state():
         st.session_state.saved_projections = []
     if 'selected_colleges_for_projection' not in st.session_state:
         st.session_state.selected_colleges_for_projection = []
-    if 'add_home_milestone' not in st.session_state:
-        st.session_state.add_home_milestone = False
-    if 'home_milestone_params' not in st.session_state:
-        st.session_state.home_milestone_params = {}
 
 
 def main():
     initialize_session_state()
-    # Debug information
-    with st.sidebar.expander("Debug Information", expanded=False):
-        st.write("Session State:")
-        st.json({
-            "show_projections": st.session_state.get("show_projections", False),
-            "needs_recalculation": st.session_state.get("needs_recalculation", True),
-            "selected_location": st.session_state.get("selected_location", None),
-            "selected_occupation": st.session_state.get("selected_occupation", None),
-            "num_milestones": len(st.session_state.get("milestones", [])),
-            "has_home_milestone": any(
-                getattr(m, "name", "") == "Home Purchase"
-                for m in st.session_state.get("milestones", [])
-            )
-        })
     # Initialize UserFavorites session state
     UserFavorites.init_session_state()
     st.title("Financial Projection Application")
@@ -86,16 +68,6 @@ def main():
         occupations = sorted([occ for occ in occupation_df['Occupation'].astype(str).unique().tolist()
                              if occ.lower() != 'nan'])
 
-        # Add debug logging for state tracking
-        with st.sidebar.expander("🔍 Debug State", expanded=False):
-            st.write("Current State:")
-            st.write(f"- Show Projections: {st.session_state.show_projections}")
-            st.write(f"- Location: {st.session_state.selected_location}")
-            st.write(f"- Occupation: {st.session_state.selected_occupation}")
-            st.write(f"- Needs Recalculation: {st.session_state.needs_recalculation}")
-            st.write(f"- Number of Milestones: {len(st.session_state.milestones)}")
-
-        # Only reset show_projections if explicitly requested
         if not st.session_state.show_projections:
             # Create two columns for location and occupation selection
             col1, col2 = st.columns(2)
@@ -108,8 +80,8 @@ def main():
                     location_input = st.text_input("Enter Location")
                     if location_input:
                         matches = get_close_matches(location_input.lower(),
-                                                    [loc.lower() for loc in locations],
-                                                    n=3, cutoff=0.1)
+                                                   [loc.lower() for loc in locations],
+                                                   n=3, cutoff=0.1)
                         matching_locations = [loc for loc in locations if loc.lower() in matches]
                         if matching_locations:
                             st.markdown("#### Select from matches:")
@@ -126,8 +98,8 @@ def main():
                     occupation_input = st.text_input("Enter Occupation")
                     if occupation_input:
                         matches = get_close_matches(occupation_input.lower(),
-                                                    [occ.lower() for occ in occupations],
-                                                    n=3, cutoff=0.1)
+                                                   [occ.lower() for occ in occupations],
+                                                   n=3, cutoff=0.1)
                         matching_occupations = [occ for occ in occupations if occ.lower() in matches]
                         if matching_occupations:
                             st.markdown("#### Select from matches:")
@@ -388,6 +360,7 @@ def main():
                 home_price = st.number_input("Home Price ($)", 100000, 2000000, 300000, step=50000)
                 down_payment_pct = st.slider("Down Payment %", 5, 40, 20) / 100
 
+                # New home variables
                 monthly_utilities = st.number_input(
                     "Estimated Monthly Utilities ($)",
                     100, 1000, 300,
@@ -411,7 +384,6 @@ def main():
                     help="Include home office tax deduction",
                     key="home_office"
                 )
-                office_area_pct = 0
                 if home_office:
                     office_area_pct = st.slider(
                         "Office Area % of Home",
@@ -419,18 +391,18 @@ def main():
                         key="office_area"
                     )
 
-                if st.button("Add Home Purchase", key="add_home_btn"):
-                    st.session_state.add_home_milestone = True
-                    st.session_state.home_milestone_params = {
-                        'year': home_year,
-                        'price': home_price,
-                        'down_payment_pct': down_payment_pct,
-                        'monthly_utilities': monthly_utilities,
-                        'monthly_hoa': monthly_hoa,
-                        'annual_renovation': annual_renovation,
-                        'home_office': home_office,
-                        'office_area_pct': office_area_pct
-                    }
+                if st.button("Add Home Purchase Milestone"):
+                    milestone = MilestoneFactory.create_home_purchase(
+                        home_year, home_price, down_payment_pct,
+                        monthly_utilities=monthly_utilities,
+                        monthly_hoa=monthly_hoa,
+                        annual_renovation=annual_renovation,
+                        home_office_deduction=home_office,
+                        office_percentage=office_area_pct if home_office else 0
+                    )
+                    st.session_state.milestones.append(milestone)
+                    st.session_state.needs_recalculation = True
+                    st.rerun()
 
             # Car Purchase Milestone
             with st.sidebar.expander("🚗 Car Purchase"):
@@ -520,37 +492,11 @@ def main():
                     st.session_state.needs_recalculation = True
                     st.rerun()
 
-            # Add this block AFTER all other milestone expanders
-            if st.session_state.add_home_milestone:
-                try:
-                    params = st.session_state.home_milestone_params
-                    milestone = MilestoneFactory.create_home_purchase(
-                        params['year'], 
-                        params['price'],
-                        params['down_payment_pct'],
-                        monthly_utilities=params['monthly_utilities'],
-                        monthly_hoa=params['monthly_hoa'],
-                        annual_renovation=params['annual_renovation'],
-                        home_office_deduction=params['home_office'],
-                        office_percentage=params['office_area_pct'] if params['home_office'] else 0
-                    )
-                    st.session_state.milestones.append(milestone)
-                    st.session_state.needs_recalculation = True
-                    st.sidebar.success("Home purchase milestone added successfully!")
-                except Exception as e:
-                    st.sidebar.error(f"Error adding home purchase milestone: {str(e)}")
-                finally:
-                    st.session_state.add_home_milestone = False
-                    st.session_state.home_milestone_params = {}
-
-
             # Display current milestones
             if st.session_state.milestones:
                 st.sidebar.markdown("---")
                 with st.sidebar.expander("✏️ Edit Milestones", expanded=False):
                     st.markdown("### Current Milestones")
-                    milestone_to_remove = None  # Track milestone to remove
-
                     for idx, milestone in enumerate(st.session_state.milestones):
                         st.markdown(f"#### 📌 {milestone.name} (Year {milestone.trigger_year})")
 
@@ -565,33 +511,78 @@ def main():
                                 milestone.one_time_expense = new_cost
                                 st.session_state.needs_recalculation = True
 
+                        elif "Child" in milestone.name:
+                            # Child milestone editing
+                            new_year = st.slider("Child Year", 1, projection_years, milestone.trigger_year, key=f"edit_child_year_{idx}")
+                            education_savings = next((exp.annual_amount for exp in milestone.recurring_expenses if "Education Savings" in exp.name), 0)
+                            new_education_savings = st.number_input("Monthly Education Savings ($)", 0, 2000, int(education_savings/12), step=50, key=f"edit_edu_savings_{idx}")
+
+                            if new_year != milestone.trigger_year or new_education_savings*12 != education_savings:
+                                milestone.trigger_year = new_year
+                                # Update education savings expense
+                                for exp in milestone.recurring_expenses:
+                                    if "Education Savings" in exp.name:
+                                        exp.annual_amount = new_education_savings * 12
+                                st.session_state.needs_recalculation = True
+
                         elif "Home Purchase" in milestone.name:
                             # Home purchase milestone editing
                             new_year = st.slider("Purchase Year", 1, projection_years, milestone.trigger_year, key=f"edit_home_year_{idx}")
-                            new_price = st.number_input("Home Price ($)", 100000, 2000000, int(milestone.home_price), step=50000, key=f"edit_home_price_{idx}")
-                            new_down_payment = st.slider("Down Payment %", 5, 40, int(milestone.down_payment_percentage * 100), key=f"edit_down_payment_{idx}") / 100
+                            home_asset = next((asset for asset in milestone.assets if isinstance(asset, Home)), None)
+                            if home_asset:
+                                new_price = st.number_input("Home Price ($)", 100000, 2000000, int(home_asset.initial_value), step=50000, key=f"edit_home_price_{idx}")
+                                if new_year != milestone.trigger_year or new_price != home_asset.initial_value:
+                                    milestone.trigger_year = new_year
+                                    home_asset.initial_value = new_price
+                                    st.session_state.needs_recalculation = True
 
-                            if (new_year != milestone.trigger_year or
-                                new_price != milestone.home_price or
-                                new_down_payment != milestone.down_payment_percentage):
-                                milestone.trigger_year = new_year
-                                milestone.home_price = new_price
-                                milestone.down_payment_percentage = new_down_payment
-                                st.session_state.needs_recalculation = True
+                        elif "Education" in milestone.name:
+                            # Education milestone editing
+                            st.write("Current Education Plan:")
+                            current_expense = next((exp for exp in milestone.recurring_expenses if "Tuition" in exp.name), None)
+                            if current_expense:
+                                annual_cost = current_expense.annual_amount
+                                st.write(f"Annual Cost: ${int(annual_cost):,}")
 
-                        # Add remove button
+                            # Show other favorite schools as alternatives
+                            favorite_schools = UserFavorites.get_favorite_schools()
+                            current_school_name = milestone.name.replace("Education: ", "")
+
+                            if favorite_schools:
+                                st.write("\nAlternative Schools from Favorites:")
+                                for school in favorite_schools:
+                                    if school['name'] != current_school_name:
+                                        col1, col2 = st.columns([4, 1])
+                                        with col1:
+                                            st.write(f"🏫 {school['name']}")
+                                        with col2:
+                                            if st.button("Switch", key=f"switch_school_{idx}_{school['name']}", help="Switch to this school"):
+                                                # Calculate new costs
+                                                if 'avg_net_price.private' in school and pd.notna(school['avg_net_price.private']):
+                                                    new_annual_cost = float(school['avg_net_price.private'])
+                                                elif 'avg_net_price.public' in school and pd.notna(school['avg_net_price.public']):
+                                                    new_annual_cost = float(school['avg_net_price.public'])
+                                                else:
+                                                    new_annual_cost = 30000
+
+                                                # Update the milestone
+                                                milestone.name = f"Education: {school['name']}"
+                                                for exp in milestone.recurring_expenses:
+                                                    if "Tuition" in exp.name:
+                                                        exp.name = f"{school['name']} Tuition"
+                                                        exp.annual_amount = new_annual_cost
+                                                st.session_state.needs_recalculation = True
+                                                st.rerun()
+
+                        # Add remove button and separator for all milestone types
                         col1, col2 = st.columns([4, 1])
                         with col2:
                             if st.button("🗑️", key=f"remove_milestone_{idx}", help="Remove this milestone"):
-                                milestone_to_remove = idx
+                                st.session_state.milestones.pop(idx)
+                                st.session_state.needs_recalculation = True
+                                st.rerun()
 
                         st.markdown("---")  # Separator between milestones
-
-                    # Remove milestone if button was clicked
-                    if milestone_to_remove is not None:
-                        st.session_state.milestones.pop(milestone_to_remove)
-                        st.session_state.needs_recalculation = True
-                        st.rerun()  # Only rerun after removing a milestone
 
             if st.session_state.selected_colleges_for_projection:
                 st.sidebar.markdown("### Selected Colleges 🎓")
@@ -636,328 +627,192 @@ def main():
             if hasattr(st.session_state, 'current_projections'):
                 current_projections = st.session_state.current_projections
 
-                try:
-                    # Add debug information
-                    st.sidebar.markdown("### Debug Information")
-                    if st.sidebar.checkbox("Show Debug Info"):
-                        st.sidebar.json(current_projections)
+                st.markdown("### Financial Summary")
+                col5, col6, col7 = st.columns(3)
 
-                    # Add debug information for milestone detection
-                    with st.sidebar.expander("🔍 Debug Information", expanded=False):
-                        st.write("Current Milestones:")
-                        for milestone in st.session_state.milestones:
-                            st.write(f"- {milestone.name} (Year {milestone.trigger_year})")
-                            if hasattr(milestone, 'home_price'):
-                                st.write(f"  Home Price: ${milestone.home_price:,.2f}")
+                def format_change(current, previous):
+                    if previous is None:
+                        return ""
+                    change = int(round(current - previous))
+                    color = "green" if change >= 0 else "red"
+                    sign = "+" if change >= 0 else ""
+                    return f'<p style="color: {color}; font-size: 14px; margin-top: 0;">{sign}${change:,}</p>'
 
-
-                    st.markdown("### Financial Summary")
-                    col5, col6, col7 = st.columns(3)
-
-                    def format_change(current, previous):
-                        if previous is None:
-                            return ""
-                        change = int(round(current - previous))
-                        color = "green" if change >= 0 else "red"
-                        sign = "+" if change >= 0 else ""
-                        return f'<p style="color: {color}; font-size: 14px; margin-top: 0;">{sign}${change:,}</p>'
-
-                    with col5:
-                        st.metric("Initial Net Worth 💰",
-                                   f"${int(round(current_projections['net_worth'][0])):,}")
-                        if st.session_state.previous_projections:
-                            st.markdown(
-                                format_change(
-                                    current_projections['net_worth'][0],
-                                    st.session_state.previous_projections['net_worth'][0]
-                                ),
-                                unsafe_allow_html=True
-                            )
-
-                    with col6:
-                        st.metric("Final Net Worth 🚀",
-                                   f"${int(round(current_projections['net_worth'][-1])):,}")
-                        if st.session_state.previous_projections:
-                            st.markdown(
-                                format_change(
-                                    current_projections['net_worth'][-1],
-                                    st.session_state.previous_projections['net_worth'][-1]
-                                ),
-                                unsafe_allow_html=True
-                            )
-
-                    with col7:
-                        current_avg_cash_flow = int(
-                            round(sum(current_projections['cash_flow']) / len(current_projections['cash_flow'])))
-                        st.metric(
-                            "Average Annual Cash Flow 💵",
-                            f"${current_avg_cash_flow:,}"
+                with col5:
+                    st.metric("Initial Net Worth 💰",
+                               f"${int(round(current_projections['net_worth'][0])):,}")
+                    if st.session_state.previous_projections:
+                        st.markdown(
+                            format_change(
+                                current_projections['net_worth'][0],
+                                st.session_state.previous_projections['net_worth'][0]
+                            ),
+                            unsafe_allow_html=True
                         )
-                        if st.session_state.previous_projections:
-                            prev_avg_cash_flow = int(
-                                round(sum(st.session_state.previous_projections['cash_flow']) / len(
-                                    st.session_state.previous_projections['cash_flow'])))
-                            st.markdown(
-                                format_change(current_avg_cash_flow, prev_avg_cash_flow),
-                                unsafe_allow_html=True
-                            )
 
-                    # Add save projection button
-                    col_save1, col_save2 = st.columns([3, 1])
-                    with col_save1:
-                        scenario_name= st.text_input(
-                            "Name this scenario",
-                            placeholder="e.g., Base Case, With Graduate School, etc.",
-                            key="scenario_name"
+                with col6:
+                    st.metric("Final Net Worth 🚀",
+                               f"${int(round(current_projections['net_worth'][-1])):,}")
+                    if st.session_state.previous_projections:
+                        st.markdown(
+                            format_change(
+                                current_projections['net_worth'][-1],
+                                st.session_state.previous_projections['net_worth'][-1]
+                            ),
+                            unsafe_allow_html=True
                         )
-                    with col_save2:
-                        save_clicked = st.button("💾 Save Current Projection", key="save_projection_button")
-                        if save_clicked:
-                            if scenario_name:
-                                # Create a list of milestone details
-                                milestone_details = []
-                                for milestone in st.session_state.milestones:
-                                    details= {
-                                        'type': milestone.__class__.__name__,
-                                        'name': milestone.name,
-                                        'year': milestone.trigger_year
-                                    }
 
-                                    # Add specific details based on milestone type
-                                    if hasattr(milestone, 'wedding_cost'):
-                                        details.update({
-                                            'wedding_cost': milestone.wedding_cost,
-                                            'spouse_occupation': st.session_state.selected_spouse_occ,
-                                            'lifestyle_adjustment': milestone.lifestyle_adjustment * 100,
-                                            'spouse_savings': milestone.spouse_savings,
-                                            'spouse_debt': milestone.spouse_debt
-                                        })
-                                    elif hasattr(milestone, 'home_price'):
+                with col7:
+                    current_avg_cash_flow = int(
+                        round(sum(current_projections['cash_flow']) / len(current_projections['cash_flow'])))
+                    st.metric(
+                        "Average Annual Cash Flow 💵",
+                        f"${current_avg_cash_flow:,}"
+                    )
+                    if st.session_state.previous_projections:
+                        prev_avg_cash_flow = int(
+                            round(sum(st.session_state.previous_projections['cash_flow']) / len(
+                                st.session_state.previous_projections['cash_flow'])))
+                        st.markdown(
+                            format_change(current_avg_cash_flow, prev_avg_cash_flow),
+                            unsafe_allow_html=True
+                        )
+
+                # Add save projection button
+                col_save1, col_save2 = st.columns([3, 1])
+                with col_save1:
+                    scenario_name = st.text_input(
+                        "Name this scenario",
+                        placeholder="e.g., Base Case, With Graduate School, etc.",
+                        key="scenario_name"
+                    )
+                with col_save2:
+                    save_clicked = st.button("💾 Save Current Projection", key="save_projection_button")
+                    if save_clicked:
+                        if scenario_name:
+                            # Create a list of milestone details
+                            milestone_details = []
+                            for milestone in st.session_state.milestones:
+                                details = {
+                                    'type': milestone.__class__.__name__,
+                                    'name': milestone.name,
+                                    'year': milestone.trigger_year
+                                }
+
+                                # Add specific details based on milestone type
+                                if hasattr(milestone, 'wedding_cost'):
+                                    details.update({
+                                        'wedding_cost': milestone.wedding_cost,
+                                        'spouse_occupation': st.session_state.selected_spouse_occ,
+                                        'lifestyle_adjustment': milestone.lifestyle_adjustment * 100,
+                                        'spouse_savings': milestone.spouse_savings,
+                                        'spouse_debt': milestone.spouse_debt
+                                    })
+                                elif hasattr(milestone, 'homeprice'):
                                         details.update({
                                             'home_price': milestone.home_price,
-                                            'down_payment': milestone.downpayment_percentage * 100,
+                                            'down_payment': milestone.down_payment_percentage * 100,
                                             'monthly_utilities': milestone.monthly_utilities,
                                             'monthly_hoa': milestone.monthly_hoa,
-                                            'annual_rerenovation': milestone.annual_renovation
+                                            'annual_renovation': milestone.annual_renovation
                                         })
-                                    elif hasattr(milestone, 'car_price'):
-                                        details.update({
-                                            'car_price': milestone.car_price,
-                                            'car_downpayment': milestone.down_payment_percentage * 100,
-                                            'vehicle_type': milestone.vehicle_type,
-                                            'monthly_fuel': milestone.monthly_fuel,
-                                            'monthly_parking': milestone.monthly_parking,
-                                            'tax_incentive': milestone.tax_incentive
-                                        })
-                                    elif hasattr(milestone, 'education_savings'):
-                                        details.update({
-                                            'education_savings': milestone.education_savings,
-                                            'healthcare_cost': milestone.healthcare_cost,
-                                            'insurance_cost': milestone.insurance_cost,
-                                            'tax_benefit': milestone.tax_benefit
-                                        })
-                                    elif hasattr(milestone, 'total_cost'):  # GraduateSchool
-                                        details.update({
-                                            'total_cost': milestone.total_cost,
-                                            'program_years': milestone.program_years,
-                                            'part_time_income': milestone.part_time_income,
-                                            'scholarship_amount': milestone.scholarship_amount,
-                                            'salary_increase': milestone.salary_increase_percentage * 100
-                                        })
+                                elif hasattr(milestone, 'car_price'):
+                                    details.update({
+                                        'car_price': milestone.car_price,
+                                        'down_payment': milestone.down_payment_percentage * 100,
+                                        'vehicle_type': milestone.vehicle_type,
+                                        'monthly_fuel': milestone.monthly_fuel,
+                                        'monthly_parking': milestone.monthly_parking
+                                    })
+                                elif hasattr(milestone, 'education_savings'):
+                                    details.update({
+                                        'education_savings': milestone.education_savings,
+                                        'healthcare_cost': milestone.healthcare_cost,
+                                        'insurance_cost': milestone.insurance_cost,
+                                        'tax_benefit': milestone.tax_benefit
+                                    })
+                                elif hasattr(milestone, 'total_cost'):  # Graduate School
+                                    details.update({
+                                        'total_cost': milestone.total_cost,
+                                        'program_years': milestone.program_years,
+                                        'part_time_income': milestone.part_time_income,
+                                        'scholarship_amount': milestone.scholarship_amount,
+                                        'salary_increase': milestone.salary_increase_percentage * 100
+                                    })
 
-                                    milestone_details.append(details)
+                                milestone_details.append(details)
 
-                                projection = {
-                                    'name': scenario_name,
-                                    'date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'),
-                                    'location': st.session_state.selected_location,
-                                    'occupation': st.session_state.selected_occupation,
-                                    'investment_rate': investment_return_rate * 100,
-                                    'final_net_worth': int(round(current_projections['net_worth'][-1])),
-                                    'milestones': milestone_details,
-                                    'yearly_data': {
-                                        'net_worth': current_projections['net_worth'],
-                                        'cash_flow': current_projections['cash_flow'],
-                                        'total_income': current_projections['total_income'],
-                                        'total_expenses': current_projections['total_expenses'],
-                                        'asset_values': current_projections['asset_values'],
-                                        'liability_values': current_projections['liability_values']
-                                    }
+                            projection = {
+                                'name': scenario_name,
+                                'date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'),
+                                'location': st.session_state.selected_location,
+                                'occupation': st.session_state.selected_occupation,
+                                'investment_rate': investment_return_rate * 100,
+                                'final_net_worth': int(round(current_projections['net_worth'][-1])),
+                                'milestones': milestone_details,
+                                'yearly_data': {
+                                    'net_worth': current_projections['net_worth'],
+                                    'cash_flow': current_projections['cash_flow'],
+                                    'total_income': current_projections['total_income'],
+                                    'total_expenses': current_projections['total_expenses'],
+                                    'asset_values': current_projections['asset_values'],
+                                    'liability_values': current_projections['liability_values']
                                 }
-                                st.session_state.saved_projections.append(projection)
-                                st.success("Projection saved to your profile!")
-                            else:
-                                st.warning("Please enter a name for this scenario before saving.")
-
-                    # Add profile link
-                    st.markdown("---")
-                    if st.button("👤 View Your Profile"):
-                        st.switch_page("pages/user_profile.py")
-
-                    # Create tabs for different visualizations
-                    tab_list = ["Net Worth Projection 📈", "Cash Flow Analysis 💰", "Assets & Liabilities ⚖️"]
-
-                    # Add Home Equity tab if there's a home purchase milestone
-                    has_home_milestone = False
-                    for milestone in st.session_state.milestones:
-                        if milestone.name == "Home Purchase":
-                            has_home_milestone = True
-                            break
-
-                    # Debug information about milestone detection
-                    with st.sidebar.expander("🔍 Milestone Detection", expanded=False):
-                        st.write("Checking for home purchase milestone:")
-                        st.write(f"Number of milestones: {len(st.session_state.milestones)}")
-                        st.write(f"Has home milestone: {has_home_milestone}")
-                        for idx, milestone in enumerate(st.session_state.milestones):
-                            st.write(f"Milestone {idx + 1}:")
-                            st.write(f"- Name: {milestone.name}")
-                            st.write(f"- Year: {milestone.trigger_year}")
-                            if hasattr(milestone, 'home_price'):
-                                st.write(f"- Home price: ${milestone.home_price:,.2f}")
-
-                    # Add the Home Equity tab if we found a home milestone
-                    if has_home_milestone:
-                        tab_list.append("Home Equity Analysis 🏠")
-                        st.sidebar.write("Home tab will be added")
-                        st.sidebar.write(f"Current tab list: {tab_list}")
-
-                    # Create the tabs
-                    tabs = st.tabs(tab_list)
-                    st.sidebar.write(f"Number of tabs created: {len(tabs)}")
-
-                    with tabs[0]:
-                        st.markdown("### Net Worth Over Time")
-                        FinancialPlotter.plot_net_worth(
-                            current_projections['years'],
-                            current_projections['net_worth'],
-                            current_projections['asset_values'],
-                            current_projections['liability_values']
-                        )
-
-                    with tabs[1]:
-                        st.markdown("### Cash Flow Analysis")
-                        # Calculate total income by summing income streams
-                        total_income = []
-                        if 'income_streams' in current_projections:
-                            for year_idx in range(len(current_projections['years'])):
-                                year_total = sum(
-                                    income_stream[year_idx]
-                                    for income_stream in current_projections['income_streams'].values()
-                                )
-                                total_income.append(year_total)
+                            }
+                            st.session_state.saved_projections.append(projection)
+                            st.success("Projection saved to your profile!")
                         else:
-                            st.error("Income streams data not found in projections")
-                            st.json(current_projections.keys())
-                            return
+                            st.warning("Please enter a name for this scenario before saving.")
 
-                        FinancialPlotter.plot_cash_flow(
-                            current_projections['years'],
-                            total_income,
-                            current_projections['expense_categories'],
-                            current_projections['total_expenses'],
-                            current_projections['cash_flow'],
-                            current_projections['income_streams']
-                        )
+                # Add profile link
+                st.markdown("---")
+                if st.button("👤 View Your Profile"):
+                    st.switch_page("pages/user_profile.py")
 
-                    with tabs[2]:
-                        st.markdown("### Assets and Liabilities")
-                        FinancialPlotter.plot_assets_liabilities(
-                            current_projections['years'],
-                            current_projections['asset_values'],
-                            current_projections['liability_values'],
-                            current_projections['asset_breakdown'],
-                            current_projections['liability_breakdown']
-                        )
+                # Create tabs for different visualizations
+                tab1, tab2, tab3 = st.tabs([
+                    "Net Worth Projection 📈",
+                    "Cash Flow Analysis 💰",
+                    "Assets & Liabilities ⚖️"
+                ])
 
-                    # Add Home Equity Analysis tab content if applicable
-                    if has_home_milestone and len(tabs) > 3:
-                        with tabs[3]:
-                            st.markdown("### Home Equity Analysis")
+                with tab1:
+                    st.markdown("### Net Worth Over Time")
+                    FinancialPlotter.plot_net_worth(
+                        current_projections['years'],
+                        current_projections['net_worth'],
+                        current_projections['asset_values'],
+                        current_projections['liability_values']
+                    )
 
-                            # Debug information about projections
-                            with st.expander("🔍 Debug Financial Data", expanded=False):
-                                st.write("Available Asset Categories:", list(current_projections.get('asset_breakdown', {}).keys()))
-                                st.write("Available Liability Categories:", list(current_projections.get('liability_breakdown', {}).keys()))
+                with tab2:
+                    st.markdown("### Cash Flow Analysis")
+                    FinancialPlotter.plot_cash_flow(
+                        current_projections['years'],
+                        current_projections['total_income'],
+                        current_projections['expense_categories'],
+                        current_projections['total_expenses'],
+                        current_projections['cash_flow'],
+                        current_projections['income_streams']
+                    )
 
-                            # Extract home value and mortgage data from asset/liability breakdowns
-                            home_values = []
-                            mortgage_values = []
+                with tab3:
+                    st.markdown("### Assets and Liabilities")
+                    FinancialPlotter.plot_assets_liabilities(
+                        current_projections['years'],
+                        current_projections['asset_values'],
+                        current_projections['liability_values'],
+                        current_projections['asset_breakdown'],
+                        current_projections['liability_breakdown']
+                    )
 
-                            # Find the home purchase milestone
-                            home_milestone = next(
-                                (m for m in st.session_state.milestones if m.name == "Home Purchase"),
-                                None
-                            )
-
-                            if home_milestone:
-                                purchase_year = home_milestone.trigger_year
-                                current_year = current_projections['years'][0]
-                                projection_length = len(current_projections['years'])
-
-                                # Initialize arrays with zeros
-                                home_values = [0] * projection_length
-                                mortgage_values = [0] * projection_length
-
-                                # Only populate values after purchase year
-                                if purchase_year <= current_projections['years'][-1]:
-                                    home_price = home_milestone.home_price
-                                    down_payment = home_milestone.down_payment_percentage * home_price
-                                    mortgage_amount = home_price - down_payment
-
-                                    # Calculate mortgage details
-                                    annual_rate = 0.065  # Assume 6.5% interest rate
-                                    monthly_rate = annual_rate / 12
-                                    term_years = 30
-                                    num_payments = term_years * 12
-                                    monthly_payment = (mortgage_amount * monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
-
-                                    # Fill in the values for each year
-                                    for i, year in enumerate(current_projections['years']):
-                                        if year >= purchase_year:
-                                            years_since_purchase = year - purchase_year
-                                            home_values[i] = home_price * (1 + 0.03)**years_since_purchase  # Assume 3% annual appreciation
-
-                                            # Calculate remaining mortgage balance
-                                            payments_made = years_since_purchase * 12
-                                            if payments_made < num_payments:
-                                                mortgage_values[i] = (monthly_payment * ((1 - (1 + monthly_rate)**(-(num_payments - payments_made))) / monthly_rate))
-                                            else:
-                                                mortgage_values[i] = 0
-
-                                if any(home_values) and any(mortgage_values):
-                                    FinancialPlotter.plot_home_value_breakdown(
-                                        current_projections['years'],
-                                        home_values,
-                                        mortgage_values
-                                    )
-
-                                    # Add a summary of the home purchase details
-                                    st.markdown("### Home Purchase Details")
-                                    col1, col2, col3 = st.columns(3)
-                                    with col1:
-                                        st.metric("Purchase Price", f"${home_milestone.home_price:,.0f}")
-                                    with col2:
-                                        st.metric("Down Payment", f"${down_payment:,.0f}")
-                                    with col3:
-                                        st.metric("Initial Mortgage", f"${mortgage_amount:,.0f}")
-                            else:
-                                st.warning("Home purchase is scheduled for a future year. The equity analysis will be available once the purchase occurs.")
-
-                    # Store current projections as previous before any new milestone is added
-                    st.session_state.previous_projections = current_projections
-
-                except Exception as e:
-                    st.error(f"An unexpected error occurred: {str(e)}")
-                    st.write("Debug info:", e)
-                    st.session_state.show_projections = False
-                    st.rerun()
+                # Store current projections as previous before any new milestone is added
+                st.session_state.previous_projections = current_projections
 
     except Exception as e:
         st.error(f"An unexpected error occurred: {str(e)}")
         st.write("Debug info:", e)
-        st.session_state.show_projections = False
-        st.rerun()
+
 
 if __name__ == "__main__":
     main()
