@@ -416,9 +416,10 @@ def main():
                     )
 
                 if st.button("Add Home Purchase Milestone"):
+                    # Basic milestone creation with minimal state changes
                     try:
-                        # Create milestone first
-                        new_milestone = MilestoneFactory.create_home_purchase(
+                        # Create the milestone object
+                        milestone = MilestoneFactory.create_home_purchase(
                             home_year, home_price, down_payment_pct,
                             monthly_utilities=monthly_utilities,
                             monthly_hoa=monthly_hoa,
@@ -427,26 +428,15 @@ def main():
                             office_percentage=office_area_pct if home_office else 0
                         )
 
-                        # Add to milestones
-                        if 'milestones' not in st.session_state:
-                            st.session_state.milestones = []
-                        st.session_state.milestones.append(new_milestone)
-
-                        # Set calculation flag
+                        # Simply append to milestones and mark for recalculation
+                        st.session_state.milestones.append(milestone)
                         st.session_state.needs_recalculation = True
 
-                        # Keep projections visible
-                        st.session_state.show_projections = True
-
-                        # Show success message
-                        st.sidebar.success(f"Added home purchase milestone for year {home_year}")
-
-                        # Force rerun to update the UI
-                        st.experimental_rerun()
+                        # Success message only
+                        st.sidebar.success(f"Home purchase milestone added for year {home_year}")
 
                     except Exception as e:
-                        st.error(f"Failed to add home purchase milestone: {str(e)}")
-                        st.sidebar.error("Please try again or contact support if the error persists.")
+                        st.error(f"Could not add home purchase milestone: {str(e)}")
 
             # Car Purchase Milestone
             with st.sidebar.expander("🚗 Car Purchase"):
@@ -730,7 +720,7 @@ def main():
                                             'down_payment': milestone.downpayment_percentage * 100,
                                             'monthly_utilities': milestone.monthly_utilities,
                                             'monthly_hoa': milestone.monthly_hoa,
-                                            'annual_renovation': milestone.annual_renovation
+                                            'annual_rerenovation': milestone.annual_renovation
                                         })
                                     elif hasattr(milestone, 'car_price'):
                                         details.update({
