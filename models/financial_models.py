@@ -469,6 +469,7 @@ class MilestoneFactory:
                     deferment_years = (years - year_index)
                     year_loan = StudentLoan(loan_amount, 0.06, term_years=10, deferment_years=deferment_years)
                     year_loan.name = f"Graduate School Year {year_index + 1} Loan"
+                    year_loan._milestone = milestone  # Set milestone reference explicitly
                     milestone.add_liability(year_loan)
 
                     # Add loan payment as a recurring expense starting after deferment
@@ -476,6 +477,7 @@ class MilestoneFactory:
                         f"Graduate School Year {year_index + 1} Loan Payment",
                         year_loan.calculate_payment() * 12  # Annual payment amount
                     )
+                    payment._milestone = milestone  # Set milestone reference for expense
                     milestone.add_recurring_expense(payment)
 
         # Add networking and professional development costs if specified
