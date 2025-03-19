@@ -426,21 +426,20 @@ class MilestoneFactory:
             # Apply scholarship reduction to each year's cost
             net_cost = year_cost - scholarship_amount
             if net_cost > 0:
-                # Create a one-time expense milestone for this year's cost
-                year_expense = Milestone(
-                    f"Graduate School Year {year_index + 1} Cost",
-                    trigger_year + year_index,
-                    "Education"
-                )
-
                 # Calculate out of pocket amount for this year
                 loan_amount = yearly_loans[year_index] if yearly_loans else 0
                 out_of_pocket = net_cost - loan_amount
 
-                # Add out of pocket amount as one-time expense
+                # Create a one-time expense for the out-of-pocket amount
                 if out_of_pocket > 0:
+                    # Create a milestone for this year's out-of-pocket expense
+                    year_expense = Milestone(
+                        f"Graduate School Year {year_index + 1} Out-of-pocket",
+                        trigger_year + year_index,  # Each year's expense occurs in its respective year
+                        "Education"
+                    )
                     year_expense.add_one_time_expense(out_of_pocket)
-                    milestone.recurring_expenses.extend(year_expense.recurring_expenses)
+                    milestone.one_time_expense += out_of_pocket  # Add to total one-time expenses
 
                 # Create a loan for this year's borrowed amount
                 if loan_amount > 0:

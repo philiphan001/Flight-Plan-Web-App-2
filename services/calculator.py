@@ -102,7 +102,7 @@ class FinancialCalculator:
             for expense in self.expenses:
                 category = expense.name
                 # For graduate school expenses, handle as one-time costs
-                if "Graduate School Year" in category and "Cost" in category:
+                if "Graduate School Year" in category and "Out-of-pocket" in category:
                     # Extract the year number and calculate target year
                     year_num = int(category.split("Year ")[1].split(" ")[0]) - 1
                     target_year = expense._milestone.trigger_year + year_num
@@ -132,6 +132,8 @@ class FinancialCalculator:
                         expense_amount = int(round(expense.calculate_expense(year)))
 
                 # Add to expense categories
+                if category not in expense_categories:
+                    expense_categories[category] = [0] * projection_years
                 expense_categories[category][year] = expense_amount
                 total_regular_expenses += expense_amount
 
