@@ -185,8 +185,9 @@ class FixedExpense(Expense):
     pass
 
 class VariableExpense(Expense):
-    def __init__(self, name: str, annual_amount: float, volatility: float = 0.1):
-        super().__init__(name, annual_amount)
+    def __init__(self, name: str, annual_amount: float, volatility: float = 0.1,
+                 start_year: Optional[int] = None, end_year: Optional[int] = None):
+        super().__init__(name, annual_amount, start_year=start_year, end_year=end_year)
         self.volatility = volatility
 
     def calculate_expense(self, year: int) -> float:
