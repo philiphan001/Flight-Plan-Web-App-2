@@ -91,6 +91,14 @@ class FinancialPlotter:
             )
             cumsum += np.array(values)  # Update cumulative sum
 
+        def get_expense_pie_data(year_idx):
+            """Helper function to get pie chart data for a specific year"""
+            year_expenses = {}
+            for category, values in expenses.items():
+                if values[year_idx] > 0:  # Only include non-zero expenses
+                    year_expenses[category] = values[year_idx]
+            return dict(sorted(year_expenses.items(), key=lambda x: x[1], reverse=True))
+
         # Add expenses as separate bar
         fig.add_trace(
             go.Bar(
@@ -116,14 +124,6 @@ class FinancialPlotter:
             row=1, col=1,
             secondary_y=True
         )
-
-        def get_expense_pie_data(year_idx):
-            """Helper function to get pie chart data for a specific year"""
-            year_expenses = {}
-            for category, values in expenses.items():
-                if values[year_idx] > 0:  # Only include non-zero expenses
-                    year_expenses[category] = values[year_idx]
-            return dict(sorted(year_expenses.items(), key=lambda x: x[1], reverse=True))
 
         # Initialize pie chart with latest year data
         sorted_expenses = get_expense_pie_data(selected_year_idx)
@@ -168,7 +168,7 @@ class FinancialPlotter:
             st.session_state.selected_year_idx = selected_year_idx
 
         # Display the interactive plot
-        clicked = st.plotly_chart(fig)
+        clicked = st.plotly_chart(fig, use_container_width=True)
 
         # Get click event data from Streamlit
         clicked_data = st.session_state.get('plotly_click')
@@ -180,18 +180,12 @@ class FinancialPlotter:
                 if year_idx != st.session_state.selected_year_idx:
                     st.session_state.selected_year_idx = year_idx
                     new_expenses = get_expense_pie_data(year_idx)
-
-                    # Update pie chart data
                     fig.update_traces(
                         labels=list(new_expenses.keys()),
                         values=list(new_expenses.values()),
                         selector=dict(type='pie')
                     )
-
-                    # Update subplot title
                     fig.layout.annotations[1].text = f'Expense Breakdown - Year {years[year_idx]}'
-
-                    # Rerender the chart
                     st.plotly_chart(fig, use_container_width=True)
 
         # Create and display tables for income and expenses
