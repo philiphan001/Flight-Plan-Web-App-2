@@ -527,14 +527,71 @@ def main():
 
                         elif "Home Purchase" in milestone.name:
                             # Home purchase milestone editing
+                            st.markdown(f"**Current Home Purchase Details**")
                             new_year = st.slider("Purchase Year", 1, projection_years, milestone.trigger_year, key=f"edit_home_year_{idx}")
                             home_asset = next((asset for asset in milestone.assets if isinstance(asset, Home)), None)
+
                             if home_asset:
                                 new_price = st.number_input("Home Price ($)", 100000, 2000000, int(home_asset.initial_value), step=50000, key=f"edit_home_price_{idx}")
-                                if new_year != milestone.trigger_year or new_price != home_asset.initial_value:
-                                    milestone.trigger_year = new_year
-                                    home_asset.initial_value = new_price
-                                    st.session_state.needs_recalculation = True
+                                new_down_payment_pct = st.slider("Down Payment %", 5, 40, int(home_asset.down_payment_percentage * 100), key=f"edit_down_payment_{idx}")
+
+                                # Add all the original options
+                                new_monthly_utilities = st.number_input(
+                                    "Estimated Monthly Utilities ($)",
+                                    100, 1000, int(home_asset.monthly_utilities),
+                                    step=50,
+                                    key=f"edit_utilities_{idx}"
+                                )
+                                new_monthly_hoa = st.number_input(
+                                    "Monthly HOA Fees ($)",
+                                    0, 1000, int(home_asset.monthly_hoa),
+                                    step=25,
+                                    key=f"edit_hoa_{idx}"
+                                )
+                                new_annual_renovation = st.number_input(
+                                    "Annual Renovation Budget ($)",
+                                    0, 50000, int(home_asset.annual_renovation),
+                                    step=500,
+                                    key=f"edit_renovation_{idx}"
+                                )
+                                new_home_office = st.checkbox(
+                                    "Home Office Deduction",
+                                    value=home_asset.home_office_deduction,
+                                    help="Include home office tax deduction",
+                                    key=f"edit_home_office_{idx}"
+                                )
+
+                                if new_home_office:
+                                    new_office_area_pct = st.slider(
+                                        "Office Area % of Home",
+                                        1, 30, int(home_asset.office_percentage),
+                                        key=f"edit_office_area_{idx}"
+                                    )
+                                else:
+                                    new_office_area_pct = 0
+
+                                # Create two columns for the buttons
+                                col1, col2 = st.columns(2)
+
+                                with col1:
+                                    if st.button("Apply Changes", key=f"apply_home_changes_{idx}"):
+                                        # Update milestone attributes
+                                        milestone.trigger_year = new_year
+                                        home_asset.initial_value = new_price
+                                        home_asset.down_payment_percentage = new_down_payment_pct / 100
+                                        home_asset.monthly_utilities = new_monthly_utilities
+                                        home_asset.monthly_hoa = new_monthly_hoa
+                                        home_asset.annual_renovation = new_annual_renovation
+                                        home_asset.home_office_deduction = new_home_office
+                                        home_asset.office_percentage = new_office_area_pct
+                                        st.session_state.needs_recalculation = True
+                                        st.rerun()
+
+                                with col2:
+                                    if st.button("🗑️ Remove Milestone", key=f"remove_home_{idx}"):
+                                        st.session_state.milestones.pop(idx)
+                                        st.session_state.needs_recalculation = True
+                                        st.rerun()
 
                         elif "Education" in milestone.name:
                             # Education milestone editing
@@ -643,8 +700,7 @@ def main():
                                f"${int(round(current_projections['net_worth'][0])):,}")
                     if st.session_state.previous_projections:
                         st.markdown(
-                            format_change(
-                                current_projections['net_worth'][0],
+                            format_change(current_projections['net_worth'][0],
                                 st.session_state.previous_projections['net_worth'][0]
                             ),
                             unsafe_allow_html=True
@@ -709,13 +765,13 @@ def main():
                                         'spouse_debt': milestone.spouse_debt
                                     })
                                 elif hasattr(milestone, 'homeprice'):
-                                        details.update({
-                                            'home_price': milestone.home_price,
-                                            'down_payment': milestone.down_payment_percentage * 100,
-                                            'monthly_utilities': milestone.monthly_utilities,
-                                            'monthly_hoa': milestone.monthly_hoa,
-                                            'annual_renovation': milestone.annual_renovation
-                                        })
+                                    details.update({
+                                        'home_price': milestone.home_price,
+                                        'down_payment': milestone.down_payment_percentage * 100,
+                                        'monthly_utilities': milestone.monthly_utilities,
+                                        'monthly_hoa': milestone.monthly_hoa,
+                                        'annual_renovation': milestone.annual_renovation
+                                    })
                                 elif hasattr(milestone, 'car_price'):
                                     details.update({
                                         'car_price': milestone.car_price,
