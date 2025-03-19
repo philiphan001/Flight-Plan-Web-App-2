@@ -69,33 +69,39 @@ class FinancialPlotter:
         )
 
         # Create cumulative sums for income stacking
-        cumsum = np.zeros(len(years))
+        max_len = len(years)  # Use years as the reference length
+        cumsum = np.zeros(max_len)
         colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71', 'Part-Time Work': '#82E0AA'}
 
         # Selected year for pie chart (default to latest year)
         selected_year_idx = -1  # Start with the latest year
 
         # Add income streams as stacked bars
-        for income_type, values in income_streams.items():
-            fig.add_trace(
-                go.Bar(
-                    x=years,
-                    y=values,
-                    name=income_type,
-                    marker_color=colors.get(income_type, '#27AE60'),
-                    base=cumsum,  # Start from previous cumulative sum
-                    offsetgroup=0  # Same offsetgroup for stacking
-                ),
-                row=1, col=1,
-                secondary_y=False
-            )
-            cumsum += np.array(values)  # Update cumulative sum
+        if income_streams:
+            for income_type, values in income_streams.items():
+                # Pad array with zeros if needed
+                padded_values = values + [0] * (max_len - len(values)) if len(values) < max_len else values[:max_len]
+
+                fig.add_trace(
+                    go.Bar(
+                        x=years,
+                        y=padded_values,
+                        name=income_type,
+                        marker_color=colors.get(income_type, '#27AE60'),
+                        base=cumsum,  # Start from previous cumulative sum
+                        offsetgroup=0  # Same offsetgroup for stacking
+                    ),
+                    row=1, col=1,
+                    secondary_y=False
+                )
+                cumsum += np.array(padded_values)  # Update cumulative sum with padded values
 
         def get_expense_pie_data(year_idx):
             """Helper function to get pie chart data for a specific year"""
             year_expenses = {}
             for category, values in expenses.items():
-                if values[year_idx] > 0:  # Only include non-zero expenses
+                # Ensure the values array is long enough
+                if year_idx < len(values) and values[year_idx] > 0:
                     year_expenses[category] = values[year_idx]
             return dict(sorted(year_expenses.items(), key=lambda x: x[1], reverse=True))
 
@@ -103,7 +109,7 @@ class FinancialPlotter:
         fig.add_trace(
             go.Bar(
                 x=years,
-                y=total_expenses,
+                y=total_expenses[:max_len],  # Ensure length matches
                 name="Total Expenses",
                 marker_color='#E74C3C',
                 offsetgroup=1,  # Different offsetgroup to prevent stacking with income
@@ -117,7 +123,7 @@ class FinancialPlotter:
         fig.add_trace(
             go.Scatter(
                 x=years,
-                y=cash_flow,
+                y=cash_flow[:max_len],  # Ensure length matches
                 name="Net Cash Flow",
                 line=dict(color='#2E86C1', width=2)
             ),
