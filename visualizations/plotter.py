@@ -59,17 +59,21 @@ class FinancialPlotter:
                       expenses: Dict[str, List[float]], total_expenses: List[float],
                       cash_flow: List[float], income_streams: Dict[str, List[float]] = None) -> None:
         """Plot cash flow with stacked income streams and separate expenses."""
-        # Create figure with subplots - one for cash flow, one for expense pie chart
+        # Create figure with subplots - cash flow on top, pie chart below
         fig = make_subplots(
-            rows=1, cols=2,
-            column_widths=[0.7, 0.3],
-            specs=[[{"secondary_y": True}, {"type": "pie"}]],
-            subplot_titles=('Income, Expenses, and Cash Flow Projection', 'Latest Year Expense Breakdown')
+            rows=2, cols=1,
+            row_heights=[0.7, 0.3],
+            specs=[[{"secondary_y": True}], [{"type": "pie"}]],
+            subplot_titles=('Income, Expenses, and Cash Flow Projection', 'Expense Breakdown'),
+            vertical_spacing=0.15
         )
 
         # Create cumulative sums for income stacking
         cumsum = np.zeros(len(years))
         colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71', 'Part-Time Work': '#82E0AA'}
+
+        # Selected year for pie chart (default to latest year)
+        selected_year_idx = -1  # Start with the latest year
 
         # Add income streams as stacked bars
         for income_type, values in income_streams.items():
@@ -87,18 +91,16 @@ class FinancialPlotter:
             )
             cumsum += np.array(values)  # Update cumulative sum
 
-        # Add expenses as separate bar
-        fig.add_trace(
-            go.Bar(
-                x=years,
-                y=total_expenses,
-                name="Total Expenses",
-                marker_color='#E74C3C',
-                offsetgroup=1  # Different offsetgroup to prevent stacking with income
-            ),
-            row=1, col=1,
-            secondary_y=False
+        # Add expenses as separate bar with custom data for click events
+        expense_bar = go.Bar(
+            x=years,
+            y=total_expenses,
+            name="Total Expenses",
+            marker_color='#E74C3C',
+            offsetgroup=1,  # Different offsetgroup to prevent stacking with income
+            customdata=[[year, idx] for idx, year in enumerate(years)]  # Add custom data for click handling
         )
+        fig.add_trace(expense_bar, row=1, col=1, secondary_y=False)
 
         # Add net cash flow line
         fig.add_trace(
@@ -112,29 +114,31 @@ class FinancialPlotter:
             secondary_y=True
         )
 
-        # Add pie chart for latest year expenses
-        latest_year_expenses = {}
-        for category, values in expenses.items():
-            if values[-1] > 0:  # Only include non-zero expenses
-                latest_year_expenses[category] = values[-1]
+        def get_expense_pie_data(year_idx):
+            """Helper function to get pie chart data for a specific year"""
+            year_expenses = {}
+            for category, values in expenses.items():
+                if values[year_idx] > 0:  # Only include non-zero expenses
+                    year_expenses[category] = values[year_idx]
+            return dict(sorted(year_expenses.items(), key=lambda x: x[1], reverse=True))
 
-        # Sort expenses by value for better visualization
-        sorted_expenses = dict(sorted(latest_year_expenses.items(), key=lambda x: x[1], reverse=True))
-
+        # Add initial pie chart (latest year by default)
+        sorted_expenses = get_expense_pie_data(selected_year_idx)
         fig.add_trace(
             go.Pie(
                 labels=list(sorted_expenses.keys()),
                 values=list(sorted_expenses.values()),
                 textinfo='percent+label',
                 hole=0.3,
-                marker=dict(colors=['#E74C3C', '#C0392B', '#CD6155', '#EC7063', '#F1948A', '#F5B7B1'])
+                marker=dict(colors=['#E74C3C', '#C0392B', '#CD6155', '#EC7063', '#F1948A', '#F5B7B1']),
+                name=f'Year {years[selected_year_idx]} Expenses'
             ),
-            row=1, col=2
+            row=2, col=1
         )
 
         # Update layout
         fig.update_layout(
-            height=600,  # Increase height to accommodate both charts
+            height=800,  # Increase height to accommodate both charts
             template='plotly_white',
             showlegend=True,
             legend=dict(
@@ -152,7 +156,34 @@ class FinancialPlotter:
         fig.update_yaxes(title_text="Net Cash Flow ($)", secondary_y=True, row=1, col=1)
         fig.update_xaxes(title_text="Year", row=1, col=1)
 
-        st.plotly_chart(fig, use_container_width=True)
+        # Add click event handling using Streamlit's experimental_get_query_params
+        st.write("Click on any expense bar to see the detailed breakdown for that year")
+
+        # Use session state to track selected year
+        if 'selected_year_idx' not in st.session_state:
+            st.session_state.selected_year_idx = selected_year_idx
+
+        # Create callback for click events
+        def update_pie_chart():
+            clicked_data = st.session_state.get('plotly_click', None)
+            if clicked_data and clicked_data['points'][0]['curveNumber'] == 1:  # Check if expense bar was clicked
+                point = clicked_data['points'][0]
+                year_idx = point['customdata'][1]
+                if year_idx != st.session_state.selected_year_idx:
+                    st.session_state.selected_year_idx = year_idx
+                    new_expenses = get_expense_pie_data(year_idx)
+                    fig.update_traces(
+                        labels=list(new_expenses.keys()),
+                        values=list(new_expenses.values()),
+                        selector=dict(type='pie')
+                    )
+                    fig.update_layout(title_text=f'Expense Breakdown - Year {years[year_idx]}')
+
+        # Display the interactive plot
+        st.plotly_chart(fig, use_container_width=True, custom_events=['click'])
+
+        if st.session_state.get('plotly_click'):
+            update_pie_chart()
 
         # Create and display tables for income and expenses
         df_income = pd.DataFrame({
