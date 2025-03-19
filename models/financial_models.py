@@ -434,12 +434,12 @@ class MilestoneFactory:
                 if out_of_pocket > 0:
                     # Create a milestone for this year's out-of-pocket expense
                     year_expense = Milestone(
-                        f"Graduate School Year {year_index + 1}",
+                        f"Graduate School Year {year_index + 1} Out-of-pocket",
                         trigger_year + year_index,  # Each year's expense occurs in its respective year
                         "Education"
                     )
                     year_expense.add_one_time_expense(out_of_pocket)
-                    milestone.recurring_expenses.append(year_expense)
+                    milestone.one_time_expense += out_of_pocket  # Add to total one-time expenses
 
                 # Create a loan for this year's borrowed amount
                 if loan_amount > 0:

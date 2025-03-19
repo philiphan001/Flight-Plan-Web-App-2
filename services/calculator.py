@@ -101,26 +101,33 @@ class FinancialCalculator:
             total_regular_expenses = 0
             for expense in self.expenses:
                 category = expense.name
-                expense_amount = 0
-
-                # Handle graduate school expenses as one-time costs in their specific years
-                if isinstance(expense._milestone, Milestone) and "Graduate School Year" in category:
-                    target_year = expense._milestone.trigger_year
+                # For graduate school expenses, handle as one-time costs
+                if "Graduate School Year" in category and "Out-of-pocket" in category:
+                    # Extract the year number and calculate target year
+                    year_num = int(category.split("Year ")[1].split(" ")[0]) - 1
+                    target_year = expense._milestone.trigger_year + year_num
+                    # Only apply the expense in its specific year
                     if year == target_year:
                         expense_amount = int(round(expense.annual_amount))
-                        category = f"One-time: Graduate School Cost Year {year - expense._milestone.trigger_year + 1}"
+                        category = f"One-time: {category}"  # Categorize as one-time expense
+                    else:
+                        expense_amount = 0
                 elif "One-time Cost" in category:
                     milestone_name = category.replace(" One-time Cost", "")
                     category = f"One-time: {milestone_name}"
                     # Only apply one-time expenses in their specific year
                     if hasattr(expense, '_milestone') and year == expense._milestone.trigger_year:
                         expense_amount = int(round(expense.annual_amount))
+                    else:
+                        expense_amount = 0
                 else:
                     # Regular recurring expenses
                     if hasattr(expense, '_milestone') and hasattr(expense._milestone, 'duration_years'):
                         milestone = expense._milestone
                         if year >= milestone.trigger_year and year < (milestone.trigger_year + milestone.duration_years):
                             expense_amount = int(round(expense.calculate_expense(year - milestone.trigger_year)))
+                        else:
+                            expense_amount = 0
                     else:
                         expense_amount = int(round(expense.calculate_expense(year)))
 
