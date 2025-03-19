@@ -441,9 +441,11 @@ class MilestoneFactory:
                     year_expense.add_one_time_expense(out_of_pocket)
                     milestone.one_time_expense += out_of_pocket  # Add to total one-time expenses
 
-                # Create a loan for this year's borrowed amount
+                # Create a loan for this year's borrowed amount, starting in the year it's taken
                 if loan_amount > 0:
                     year_loan = StudentLoan(loan_amount, 0.06, term_years=10)
+                    # We'll track when this loan starts in the calculator
+                    year_loan.name = f"Graduate School Year {year_index + 1} Loan"
                     milestone.add_liability(year_loan)
 
         # Add networking and professional development costs if specified

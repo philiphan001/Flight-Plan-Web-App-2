@@ -179,7 +179,20 @@ class FinancialCalculator:
             # Calculate liability values
             total_liability_value = 0
             for liability in self.liabilities:
-                liability_value = int(round(liability.get_balance(year)))
+                # For graduate school loans, check if we've reached their start year
+                liability_value = 0
+                if "Graduate School Year" in liability.name:
+                    # Extract the year number and calculate when this loan starts
+                    year_num = int(liability.name.split("Year ")[1].split(" ")[0]) - 1
+                    try: #Attempt to access from liability.  If it fails, assume 0.
+                        loan_start_year = liability._milestone.trigger_year + year_num
+                    except AttributeError:
+                        loan_start_year = 0
+                    if year >= loan_start_year:
+                        liability_value = int(round(liability.get_balance(year - loan_start_year)))
+                else:
+                    liability_value = int(round(liability.get_balance(year)))
+
                 liability_type = liability.__class__.__name__
                 liability_key = f"{liability_type}: {liability.name}"
                 if liability_key not in liability_breakdown:
