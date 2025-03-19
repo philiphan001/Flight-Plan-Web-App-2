@@ -444,16 +444,18 @@ class MilestoneFactory:
         if networking_cost > 0:
             milestone.add_recurring_expense(VariableExpense("Professional Development", networking_cost))
 
-        # Add part-time income during school
+        # Add part-time income during school if specified
         if part_time_income > 0:
             part_time = Income("Part-Time Work", part_time_income, start_year=trigger_year)
             part_time.end_year = trigger_year + years
             milestone.add_income_adjustment(part_time)
 
-        # Add post-graduation salary increase
+        # Add post-graduation salary increase as a new income stream, not replacing existing
         if salary_increase_percentage > 0:
-            increased_salary = Salary(30000 * (1 + salary_increase_percentage), 1.0)
-            increased_salary.start_year = trigger_year + years
+            # Calculate the increased portion only
+            base_salary = 30000  # Base salary
+            increase_amount = base_salary * salary_increase_percentage
+            increased_salary = Income("Salary Increase", increase_amount, start_year=trigger_year + years)
             milestone.add_income_adjustment(increased_salary)
 
         return milestone
