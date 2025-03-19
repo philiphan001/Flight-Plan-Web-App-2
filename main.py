@@ -713,7 +713,7 @@ def main():
                                         'home_price': milestone.home_price,
                                         'down_payment': milestone.down_payment_percentage * 100,
                                         'monthlyutilities': milestone.monthly_utilities,
-                                        'monthly_hoa': milestone.monthly_hoa,
+                                        'monthly_hoa': milestone.hoa,
                                         'annual_renovation': milestone.annual_renovation
                                     })
                                 elif hasattr(milestone, 'car_price'):
@@ -774,9 +774,10 @@ def main():
 
                 # Add Home Equity tab if there's a home purchase milestone
                 has_home_milestone = any(
-                    milestone.__class__.__name__ == "HomePurchase"
+                    milestone.name == "Home Purchase"
                     for milestone in st.session_state.milestones
                 )
+
                 if has_home_milestone:
                     tab_list.append("Home Equity Analysis 🏠")
 
@@ -795,8 +796,8 @@ def main():
                     st.markdown("### Cash Flow Analysis")
                     FinancialPlotter.plot_cash_flow(
                         current_projections['years'],
-                        current_projections['total_income'],
-                        current_projections['expense_categories'],
+                        current_projections['income'],
+                        current_projections['expense_breakdown'],
                         current_projections['total_expenses'],
                         current_projections['cash_flow'],
                         current_projections['income_streams']
@@ -817,19 +818,29 @@ def main():
                     with tabs[3]:
                         st.markdown("### Home Equity Analysis")
                         # Extract home value and mortgage data from asset/liability breakdowns
-                        if ('Home' in current_projections['asset_breakdown'] and
-                            'Mortgage' in current_projections['liability_breakdown']):
+                        home_values = None
+                        mortgage_values = None
 
-                            home_values = current_projections['asset_breakdown']['Home']
-                            mortgage_values = current_projections['liability_breakdown']['Mortgage']
+                        if 'asset_breakdown' in current_projections:
+                            for asset_name in ['Home', 'Primary Home', 'House']:
+                                if asset_name in current_projections['asset_breakdown']:
+                                    home_values = current_projections['asset_breakdown'][asset_name]
+                                    break
 
+                        if 'liability_breakdown' in current_projections:
+                            for liability_name in ['Mortgage', 'Home Mortgage', 'Primary Mortgage']:
+                                if liability_name in current_projections['liability_breakdown']:
+                                    mortgage_values = current_projections['liability_breakdown'][liability_name]
+                                    break
+
+                        if home_values and mortgage_values:
                             FinancialPlotter.plot_home_value_breakdown(
                                 current_projections['years'],
                                 home_values,
                                 mortgage_values
                             )
                         else:
-                            st.warning("Home value or mortgage data not found in projections.")
+                            st.warning("Home value or mortgage data not found in projections. This might happen if the home purchase is scheduled for a future year.")
 
                 # Store current projections as previous before any new milestone is added
                 st.session_state.previous_projections = current_projections
