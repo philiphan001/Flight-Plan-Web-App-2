@@ -62,7 +62,7 @@ class FinancialCalculator:
             # Calculate income streams for each income source
             total_income = 0
             for inc in self.income:
-                income_amount = int(round(inc.calculate_income(year)))
+                income_amount = inc.calculate_income(year)
                 income_streams[inc.name].append(income_amount)
                 total_income += income_amount
 
@@ -75,7 +75,7 @@ class FinancialCalculator:
             payroll_tax = 0
 
             for tax in self.taxes:
-                tax_amount = int(round(tax.calculate_tax(year, total_income)))
+                tax_amount = tax.calculate_tax(year, total_income)
                 if isinstance(tax, FederalIncomeTax):
                     federal_tax = tax_amount
                     expense_categories['Federal Income Tax'][year] = federal_tax
@@ -96,51 +96,50 @@ class FinancialCalculator:
             # Calculate regular expenses
             total_regular_expenses = 0
             for expense in self.expenses:
-                category = expense.name
                 expense_amount = 0
+                category = expense.name
 
                 if "Graduate School Year" in category and "Cost" in category:
-                    # Check if this is the specific year for this grad school expense
+                    # Handle grad school yearly costs
                     year_num = int(category.split("Year ")[1].split(" ")[0]) - 1
                     if hasattr(expense, '_milestone'):
                         target_year = expense._milestone.trigger_year + year_num
                         if year == target_year:
-                            expense_amount = int(round(expense.annual_amount))
+                            expense_amount = expense.annual_amount
                 elif "Graduate School Loan Repayment" in category:
-                    # Start loan repayment after graduation
+                    # Handle loan repayment starting after graduation
                     if hasattr(expense, '_milestone') and year >= expense._milestone.trigger_year:
-                        expense_amount = int(round(expense.annual_amount))
+                        expense_amount = expense.annual_amount
                 elif "One-time Cost" in category:
-                    # Handle other one-time costs
-                    milestone_name = category.replace(" One-time Cost", "")
-                    category = f"One-time: {milestone_name}"
+                    # Handle one-time costs in their specific years
                     if hasattr(expense, '_milestone') and year == expense._milestone.trigger_year:
-                        expense_amount = int(round(expense.annual_amount))
+                        expense_amount = expense.annual_amount
                 else:
-                    # Regular recurring expenses
+                    # Regular expenses with duration checks
                     if hasattr(expense, '_milestone') and hasattr(expense._milestone, 'duration_years'):
                         milestone = expense._milestone
                         if year >= milestone.trigger_year and year < (milestone.trigger_year + milestone.duration_years):
-                            expense_amount = int(round(expense.calculate_expense(year - milestone.trigger_year)))
+                            expense_amount = expense.calculate_expense(year - milestone.trigger_year)
                     else:
-                        expense_amount = int(round(expense.calculate_expense(year)))
+                        expense_amount = expense.calculate_expense(year)
 
+                if "One-time Cost" in category:
+                    category = f"One-time: {category.replace(' One-time Cost', '')}"
                 expense_categories[category][year] = expense_amount
                 total_regular_expenses += expense_amount
 
-            # Total expenses including taxes
             total_expenses = total_regular_expenses + total_tax
             projections['total_expenses'].append(total_expenses)
             projections['expense_categories'] = expense_categories
 
-            # Calculate cash flow (after taxes)
+            # Calculate cash flow
             cash_flow = total_income - total_expenses
             projections['cash_flow'].append(cash_flow)
 
             # Calculate asset values
             total_asset_value = 0
             for asset in self.assets:
-                asset_value = int(round(asset.calculate_value(year)))
+                asset_value = asset.calculate_value(year)
                 asset_type = asset.__class__.__name__
                 asset_key = f"{asset_type}: {asset.name}"
                 if asset_key not in asset_breakdown:
@@ -151,19 +150,20 @@ class FinancialCalculator:
             projections['asset_values'].append(total_asset_value)
             projections['asset_breakdown'] = asset_breakdown
 
-            # Calculate liability values and handle year-specific loans
+            # Calculate liability values
             total_liability_value = 0
             for liability in self.liabilities:
-                liability_value = int(round(liability.get_balance(year)))
-                liability_type = liability.__class__.__name__
-                liability_key = f"{liability_type}: {liability.name}"
-
-                # For graduate school loans, only start counting from their specific year
+                liability_value = 0
+                # For graduate school loans, only include them from their specific year
                 if "Graduate School Year" in liability.name:
                     year_num = int(liability.name.split("Year ")[1].split(" ")[0]) - 1
-                    if year < liability._milestone.trigger_year + year_num:
-                        liability_value = 0
+                    if hasattr(liability, '_milestone') and year >= (liability._milestone.trigger_year + year_num):
+                        liability_value = liability.get_balance(year - (liability._milestone.trigger_year + year_num))
+                else:
+                    liability_value = liability.get_balance(year)
 
+                liability_type = liability.__class__.__name__
+                liability_key = f"{liability_type}: {liability.name}"
                 if liability_key not in liability_breakdown:
                     liability_breakdown[liability_key] = [0] * projection_years
                 liability_breakdown[liability_key][year] = liability_value
