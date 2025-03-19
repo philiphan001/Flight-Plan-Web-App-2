@@ -4,7 +4,7 @@ from difflib import get_close_matches
 from utils.data_processor import DataProcessor
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
-from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome, Home
+from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome, Home, MortgageLoan, FixedExpense
 from models.user_favorites import UserFavorites  # Added import for UserFavorites
 
 def update_location(new_location: str):
@@ -530,8 +530,9 @@ def main():
                             st.markdown(f"**Current Home Purchase Details**")
                             new_year = st.slider("Purchase Year", 1, projection_years, milestone.trigger_year, key=f"edit_home_year_{idx}")
                             home_asset = next((asset for asset in milestone.assets if isinstance(asset, Home)), None)
+                            mortgage = next((liability for liability in milestone.liabilities if isinstance(liability, MortgageLoan)), None)
 
-                            if home_asset:
+                            if home_asset and mortgage:
                                 new_price = st.number_input("Home Price ($)", 100000, 2000000, int(home_asset.initial_value), step=50000, key=f"edit_home_price_{idx}")
                                 new_down_payment_pct = st.slider("Down Payment %", 5, 40, int(home_asset.down_payment_percentage * 100), key=f"edit_down_payment_{idx}")
 
@@ -575,8 +576,7 @@ def main():
 
                                 with col1:
                                     if st.button("Apply Changes", key=f"apply_home_changes_{idx}"):
-                                        # Update milestone attributes
-                                        milestone.trigger_year = new_year
+                                        # Update home asset attributes
                                         home_asset.initial_value = new_price
                                         home_asset.down_payment_percentage = new_down_payment_pct / 100
                                         home_asset.monthly_utilities = new_monthly_utilities
@@ -584,6 +584,36 @@ def main():
                                         home_asset.annual_renovation = new_annual_renovation
                                         home_asset.home_office_deduction = new_home_office
                                         home_asset.office_percentage = new_office_area_pct
+
+                                        # Recalculate mortgage based on new values
+                                        new_loan_amount = new_price * (1 - new_down_payment_pct / 100)
+                                        new_mortgage = MortgageLoan(new_loan_amount, mortgage.interest_rate, mortgage.term_years)
+
+                                        # Update milestone attributes
+                                        milestone.trigger_year = new_year
+                                        milestone.one_time_expense = new_price * (new_down_payment_pct / 100)  # Update down payment
+
+                                        # Update milestone liabilities
+                                        milestone.liabilities = [liability for liability in milestone.liabilities if not isinstance(liability, MortgageLoan)]
+                                        milestone.liabilities.append(new_mortgage)
+
+                                        # Update recurring expenses
+                                        property_tax_rate = 0.015  # Same as in create_home_purchase
+                                        insurance_rate = 0.005
+                                        maintenance_rate = 0.01
+
+                                        # Remove old expenses and add updated ones
+                                        milestone.recurring_expenses = [exp for exp in milestone.recurring_expenses 
+                                                                      if not any(name in exp.name for name in 
+                                                                               ["Mortgage Payment", "Property Tax", "Home Insurance", "Home Maintenance"])]
+
+                                        # Add updated recurring expenses
+                                        monthly_payment = new_mortgage.calculate_payment()
+                                        milestone.add_recurring_expense(FixedExpense("Mortgage Payment", monthly_payment * 12, inflation_rate=0))
+                                        milestone.add_recurring_expense(FixedExpense("Property Tax", new_price * property_tax_rate))
+                                        milestone.add_recurring_expense(FixedExpense("Home Insurance", new_price * insurance_rate))
+                                        milestone.add_recurring_expense(FixedExpense("Home Maintenance", new_price * maintenance_rate))
+
                                         st.session_state.needs_recalculation = True
                                         st.rerun()
 
@@ -701,7 +731,7 @@ def main():
                     if st.session_state.previous_projections:
                         st.markdown(
                             format_change(current_projections['net_worth'][0],
-                                st.session_state.previous_projections['net_worth'][0]
+                                        st.session_state.previous_projections['net_worth'][0]
                             ),
                             unsafe_allow_html=True
                         )
