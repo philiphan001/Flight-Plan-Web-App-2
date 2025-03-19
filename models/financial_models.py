@@ -413,22 +413,28 @@ class MilestoneFactory:
         return milestone
 
     @staticmethod
-    def create_grad_school(trigger_year: int, total_cost: float, years: int = 2,
+    def create_grad_school(trigger_year: int, yearly_costs: List[float], years: int,
                           part_time_income: float = 0, scholarship_amount: float = 0,
                           salary_increase_percentage: float = 0.3,
                           networking_cost: float = 0) -> Milestone:
         # Create specialized graduate school milestone with duration
         milestone = GraduateSchoolMilestone(trigger_year, years)
 
-        # Calculate annual cost after scholarship
-        annual_cost = (total_cost - scholarship_amount) / years
+        # Calculate total cost for loan purposes
+        total_cost = sum(yearly_costs)
 
-        # Add student loan
-        milestone.add_liability(StudentLoan(total_cost - scholarship_amount, 0.06))
+        # Add student loan with reduced principal if scholarship available
+        milestone.add_liability(StudentLoan(total_cost - scholarship_amount * years, 0.06))
 
-        # Add annual expenses (these will be limited by duration_years)
-        milestone.add_recurring_expense(FixedExpense("Graduate School Expenses", annual_cost))
+        # Add each year's expenses separately
+        for year_index, year_cost in enumerate(yearly_costs):
+            # Reduce cost by scholarship amount for each year
+            annual_cost = year_cost - scholarship_amount
+            expense_name = f"Graduate School Year {year_index + 1}"
+            grad_school_expense = FixedExpense(expense_name, annual_cost)
+            milestone.add_recurring_expense(grad_school_expense)
 
+        # Add networking and professional development costs if specified
         if networking_cost > 0:
             milestone.add_recurring_expense(VariableExpense("Professional Development", networking_cost))
 

@@ -451,10 +451,20 @@ def main():
             # Graduate School Milestone
             with st.sidebar.expander("🎓 Graduate School"):
                 grad_year = st.slider("Start Year", 1, projection_years, 2, key="grad_year")
-                total_cost = st.number_input("Total Cost ($)", 10000, 200000, 100000, step=10000)
                 program_years = st.slider("Program Length (Years)", 1, 4, 2)
 
-                # New graduate school variables
+                # Create yearly cost inputs based on program length
+                yearly_costs = []
+                for year in range(program_years):
+                    cost = st.number_input(
+                        f"Year {year + 1} Cost ($)",
+                        10000, 100000, 50000,
+                        step=1000,
+                        key=f"grad_year_{year}_cost"
+                    )
+                    yearly_costs.append(cost)
+
+                # Other graduate school variables
                 part_time_income = st.number_input(
                     "Estimated Monthly Part-Time Income ($)",
                     0, 5000, 0,
@@ -482,7 +492,7 @@ def main():
 
                 if st.button("Add Graduate School Milestone"):
                     milestone = MilestoneFactory.create_grad_school(
-                        grad_year, total_cost, program_years,
+                        grad_year, yearly_costs, program_years,
                         part_time_income=part_time_income * 12,
                         scholarship_amount=scholarship_amount,
                         salary_increase_percentage=expected_salary_increase / 100,
@@ -690,7 +700,7 @@ def main():
                 for college_name in st.session_state.selected_colleges_for_projection:
                     # Find the college data from favorites
                     college = next((school for school in UserFavorites.get_favorite_schools()
-                                   if school['name'] == collegename), None)
+                                   if school['name'] == college_name), None)
                     if college:
                         st.sidebar.markdown(f"**{college['name']}**")
                         if 'avg_net_price.private' in college and pd.notna(college['avg_net_price.private']):
