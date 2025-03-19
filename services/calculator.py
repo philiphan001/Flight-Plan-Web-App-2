@@ -120,7 +120,8 @@ class FinancialCalculator:
                     loan = next((l for l in self.liabilities if l.name == loan_name), None)
                     if loan and isinstance(loan, StudentLoan):
                         # Only apply payment after deferment period
-                        expense_amount = int(round(loan.get_payment(year)))
+                        expense_amount = int(round(loan.get_payment(year - loan._milestone.trigger_year)))
+                        category = f"Loan Payment: Graduate School Year {year_num + 1}"  # Categorize loan payments
                     else:
                         expense_amount = 0
                 elif "One-time Cost" in category:
