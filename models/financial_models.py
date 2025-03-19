@@ -222,30 +222,25 @@ class Milestone:
 
     def calculate_expenses(self, year: int) -> float:
         """Calculate expenses considering duration limits if applicable"""
-        # For time-limited milestones (like grad school), check if we're within the valid period
         if self.duration_years is not None:
+            # If milestone has a duration, only apply expenses during that period
             if year < self.trigger_year or year >= (self.trigger_year + self.duration_years):
                 return 0.0
 
         total = 0.0
-
         # Add one-time expense only in the trigger year
         if year == self.trigger_year:
             total += self.one_time_expense
 
-        # For each recurring expense
+        # Add recurring expenses
         for expense in self.recurring_expenses:
             if self.duration_years is not None:
-                # Only calculate expenses within the duration period
-                if year >= self.trigger_year and year < (self.trigger_year + self.duration_years):
-                    years_from_start = year - self.trigger_year
-                    # Calculate with inflation from start of milestone
-                    expense_amount = expense.annual_amount * (1 + expense.inflation_rate) ** years_from_start
-                    if isinstance(expense, VariableExpense):
-                        expense_amount *= (1 + expense.volatility)
-                    total += expense_amount
+                # For time-limited milestones, calculate based on years from start
+                years_from_start = year - self.trigger_year
+                if years_from_start >= 0 and years_from_start < self.duration_years:
+                    total += expense.annual_amount * (1 + expense.inflation_rate) ** years_from_start
             else:
-                # For non-time-limited milestones, calculate normally
+                # For permanent milestones, calculate normally
                 total += expense.calculate_expense(year)
 
         return total

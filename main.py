@@ -33,12 +33,22 @@ def initialize_session_state():
         st.session_state.milestones = []
     if 'previous_projections' not in st.session_state:
         st.session_state.previous_projections = None
-
-
-def toggle_projections():
-    """Callback for the continue button"""
-    st.session_state.show_projections = True
-    st.session_state.needs_recalculation = True
+    if 'show_location_matches' not in st.session_state:
+        st.session_state.show_location_matches = False
+    if 'show_occupation_matches' not in st.session_state:
+        st.session_state.show_occupation_matches = False
+    if 'sidebar_location_input' not in st.session_state:
+        st.session_state.sidebar_location_input = ""
+    if 'sidebar_occupation_input' not in st.session_state:
+        st.session_state.sidebar_occupation_input = ""
+    if 'selected_spouse_occ' not in st.session_state:
+        st.session_state['selected_spouse_occ'] = ""
+    if 'show_marriage_options' not in st.session_state:
+        st.session_state.show_marriage_options = False
+    if 'saved_projections' not in st.session_state:
+        st.session_state.saved_projections = []
+    if 'selected_colleges_for_projection' not in st.session_state:
+        st.session_state.selected_colleges_for_projection = []
 
 
 def main():
@@ -101,7 +111,8 @@ def main():
             # Show continue button only if both selections are made
             if st.session_state.selected_location and st.session_state.selected_occupation:
                 st.markdown("---")
-                if st.button("Continue to Financial Projections ➡️", on_click=toggle_projections):
+                if st.button("Continue to Financial Projections ➡️"):
+                    st.session_state.show_projections = True
                     st.rerun()
 
         else:
@@ -679,7 +690,7 @@ def main():
                 for college_name in st.session_state.selected_colleges_for_projection:
                     # Find the college data from favorites
                     college = next((school for school in UserFavorites.get_favorite_schools()
-                                   if school['name'] == college_name), None)
+                                   if school['name'] == collegename), None)
                     if college:
                         st.sidebar.markdown(f"**{college['name']}**")
                         if 'avg_net_price.private' in college and pd.notna(college['avg_net_price.private']):
