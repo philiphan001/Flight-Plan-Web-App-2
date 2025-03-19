@@ -166,12 +166,19 @@ class SpouseIncome(Income):
 
 
 class Expense(ABC):
-    def __init__(self, name: str, annual_amount: float, inflation_rate: float = 0.02):
+    def __init__(self, name: str, annual_amount: float, inflation_rate: float = 0.02,
+                 start_year: Optional[int] = None, end_year: Optional[int] = None):
         self.name = name
         self.annual_amount = annual_amount
         self.inflation_rate = inflation_rate
+        self.start_year = start_year
+        self.end_year = end_year
 
     def calculate_expense(self, year: int) -> float:
+        # Return 0 if outside the valid year range
+        if (self.start_year is not None and year < self.start_year) or \
+           (self.end_year is not None and year > self.end_year):
+            return 0
         return self.annual_amount * (1 + self.inflation_rate) ** year
 
 class FixedExpense(Expense):
@@ -386,16 +393,32 @@ class MilestoneFactory:
         # Add student loan with reduced principal if scholarship available
         milestone.add_liability(StudentLoan(total_cost - scholarship_amount, 0.06))
 
-        # Add annual expenses
-        milestone.add_recurring_expense(FixedExpense("Graduate School Expenses", annual_cost))
+        # Add annual expenses with time limits
+        grad_school_expense = FixedExpense(
+            "Graduate School Expenses", 
+            annual_cost,
+            start_year=trigger_year,
+            end_year=trigger_year + years - 1  # -1 because years starts from 0
+        )
+        milestone.add_recurring_expense(grad_school_expense)
 
         # Add networking and professional development costs
         if networking_cost > 0:
-            milestone.add_recurring_expense(VariableExpense("Professional Development", networking_cost))
+            networking_expense = VariableExpense(
+                "Professional Development",
+                networking_cost,
+                start_year=trigger_year,
+                end_year=trigger_year + years - 1
+            )
+            milestone.add_recurring_expense(networking_expense)
 
         # Add part-time income during school if applicable
         if part_time_income > 0:
-            part_time = Income("Part-Time Work", part_time_income, start_year=trigger_year)
+            part_time = Income(
+                "Part-Time Work",
+                part_time_income,
+                start_year=trigger_year
+            )
             milestone.add_income_adjustment(part_time)
 
         # Add post-graduation salary increase
