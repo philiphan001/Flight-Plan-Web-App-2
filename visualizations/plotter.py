@@ -59,7 +59,13 @@ class FinancialPlotter:
                       expenses: Dict[str, List[float]], total_expenses: List[float],
                       cash_flow: List[float], income_streams: Dict[str, List[float]] = None) -> None:
         """Plot cash flow with stacked income streams and separate expenses."""
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        # Create figure with subplots - one for cash flow, one for expense pie chart
+        fig = make_subplots(
+            rows=1, cols=2,
+            column_widths=[0.7, 0.3],
+            specs=[[{"secondary_y": True}, {"type": "pie"}]],
+            subplot_titles=('Income, Expenses, and Cash Flow Projection', 'Latest Year Expense Breakdown')
+        )
 
         # Create cumulative sums for income stacking
         cumsum = np.zeros(len(years))
@@ -76,6 +82,7 @@ class FinancialPlotter:
                     base=cumsum,  # Start from previous cumulative sum
                     offsetgroup=0  # Same offsetgroup for stacking
                 ),
+                row=1, col=1,
                 secondary_y=False
             )
             cumsum += np.array(values)  # Update cumulative sum
@@ -89,6 +96,7 @@ class FinancialPlotter:
                 marker_color='#E74C3C',
                 offsetgroup=1  # Different offsetgroup to prevent stacking with income
             ),
+            row=1, col=1,
             secondary_y=False
         )
 
@@ -100,15 +108,33 @@ class FinancialPlotter:
                 name="Net Cash Flow",
                 line=dict(color='#2E86C1', width=2)
             ),
+            row=1, col=1,
             secondary_y=True
+        )
+
+        # Add pie chart for latest year expenses
+        latest_year_expenses = {}
+        for category, values in expenses.items():
+            if values[-1] > 0:  # Only include non-zero expenses
+                latest_year_expenses[category] = values[-1]
+
+        # Sort expenses by value for better visualization
+        sorted_expenses = dict(sorted(latest_year_expenses.items(), key=lambda x: x[1], reverse=True))
+
+        fig.add_trace(
+            go.Pie(
+                labels=list(sorted_expenses.keys()),
+                values=list(sorted_expenses.values()),
+                textinfo='percent+label',
+                hole=0.3,
+                marker=dict(colors=['#E74C3C', '#C0392B', '#CD6155', '#EC7063', '#F1948A', '#F5B7B1'])
+            ),
+            row=1, col=2
         )
 
         # Update layout
         fig.update_layout(
-            title='Income, Expenses, and Cash Flow Projection',
-            xaxis_title='Year',
-            yaxis_title='Amount ($)',
-            barmode='group',  # Group bars by offsetgroup
+            height=600,  # Increase height to accommodate both charts
             template='plotly_white',
             showlegend=True,
             legend=dict(
@@ -122,10 +148,11 @@ class FinancialPlotter:
         )
 
         # Update axes
-        fig.update_yaxes(title_text="Amount ($)", secondary_y=False)
-        fig.update_yaxes(title_text="Net Cash Flow ($)", secondary_y=True)
+        fig.update_yaxes(title_text="Amount ($)", secondary_y=False, row=1, col=1)
+        fig.update_yaxes(title_text="Net Cash Flow ($)", secondary_y=True, row=1, col=1)
+        fig.update_xaxes(title_text="Year", row=1, col=1)
 
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         # Create and display tables for income and expenses
         df_income = pd.DataFrame({
@@ -343,7 +370,6 @@ class FinancialPlotter:
         # Create and display salary data table
         st.dataframe(salary_data.style.format("${:,.0f}"), use_container_width=True)
     
-
     def plot_career_roadmap(self, career_data: Dict) -> None:
         """
         Create an interactive visualization of the career roadmap.
