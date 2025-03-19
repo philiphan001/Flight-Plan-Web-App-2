@@ -865,40 +865,75 @@ def main():
                     if has_home_milestone and len(tabs) > 3:
                         with tabs[3]:
                             st.markdown("### Home Equity Analysis")
-                            # Add debug information
-                            if st.checkbox("Show Home Data Debug Info"):
-                                st.write("Asset breakdown keys:", list(current_projections['asset_breakdown'].keys()))
-                                st.write("Liability breakdown keys:", list(current_projections['liability_breakdown'].keys()))
+
+                            # Debug information about projections
+                            with st.expander("🔍 Debug Financial Data", expanded=False):
+                                st.write("Available Asset Categories:", list(current_projections.get('asset_breakdown', {}).keys()))
+                                st.write("Available Liability Categories:", list(current_projections.get('liability_breakdown', {}).keys()))
 
                             # Extract home value and mortgage data from asset/liability breakdowns
-                            home_values = None
-                            mortgage_values = None
+                            home_values = []
+                            mortgage_values = []
 
-                            if 'asset_breakdown' in current_projections:
-                                for asset_name in ['Home', 'Primary Home', 'House']:
-                                    if asset_name in current_projections['asset_breakdown']:
-                                        home_values = current_projections['asset_breakdown'][asset_name]
-                                        st.sidebar.write(f"Found home values under '{asset_name}'")
-                                        break
+                            # Find the home purchase milestone
+                            home_milestone = next(
+                                (m for m in st.session_state.milestones if m.name == "Home Purchase"),
+                                None
+                            )
 
-                            if 'liability_breakdown' in current_projections:
-                                for liability_name in ['Mortgage', 'Home Mortgage', 'Primary Mortgage']:
-                                    if liability_name in current_projections['liability_breakdown']:
-                                        mortgage_values = current_projections['liability_breakdown'][liability_name]
-                                        st.sidebar.write(f"Found mortgage values under '{liability_name}'")
-                                        break
+                            if home_milestone:
+                                purchase_year = home_milestone.trigger_year
+                                current_year = current_projections['years'][0]
+                                projection_length = len(current_projections['years'])
 
-                            if home_values and mortgage_values:
+                                # Initialize arrays with zeros
+                                home_values = [0] * projection_length
+                                mortgage_values = [0] * projection_length
+
+                                # Only populate values after purchase year
+                                if purchase_year <= current_projections['years'][-1]:
+                                    home_price = home_milestone.home_price
+                                    down_payment = home_milestone.down_payment_percentage * home_price
+                                    mortgage_amount = home_price - down_payment
+
+                                    # Calculate mortgage details
+                                    annual_rate = 0.065  # Assume 6.5% interest rate
+                                    monthly_rate = annual_rate / 12
+                                    term_years = 30
+                                    num_payments = term_years * 12
+                                    monthly_payment = (mortgage_amount * monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
+
+                                    # Fill in the values for each year
+                                    for i, year in enumerate(current_projections['years']):
+                                        if year >= purchase_year:
+                                            years_since_purchase = year - purchase_year
+                                            home_values[i] = home_price * (1 + 0.03)**years_since_purchase  # Assume 3% annual appreciation
+
+                                            # Calculate remaining mortgage balance
+                                            payments_made = years_since_purchase * 12
+                                            if payments_made < num_payments:
+                                                mortgage_values[i] = (monthly_payment * ((1 - (1 + monthly_rate)**(-(num_payments - payments_made))) / monthly_rate))
+                                            else:
+                                                mortgage_values[i] = 0
+
+                            if any(home_values) and any(mortgage_values):
                                 FinancialPlotter.plot_home_value_breakdown(
                                     current_projections['years'],
                                     home_values,
                                     mortgage_values
                                 )
+
+                                # Add a summary of the home purchase details
+                                st.markdown("### Home Purchase Details")
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.metric("Purchase Price", f"${home_milestone.home_price:,.0f}")
+                                with col2:
+                                    st.metric("Down Payment", f"${down_payment:,.0f}")
+                                with col3:
+                                    st.metric("Initial Mortgage", f"${mortgage_amount:,.0f}")
                             else:
-                                st.warning("Home value or mortgage data not found in projections. This might happen if the home purchase is scheduled for a future year.")
-                                if st.checkbox("Show Troubleshooting Info"):
-                                    st.write("Asset Breakdown:", current_projections.get('asset_breakdown', {}))
-                                    st.write("Liability Breakdown:", current_projections.get('liability_breakdown', {}))
+                                st.warning("Home purchase is scheduled for a future year. The equity analysis will be available once the purchase occurs.")
 
                     # Store current projections as previous before any new milestone is added
                     st.session_state.previous_projections = current_projections
