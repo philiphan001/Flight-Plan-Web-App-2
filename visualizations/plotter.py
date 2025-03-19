@@ -44,22 +44,21 @@ class FinancialPlotter:
 
         # Create animation frames
         frames = []
-        frames.extend(FinancialPlotter._create_animation_frames(assets, years, 'Assets', '#27AE60'))
-        frames.extend(FinancialPlotter._create_animation_frames([-x for x in liabilities], years, 'Liabilities', '#E74C3C'))
-
-        # Add frames for net worth line
-        for i in range(10):
-            frame_data = [val * (i + 1) / 10 for val in net_worth]
+        for i in range(10):  # 10 frames for smooth animation
+            frame_data = [val * (i + 1) / 10 for val in assets]
             frames.append(
                 go.Frame(
                     data=[
-                        go.Bar(x=years, y=[val * (i + 1) / 10 for val in assets], name='Assets', marker_color='#27AE60'),
+                        go.Bar(x=years, y=frame_data, name='Assets', marker_color='#27AE60'),
                         go.Bar(x=years, y=[-val * (i + 1) / 10 for val in liabilities], name='Liabilities', marker_color='#E74C3C'),
-                        go.Scatter(x=years, y=frame_data, mode='lines+markers', name='Net Worth', line=dict(color='#2E86C1', width=2))
+                        go.Scatter(x=years, y=[val * (i + 1) / 10 for val in net_worth], mode='lines+markers', name='Net Worth', line=dict(color='#2E86C1', width=2))
                     ],
-                    name=f"frame{i+20}"
+                    name=f"frame{i}"
                 )
             )
+
+        # Assign frames to the figure
+        fig.frames = frames
 
         # Update layout with animation settings
         fig.update_layout(
@@ -87,8 +86,7 @@ class FinancialPlotter:
                         'transition': {'duration': 50}
                     }]
                 }]
-            }],
-            frames=frames
+            }]
         )
 
         # Auto-play animation using Streamlit's javascript injection
@@ -310,7 +308,6 @@ class FinancialPlotter:
             unsafe_allow_html=True
         )
 
-
         # Create and display assets breakdown table
         if asset_breakdown:
             asset_data = {'Year': years}
@@ -367,7 +364,6 @@ class FinancialPlotter:
         frames.extend(FinancialPlotter._create_animation_frames(home_value, years, 'Home Value', '#27AE60'))
         frames.extend(FinancialPlotter._create_animation_frames(mortgage_balance, years, 'Mortgage Balance', '#E74C3C'))
         frames.extend(FinancialPlotter._create_animation_frames(equity, years, 'Home Equity', '#2E86C1'))
-
 
         fig.update_layout(
             title='Home Value Components Over Time',
