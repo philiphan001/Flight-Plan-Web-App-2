@@ -124,6 +124,7 @@ class StudentLoan(Loan):
     def __init__(self, principal: float, interest_rate: float, term_years: int = 10, deferment_years: int = 0):
         super().__init__("Student Loan", principal, interest_rate, term_years)
         self.deferment_years = deferment_years
+        self._milestone = None  # Reference to the milestone this loan belongs to
 
     def calculate_payment(self) -> float:
         # Standard 10-year repayment calculation
