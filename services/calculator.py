@@ -100,13 +100,23 @@ class FinancialCalculator:
 
             # Calculate regular expenses
             total_regular_expenses = 0
+            # Handle time-limited milestone expenses differently
             for expense in self.expenses:
                 category = expense.name
                 if "One-time Cost" in category:
                     milestone_name = category.replace(" One-time Cost", "")
                     category = f"One-time: {milestone_name}"
 
-                expense_amount = int(round(expense.calculate_expense(year)))
+                # For expenses within milestones, check duration
+                if hasattr(expense, '_milestone') and hasattr(expense._milestone, 'duration_years'):
+                    milestone = expense._milestone
+                    if year >= milestone.trigger_year and year < (milestone.trigger_year + milestone.duration_years):
+                        expense_amount = int(round(expense.calculate_expense(year - milestone.trigger_year)))
+                    else:
+                        expense_amount = 0
+                else:
+                    expense_amount = int(round(expense.calculate_expense(year)))
+
                 expense_categories[category][year] = expense_amount
                 total_regular_expenses += expense_amount
 

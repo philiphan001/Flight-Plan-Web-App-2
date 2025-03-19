@@ -168,32 +168,21 @@ class SpouseIncome(Income):
 
 
 class Expense(ABC):
-    def __init__(self, name: str, annual_amount: float, inflation_rate: float = 0.02,
-                 start_year: Optional[int] = None, end_year: Optional[int] = None):
+    def __init__(self, name: str, annual_amount: float, inflation_rate: float = 0.02):
         self.name = name
         self.annual_amount = annual_amount
         self.inflation_rate = inflation_rate
-        self.start_year = start_year
-        self.end_year = end_year
+        self._milestone = None  # Reference to the milestone this expense belongs to
 
     def calculate_expense(self, year: int) -> float:
-        """Calculate the expense for a given year, considering time limits"""
-        # Check if we're within the valid year range
-        if (self.start_year is not None and year < self.start_year) or \
-           (self.end_year is not None and year >= self.end_year):  # Changed to >= for exclusive end
-            return 0.0
-
-        # Calculate inflation-adjusted expense only for valid years
-        years_from_start = year - (self.start_year if self.start_year is not None else 0)
-        return self.annual_amount * (1 + self.inflation_rate) ** years_from_start
+        return self.annual_amount * (1 + self.inflation_rate) ** year
 
 class FixedExpense(Expense):
     pass
 
 class VariableExpense(Expense):
-    def __init__(self, name: str, annual_amount: float, volatility: float = 0.1,
-                 start_year: Optional[int] = None, end_year: Optional[int] = None):
-        super().__init__(name, annual_amount, start_year=start_year, end_year=end_year)
+    def __init__(self, name: str, annual_amount: float, volatility: float = 0.1):
+        super().__init__(name, annual_amount)
         self.volatility = volatility
 
     def calculate_expense(self, year: int) -> float:
@@ -213,11 +202,13 @@ class Milestone:
         self.income_adjustments: List[Income] = []
         self.assets: List[Asset] = []
         self.liabilities: List[Liability] = []
+        self.duration_years = None  # For time-limited milestones
 
     def add_one_time_expense(self, amount: float):
         self.one_time_expense = amount
 
     def add_recurring_expense(self, expense: Expense):
+        expense._milestone = self  # Set the reference to this milestone
         self.recurring_expenses.append(expense)
 
     def add_income_adjustment(self, income: Income):
@@ -228,6 +219,37 @@ class Milestone:
 
     def add_liability(self, liability: Liability):
         self.liabilities.append(liability)
+
+    def calculate_expenses(self, year: int) -> float:
+        """Calculate expenses considering duration limits if applicable"""
+        if self.duration_years is not None:
+            # If milestone has a duration, only apply expenses during that period
+            if year < self.trigger_year or year >= (self.trigger_year + self.duration_years):
+                return 0.0
+
+        total = 0.0
+        # Add one-time expense only in the trigger year
+        if year == self.trigger_year:
+            total += self.one_time_expense
+
+        # Add recurring expenses
+        for expense in self.recurring_expenses:
+            if self.duration_years is not None:
+                # For time-limited milestones, calculate based on years from start
+                years_from_start = year - self.trigger_year
+                if years_from_start >= 0 and years_from_start < self.duration_years:
+                    total += expense.annual_amount * (1 + expense.inflation_rate) ** years_from_start
+            else:
+                # For permanent milestones, calculate normally
+                total += expense.calculate_expense(year)
+
+        return total
+
+@dataclass
+class GraduateSchoolMilestone(Milestone):
+    def __init__(self, trigger_year: int, program_years: int):
+        super().__init__("Graduate School", trigger_year, "Education")
+        self.duration_years = program_years  # Set the duration for grad school
 
 class MilestoneFactory:
     @staticmethod
@@ -395,48 +417,31 @@ class MilestoneFactory:
                           part_time_income: float = 0, scholarship_amount: float = 0,
                           salary_increase_percentage: float = 0.3,
                           networking_cost: float = 0) -> Milestone:
-        milestone = Milestone("Graduate School", trigger_year, "Education")
+        # Create specialized graduate school milestone with duration
+        milestone = GraduateSchoolMilestone(trigger_year, years)
 
-        # Reduce total cost by scholarship amount
+        # Calculate annual cost after scholarship
         annual_cost = (total_cost - scholarship_amount) / years
 
-        # Add student loan with reduced principal if scholarship available
+        # Add student loan
         milestone.add_liability(StudentLoan(total_cost - scholarship_amount, 0.06))
 
-        # Add annual expenses with strict time limits
-        grad_school_expense = FixedExpense(
-            "Graduate School Expenses", 
-            annual_cost,
-            start_year=trigger_year,
-            end_year=trigger_year + years  # End year is exclusive
-        )
-        milestone.add_recurring_expense(grad_school_expense)
+        # Add annual expenses (these will be limited by duration_years)
+        milestone.add_recurring_expense(FixedExpense("Graduate School Expenses", annual_cost))
 
-        # Add networking and professional development costs with same time limits
         if networking_cost > 0:
-            networking_expense = VariableExpense(
-                "Professional Development",
-                networking_cost,
-                start_year=trigger_year,
-                end_year=trigger_year + years  # End year is exclusive
-            )
-            milestone.add_recurring_expense(networking_expense)
+            milestone.add_recurring_expense(VariableExpense("Professional Development", networking_cost))
 
-        # Add part-time income during school if applicable
+        # Add part-time income during school
         if part_time_income > 0:
-            part_time = Income(
-                "Part-Time Work",
-                part_time_income,
-                start_year=trigger_year
-            )
-            # Set end year for part-time work
+            part_time = Income("Part-Time Work", part_time_income, start_year=trigger_year)
             part_time.end_year = trigger_year + years
             milestone.add_income_adjustment(part_time)
 
         # Add post-graduation salary increase
         if salary_increase_percentage > 0:
             increased_salary = Salary(30000 * (1 + salary_increase_percentage), 1.0)
-            increased_salary.start_year = trigger_year + years  # Start increased salary after graduation
+            increased_salary.start_year = trigger_year + years
             milestone.add_income_adjustment(increased_salary)
 
         return milestone
