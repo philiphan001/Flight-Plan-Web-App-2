@@ -68,6 +68,16 @@ def main():
         occupations = sorted([occ for occ in occupation_df['Occupation'].astype(str).unique().tolist()
                              if occ.lower() != 'nan'])
 
+        # Add debug logging for state tracking
+        with st.sidebar.expander("🔍 Debug State", expanded=False):
+            st.write("Current State:")
+            st.write(f"- Show Projections: {st.session_state.show_projections}")
+            st.write(f"- Location: {st.session_state.selected_location}")
+            st.write(f"- Occupation: {st.session_state.selected_occupation}")
+            st.write(f"- Needs Recalculation: {st.session_state.needs_recalculation}")
+            st.write(f"- Number of Milestones: {len(st.session_state.milestones)}")
+
+        # Only reset show_projections if explicitly requested
         if not st.session_state.show_projections:
             # Create two columns for location and occupation selection
             col1, col2 = st.columns(2)
@@ -80,8 +90,8 @@ def main():
                     location_input = st.text_input("Enter Location")
                     if location_input:
                         matches = get_close_matches(location_input.lower(),
-                                                   [loc.lower() for loc in locations],
-                                                   n=3, cutoff=0.1)
+                                                    [loc.lower() for loc in locations],
+                                                    n=3, cutoff=0.1)
                         matching_locations = [loc for loc in locations if loc.lower() in matches]
                         if matching_locations:
                             st.markdown("#### Select from matches:")
@@ -98,8 +108,8 @@ def main():
                     occupation_input = st.text_input("Enter Occupation")
                     if occupation_input:
                         matches = get_close_matches(occupation_input.lower(),
-                                                   [occ.lower() for occ in occupations],
-                                                   n=3, cutoff=0.1)
+                                                    [occ.lower() for occ in occupations],
+                                                    n=3, cutoff=0.1)
                         matching_occupations = [occ for occ in occupations if occ.lower() in matches]
                         if matching_occupations:
                             st.markdown("#### Select from matches:")
@@ -392,22 +402,27 @@ def main():
                     )
 
                 if st.button("Add Home Purchase Milestone"):
-                    # Keep track of current state
-                    current_show_projections = st.session_state.show_projections
+                    try:
+                        # Create the milestone
+                        milestone = MilestoneFactory.create_home_purchase(
+                            home_year, home_price, down_payment_pct,
+                            monthly_utilities=monthly_utilities,
+                            monthly_hoa=monthly_hoa,
+                            annual_renovation=annual_renovation,
+                            home_office_deduction=home_office,
+                            office_percentage=office_area_pct if home_office else 0
+                        )
 
-                    milestone = MilestoneFactory.create_home_purchase(
-                        home_year, home_price, down_payment_pct,
-                        monthly_utilities=monthly_utilities,
-                        monthly_hoa=monthly_hoa,
-                        annual_renovation=annual_renovation,
-                        home_office_deduction=home_office,
-                        office_percentage=office_area_pct if home_office else 0
-                    )
-                    st.session_state.milestones.append(milestone)
-                    st.session_state.needs_recalculation = True
+                        # Add to milestones list and set recalculation flag
+                        st.session_state.milestones.append(milestone)
+                        st.session_state.needs_recalculation = True
 
-                    # Restore state
-                    st.session_state.show_projections = current_show_projections
+                        # Add success message
+                        st.sidebar.success(f"Home purchase milestone added for year {home_year}")
+
+                    except Exception as e:
+                        st.error(f"Error adding home purchase milestone: {str(e)}")
+                        st.write("Debug info:", e)
 
             # Car Purchase Milestone
             with st.sidebar.expander("🚗 Car Purchase"):
@@ -524,8 +539,8 @@ def main():
                             new_price = st.number_input("Home Price ($)", 100000, 2000000, int(milestone.home_price), step=50000, key=f"edit_home_price_{idx}")
                             new_down_payment = st.slider("Down Payment %", 5, 40, int(milestone.down_payment_percentage * 100), key=f"edit_down_payment_{idx}") / 100
 
-                            if (new_year != milestone.trigger_year or 
-                                new_price != milestone.home_price or 
+                            if (new_year != milestone.trigger_year or
+                                new_price != milestone.home_price or
                                 new_down_payment != milestone.down_payment_percentage):
                                 milestone.trigger_year = new_year
                                 milestone.home_price = new_price
@@ -685,7 +700,7 @@ def main():
                                             'spouse_savings': milestone.spouse_savings,
                                             'spouse_debt': milestone.spouse_debt
                                         })
-                                    elif hasattr(milestone, 'home_price'):  # Changed from homeprice to home_price
+                                    elif hasattr(milestone, 'home_price'):
                                         details.update({
                                             'home_price': milestone.home_price,
                                             'down_payment': milestone.down_payment_percentage * 100,
@@ -709,7 +724,7 @@ def main():
                                             'insurance_cost': milestone.insurance_cost,
                                             'tax_benefit': milestone.tax_benefit
                                         })
-                                    elif hasattr(milestone, 'total_cost'):  # Graduate School
+                                    elif hasattr(milestone, 'total_cost'):  # GraduateSchool
                                         details.update({
                                             'total_cost': milestone.total_cost,
                                             'program_years': milestone.program_years,
