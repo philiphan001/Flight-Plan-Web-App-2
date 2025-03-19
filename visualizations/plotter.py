@@ -7,60 +7,28 @@ import numpy as np
 
 class FinancialPlotter:
     @staticmethod
-    def _create_animation_frames(data: List[float], x_vals: List[int], name: str, color: str) -> List[go.Frame]:
-        """Helper method to create animation frames for growing bars"""
-        frames = []
-        for i in range(10):  # 10 frames for smooth animation
-            frame_data = [val * (i + 1) / 10 for val in data]
-            frames.append(
-                go.Frame(
-                    data=[go.Bar(x=x_vals, y=frame_data, name=name, marker_color=color)],
-                    name=f"frame{i}"
-                )
-            )
-        return frames
-
-    @staticmethod
     def plot_net_worth(years: List[int], net_worth: List[float], 
                       assets: List[float], liabilities: List[float],
                       savings: List[float] = None) -> None:
-        # Create the plot with initial zero values
+        # Create the plot
         fig = go.Figure()
 
-        # Add initial bars with zero height
-        fig.add_trace(go.Bar(x=years, y=[0] * len(assets),
-                           name='Assets',
-                           marker_color='#27AE60'))
+        # Add assets as positive bars
+        fig.add_trace(go.Bar(x=years, y=assets,
+                            name='Assets',
+                            marker_color='#27AE60'))
 
-        fig.add_trace(go.Bar(x=years, y=[0] * len(liabilities),
-                           name='Liabilities',
-                           marker_color='#E74C3C'))
+        # Add liabilities as negative bars
+        fig.add_trace(go.Bar(x=years, y=[-x for x in liabilities],
+                            name='Liabilities',
+                            marker_color='#E74C3C'))
 
-        # Add net worth line with initial zero values
-        fig.add_trace(go.Scatter(x=years, y=[0] * len(net_worth),
-                               mode='lines+markers',
-                               name='Net Worth',
-                               line=dict(color='#2E86C1', width=2)))
+        # Add net worth line on top
+        fig.add_trace(go.Scatter(x=years, y=net_worth,
+                                mode='lines+markers',
+                                name='Net Worth',
+                                line=dict(color='#2E86C1', width=2)))
 
-        # Create animation frames
-        frames = []
-        for i in range(10):  # 10 frames for smooth animation
-            frame_data = [val * (i + 1) / 10 for val in assets]
-            frames.append(
-                go.Frame(
-                    data=[
-                        go.Bar(x=years, y=frame_data, name='Assets', marker_color='#27AE60'),
-                        go.Bar(x=years, y=[-val * (i + 1) / 10 for val in liabilities], name='Liabilities', marker_color='#E74C3C'),
-                        go.Scatter(x=years, y=[val * (i + 1) / 10 for val in net_worth], mode='lines+markers', name='Net Worth', line=dict(color='#2E86C1', width=2))
-                    ],
-                    name=f"frame{i}"
-                )
-            )
-
-        # Assign frames to the figure
-        fig.frames = frames
-
-        # Update layout with animation settings
         fig.update_layout(
             title='Net Worth Components',
             xaxis_title='Year',
@@ -73,33 +41,9 @@ class FinancialPlotter:
                 y=0.99,
                 xanchor="left",
                 x=1.05
-            ),
-            updatemenus=[{
-                'type': 'buttons',
-                'showactive': False,
-                'buttons': [{
-                    'label': 'Play',
-                    'method': 'animate',
-                    'args': [None, {
-                        'frame': {'duration': 100, 'redraw': True},
-                        'fromcurrent': True,
-                        'transition': {'duration': 50}
-                    }]
-                }]
-            }]
+            )
         )
-
-        # Auto-play animation using Streamlit's javascript injection
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown(
-            """
-            <script>
-                const frame = document.querySelector('iframe');
-                frame.contentWindow.document.querySelector('button[data-title="Play"]').click();
-            </script>
-            """,
-            unsafe_allow_html=True
-        )
+        st.plotly_chart(fig)
 
         # Create and display the data table
         df = pd.DataFrame({
@@ -121,12 +65,12 @@ class FinancialPlotter:
         cumsum = np.zeros(len(years))
         colors = {'Primary Income': '#27AE60', 'Spouse Income': '#2ECC71', 'Part-Time Work': '#82E0AA'}
 
-        # Add initial bars with zero height
+        # Add income streams as stacked bars
         for income_type, values in income_streams.items():
             fig.add_trace(
                 go.Bar(
                     x=years,
-                    y=[0] * len(values),
+                    y=values,
                     name=income_type,
                     marker_color=colors.get(income_type, '#27AE60'),
                     base=cumsum,  # Start from previous cumulative sum
@@ -135,10 +79,12 @@ class FinancialPlotter:
                 secondary_y=False
             )
             cumsum += np.array(values)  # Update cumulative sum
+
+        # Add expenses as separate bar
         fig.add_trace(
             go.Bar(
                 x=years,
-                y=[0] * len(total_expenses),
+                y=total_expenses,
                 name="Total Expenses",
                 marker_color='#E74C3C',
                 offsetgroup=1  # Different offsetgroup to prevent stacking with income
@@ -146,34 +92,18 @@ class FinancialPlotter:
             secondary_y=False
         )
 
+        # Add net cash flow line
         fig.add_trace(
             go.Scatter(
                 x=years,
-                y=[0] * len(cash_flow),
+                y=cash_flow,
                 name="Net Cash Flow",
                 line=dict(color='#2E86C1', width=2)
             ),
             secondary_y=True
         )
 
-        frames = []
-        for income_type, values in income_streams.items():
-            frames.extend(FinancialPlotter._create_animation_frames(values, years, income_type, colors.get(income_type, '#27AE60')))
-        frames.extend(FinancialPlotter._create_animation_frames(total_expenses, years, "Total Expenses", '#E74C3C'))
-        for i in range(10):
-            frame_data = [val * (i + 1) / 10 for val in cash_flow]
-            frames.append(
-                go.Frame(
-                    data=[
-                        go.Bar(x=years, y=[val * (i + 1) / 10 for val in income], name='Total Income', marker_color='#27AE60'),
-                        go.Bar(x=years, y=[val * (i + 1) / 10 for val in total_expenses], name='Total Expenses', marker_color='#E74C3C'),
-                        go.Scatter(x=years, y=frame_data, mode='lines+markers', name='Net Cash Flow', line=dict(color='#2E86C1', width=2))
-                    ],
-                    name=f"frame{i + len(frames)}"
-                )
-            )
-
-
+        # Update layout
         fig.update_layout(
             title='Income, Expenses, and Cash Flow Projection',
             xaxis_title='Year',
@@ -188,34 +118,14 @@ class FinancialPlotter:
                 x=1.05
             ),
             bargap=0.15,
-            bargroupgap=0.1,
-            updatemenus=[{
-                'type': 'buttons',
-                'showactive': False,
-                'buttons': [{
-                    'label': 'Play',
-                    'method': 'animate',
-                    'args': [None, {
-                        'frame': {'duration': 100, 'redraw': True},
-                        'fromcurrent': True,
-                        'transition': {'duration': 50}
-                    }]
-                }]
-            }],
-            frames=frames
+            bargroupgap=0.1
         )
+
+        # Update axes
         fig.update_yaxes(title_text="Amount ($)", secondary_y=False)
         fig.update_yaxes(title_text="Net Cash Flow ($)", secondary_y=True)
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown(
-            """
-            <script>
-                const frame = document.querySelector('iframe');
-                frame.contentWindow.document.querySelector('button[data-title="Play"]').click();
-            </script>
-            """,
-            unsafe_allow_html=True
-        )
+
+        st.plotly_chart(fig)
 
         # Create and display tables for income and expenses
         df_income = pd.DataFrame({
@@ -246,30 +156,15 @@ class FinancialPlotter:
                               liabilities: List[float], asset_breakdown: Dict[str, List[float]] = None,
                               liability_breakdown: Dict[str, List[float]] = None) -> None:
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=years, y=[0] * len(assets),
-                               mode='lines+markers',
-                               name='Assets',
-                               line=dict(color='#27AE60', width=2)))
-        fig.add_trace(go.Scatter(x=years, y=[0] * len(liabilities),
-                               mode='lines+markers',
-                               name='Liabilities',
-                               line=dict(color='#E74C3C', width=2)))
+        fig.add_trace(go.Scatter(x=years, y=assets,
+                                mode='lines+markers',
+                                name='Assets',
+                                line=dict(color='#27AE60', width=2)))
+        fig.add_trace(go.Scatter(x=years, y=liabilities,
+                                mode='lines+markers',
+                                name='Liabilities',
+                                line=dict(color='#E74C3C', width=2)))
 
-        frames = []
-        frames.extend(FinancialPlotter._create_animation_frames(assets, years, 'Assets', '#27AE60'))
-        frames.extend(FinancialPlotter._create_animation_frames(liabilities, years, 'Liabilities', '#E74C3C'))
-        for i in range(10):
-            frame_data_assets = [val * (i + 1) / 10 for val in assets]
-            frame_data_liabilities = [val * (i + 1) / 10 for val in liabilities]
-            frames.append(
-                go.Frame(
-                    data=[
-                        go.Scatter(x=years, y=frame_data_assets, mode='lines+markers', name='Assets', line=dict(color='#27AE60', width=2)),
-                        go.Scatter(x=years, y=frame_data_liabilities, mode='lines+markers', name='Liabilities', line=dict(color='#E74C3C', width=2))
-                    ],
-                    name=f"frame{i + len(frames)}"
-                )
-            )
         fig.update_layout(
             title='Assets and Liabilities Projection',
             xaxis_title='Year',
@@ -281,32 +176,9 @@ class FinancialPlotter:
                 y=0.99,
                 xanchor="left",
                 x=1.05
-            ),
-            updatemenus=[{
-                'type': 'buttons',
-                'showactive': False,
-                'buttons': [{
-                    'label': 'Play',
-                    'method': 'animate',
-                    'args': [None, {
-                        'frame': {'duration': 100, 'redraw': True},
-                        'fromcurrent': True,
-                        'transition': {'duration': 50}
-                    }]
-                }]
-            }],
-            frames=frames
+            )
         )
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown(
-            """
-            <script>
-                const frame = document.querySelector('iframe');
-                frame.contentWindow.document.querySelector('button[data-title="Play"]').click();
-            </script>
-            """,
-            unsafe_allow_html=True
-        )
+        st.plotly_chart(fig)
 
         # Create and display assets breakdown table
         if asset_breakdown:
@@ -335,35 +207,32 @@ class FinancialPlotter:
         # Calculate equity (home value minus mortgage)
         equity = [v - m for v, m in zip(home_value, mortgage_balance)]
 
-        # Add initial bars with zero height
+        # Add home value bar
         fig.add_trace(go.Bar(
             x=years,
-            y=[0] * len(home_value),
+            y=home_value,
             name='Home Value',
             marker_color='#27AE60',
             offsetgroup='value'
         ))
 
+        # Add mortgage balance bar
         fig.add_trace(go.Bar(
             x=years,
-            y=[0] * len(mortgage_balance),
+            y=mortgage_balance,
             name='Mortgage Balance',
             marker_color='#E74C3C',
             offsetgroup='mortgage'
         ))
 
+        # Add equity bar
         fig.add_trace(go.Bar(
             x=years,
-            y=[0] * len(equity),
+            y=equity,
             name='Home Equity',
             marker_color='#2E86C1',
             offsetgroup='equity'
         ))
-
-        frames = []
-        frames.extend(FinancialPlotter._create_animation_frames(home_value, years, 'Home Value', '#27AE60'))
-        frames.extend(FinancialPlotter._create_animation_frames(mortgage_balance, years, 'Mortgage Balance', '#E74C3C'))
-        frames.extend(FinancialPlotter._create_animation_frames(equity, years, 'Home Equity', '#2E86C1'))
 
         fig.update_layout(
             title='Home Value Components Over Time',
@@ -379,32 +248,10 @@ class FinancialPlotter:
                 x=1.05
             ),
             bargap=0.15,
-            bargroupgap=0.1,
-            updatemenus=[{
-                'type': 'buttons',
-                'showactive': False,
-                'buttons': [{
-                    'label': 'Play',
-                    'method': 'animate',
-                    'args': [None, {
-                        'frame': {'duration': 100, 'redraw': True},
-                        'fromcurrent': True,
-                        'transition': {'duration': 50}
-                    }]
-                }]
-            }],
-            frames=frames
+            bargroupgap=0.1
         )
+
         st.plotly_chart(fig)
-        st.markdown(
-            """
-            <script>
-                const frame = document.querySelector('iframe');
-                frame.contentWindow.document.querySelector('button[data-title="Play"]').click();
-            </script>
-            """,
-            unsafe_allow_html=True
-        )
 
         # Create and display home value breakdown table
         df_home = pd.DataFrame({
@@ -496,8 +343,8 @@ class FinancialPlotter:
         # Create and display salary data table
         st.dataframe(salary_data.style.format("${:,.0f}"), use_container_width=True)
     
-    @staticmethod
-    def plot_career_roadmap(career_data: Dict) -> None:
+
+    def plot_career_roadmap(self, career_data: Dict) -> None:
         """
         Create an interactive visualization of the career roadmap.
 
@@ -519,7 +366,7 @@ class FinancialPlotter:
         fig.add_trace(
             go.Scatter(
                 x=years,
-                y=[0] * len(years),
+                y=list(range(len(years))),  # Convert range to list
                 text=milestones,
                 mode='lines+markers+text',
                 name=primary_path.get('title', 'Primary Path'),
@@ -527,16 +374,6 @@ class FinancialPlotter:
                 textposition="top center"
             )
         )
-        frames = []
-        for i in range(10):
-            frame_data = [val * (i+1)/10 for val in salaries]
-            frames.append(
-                go.Frame(
-                    data=[go.Scatter(x=years, y=[val * (i+1)/10 for val in range(len(years))], text=milestones, mode='lines+markers+text', name=primary_path.get('title', 'Primary Path'), line=dict(color='#2E86C1', width=3), textposition="top center")],
-                    name=f"frame{i + len(frames)}"
-                )
-            )
-
 
         # Add alternative paths
         alt_paths = career_data.get('alternative_paths', [])
@@ -553,7 +390,7 @@ class FinancialPlotter:
                 fig.add_trace(
                     go.Scatter(
                         x=alt_years,
-                        y=[0] * len(alt_years),
+                        y=y_values,  # Use calculated list
                         text=alt_milestones,
                         mode='lines+markers+text',
                         name=path.get('title', f'Alternative Path {idx + 1}'),
@@ -574,36 +411,13 @@ class FinancialPlotter:
                 y=0.99,
                 xanchor="left",
                 x=1.05
-            ),
-            updatemenus=[{
-                'type': 'buttons',
-                'showactive': False,
-                'buttons': [{
-                    'label': 'Play',
-                    'method': 'animate',
-                    'args': [None, {
-                        'frame': {'duration': 100, 'redraw': True},
-                        'fromcurrent': True,
-                        'transition': {'duration': 50}
-                    }]
-                }]
-            }],
-            frames=frames
+            )
         )
 
         # Remove y-axis labels since we're using relative positioning
         fig.update_yaxes(showticklabels=False)
 
         st.plotly_chart(fig, use_container_width=True)
-        st.markdown(
-            """
-            <script>
-                const frame = document.querySelector('iframe');
-                frame.contentWindow.document.querySelector('button[data-title="Play"]').click();
-            </script>
-            """,
-            unsafe_allow_html=True
-        )
 
         # Display additional information
         st.subheader("Primary Career Path Details")
