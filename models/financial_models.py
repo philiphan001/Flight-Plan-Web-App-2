@@ -14,9 +14,18 @@ class Asset(ABC):
         pass
 
 class Home(Asset):
-    def __init__(self, name: str, initial_value: float, appreciation_rate: float = 0.03):
+    def __init__(self, name: str, initial_value: float, appreciation_rate: float = 0.03,
+                 down_payment_percentage: float = 0.20, monthly_utilities: float = 0,
+                 monthly_hoa: float = 0, annual_renovation: float = 0,
+                 home_office_deduction: bool = False, office_percentage: float = 0):
         super().__init__(name, initial_value)
         self.appreciation_rate = appreciation_rate
+        self.down_payment_percentage = down_payment_percentage
+        self.monthly_utilities = monthly_utilities
+        self.monthly_hoa = monthly_hoa
+        self.annual_renovation = annual_renovation
+        self.home_office_deduction = home_office_deduction
+        self.office_percentage = office_percentage
 
     def calculate_value(self, year: int) -> float:
         return self.initial_value * (1 + self.appreciation_rate) ** year
@@ -286,8 +295,15 @@ class MilestoneFactory:
         # Add the down payment as a one-time expense
         milestone.add_one_time_expense(down_payment)
 
-        # Add the home as an asset with configurable appreciation rate
-        milestone.add_asset(Home("Primary Residence", home_price, appreciation_rate))
+        # Add the home as an asset with all properties
+        home = Home("Primary Residence", home_price, appreciation_rate,
+                   down_payment_percentage=down_payment_percentage,
+                   monthly_utilities=monthly_utilities,
+                   monthly_hoa=monthly_hoa,
+                   annual_renovation=annual_renovation,
+                   home_office_deduction=home_office_deduction,
+                   office_percentage=office_percentage)
+        milestone.add_asset(home)
 
         # Add mortgage and recurring housing expenses
         milestone.add_liability(mortgage)
