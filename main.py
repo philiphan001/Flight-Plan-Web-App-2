@@ -712,14 +712,14 @@ def main():
                                     details.update({
                                         'home_price': milestone.home_price,
                                         'down_payment': milestone.down_payment_percentage * 100,
-                                        'monthlyutilities': milestone.monthly_utilities,
+                                        'monthly_utilities': milestone.monthly_utilities,
                                         'monthly_hoa': milestone.hoa,
                                         'annual_renovation': milestone.annual_renovation
                                     })
                                 elif hasattr(milestone, 'car_price'):
                                     details.update({
                                         'car_price': milestone.car_price,
-                                        'down_payment': milestone.down_payment_percentage * 100,
+                                        'car_down_payment': milestone.down_payment_percentage * 100,
                                         'vehicle_type': milestone.vehicle_type,
                                         'monthly_fuel': milestone.monthly_fuel,
                                         'monthly_parking': milestone.monthly_parking
@@ -796,8 +796,8 @@ def main():
                     st.markdown("### Cash Flow Analysis")
                     FinancialPlotter.plot_cash_flow(
                         current_projections['years'],
-                        current_projections['income'],
-                        current_projections['expense_breakdown'],
+                        [sum(values) for values in zip(*current_projections['income_streams'].values())],  # Calculate total income
+                        current_projections['expense_categories'],
                         current_projections['total_expenses'],
                         current_projections['cash_flow'],
                         current_projections['income_streams']
@@ -845,10 +845,17 @@ def main():
                 # Store current projections as previous before any new milestone is added
                 st.session_state.previous_projections = current_projections
 
+            except Exception as e:
+                st.error(f"An unexpected error occurred: {str(e)}")
+                st.write("Debug info:", e)
+                st.session_state.show_projections = False
+                st.rerun()
+
     except Exception as e:
         st.error(f"An unexpected error occurred: {str(e)}")
         st.write("Debug info:", e)
-
+        st.session_state.show_projections = False
+        st.rerun()
 
 if __name__ == "__main__":
     main()
