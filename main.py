@@ -678,37 +678,123 @@ def main():
                             unsafe_allow_html=True
                         )
 
-                # Add save projection button
-                col_save1, col_save2 = st.columns([3, 1])
-                with col_save1:
-                    scenario_name = st.text_input(
-                        "Name this scenario",
-                        placeholder="e.g., Base Case, With Graduate School, etc.",
-                        key="scenario_name"
-                    )
-                with col_save2:
-                    save_clicked = st.button("💾 Save Current Projection", key="save_projection_button")
-                    if save_clicked:
-                        if scenario_name:
-                            # Create a list of milestone details
-                            milestone_details = []
-                            for milestone in st.session_state.milestones:
-                                details = {
-                                    'type': milestone.__class__.__name__,
-                                    'name': milestone.name,
-                                    'year': milestone.trigger_year
-                                }
+                # Add home equity visualization for home purchase milestones
+                home_milestones = [m for m in st.session_state.milestones if "Home Purchase" in m.name]
+                if home_milestones:
+                    st.markdown("### 🏠 Home Equity Projection")
+                    for home_milestone in home_milestones:
+                        # Extract home purchase details
+                        home_asset = next((asset for asset in home_milestone.assets if isinstance(asset, Home)), None)
+                        if home_asset:
+                            home_price = home_asset.initial_value
+                            down_payment = home_price * home_asset.down_payment_percentage
+                            initial_mortgage = home_price - down_payment
+                            annual_appreciation = 0.03  # 3% annual appreciation
 
-                                # Add specific details based on milestone type
-                                if hasattr(milestone, 'wedding_cost'):
-                                    details.update({
-                                        'wedding_cost': milestone.wedding_cost,
-                                        'spouse_occupation': st.session_state.selected_spouse_occ,
-                                        'lifestyle_adjustment': milestone.lifestyle_adjustment * 100,
-                                        'spouse_savings': milestone.spouse_savings,
-                                        'spouse_debt': milestone.spouse_debt
-                                    })
-                                elif hasattr(milestone, 'homeprice'):
+                            # Calculate yearly values
+                            years = range(projection_years + 1)  # Include starting year
+                            home_values = [home_price * (1 + annual_appreciation) ** year for year in years]
+
+                            # Calculate mortgage balance (assuming 30-year fixed rate mortgage at 6.5%)
+                            rate = 0.065 / 12  # Monthly interest rate
+                            num_payments = 30 * 12  # Total number of payments
+                            monthly_payment = (initial_mortgage * rate * (1 + rate)**num_payments) / ((1 + rate)**num_payments - 1)
+
+                            remaining_mortgage = []
+                            mortgage_balance = initial_mortgage
+                            for year in years:
+                                if year < home_milestone.trigger_year:
+                                    remaining_mortgage.append(0)
+                                elif year == home_milestone.trigger_year:
+                                    remaining_mortgage.append(initial_mortgage)
+                                else:
+                                    # Calculate remaining balance after one year of payments
+                                    for _ in range(12):
+                                        interest = mortgage_balance * rate
+                                        principal = monthly_payment - interest
+                                        mortgage_balance -= principal
+                                    remaining_mortgage.append(max(0, mortgage_balance))
+
+                            # Calculate equity (home value minus mortgage)
+                            equity = [max(0, hv - rm) for hv, rm in zip(home_values, remaining_mortgage)]
+
+                            # Create bar chart using plotly
+                            import plotly.graph_objects as go
+                            fig = go.Figure()
+
+                            # Add bars for home value, mortgage, and equity
+                            fig.add_trace(go.Bar(
+                                name='Home Value',
+                                x=years,
+                                y=home_values,
+                                marker_color='lightblue'
+                            ))
+                            fig.add_trace(go.Bar(
+                                name='Remaining Mortgage',
+                                x=years,
+                                y=remaining_mortgage,
+                                marker_color='salmon'
+                            ))
+                            fig.add_trace(go.Bar(
+                                name='Home Equity',
+                                x=years,
+                                y=equity,
+                                marker_color='lightgreen'
+                            ))
+
+                            # Update layout
+                            fig.update_layout(
+                                title=f"Home Purchase Year {home_milestone.trigger_year}: Value, Mortgage & Equity Projection",
+                                xaxis_title="Year",
+                                yaxis_title="Amount ($)",
+                                barmode='group',
+                                showlegend=True,
+                                hovermode='x unified'
+                            )
+
+                            # Display the chart
+                            st.plotly_chart(fig, use_container_width=True)
+
+                            # Add key metrics
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Initial Home Value", f"${home_price:,.0f}")
+                            with col2:
+                                st.metric("Initial Mortgage", f"${initial_mortgage:,.0f}")
+                            with col3:
+                                st.metric("Initial Equity (Down Payment)", f"${down_payment:,.0f}")
+
+                    # Add save projection button
+                    col_save1, col_save2 = st.columns([3, 1])
+                    with col_save1:
+                        scenario_name = st.text_input(
+                            "Name this scenario",
+                            placeholder="e.g., Base Case, With Graduate School, etc.",
+                            key="scenario_name"
+                        )
+                    with col_save2:
+                        save_clicked = st.button("💾 Save Current Projection", key="save_projection_button")
+                        if save_clicked:
+                            if scenario_name:
+                                # Create a list of milestone details
+                                milestone_details = []
+                                for milestone in st.session_state.milestones:
+                                    details = {
+                                        'type': milestone.__class__.__name__,
+                                        'name': milestone.name,
+                                        'year': milestone.trigger_year
+                                    }
+
+                                    # Add specific details based on milestone type
+                                    if hasattr(milestone, 'wedding_cost'):
+                                        details.update({
+                                            'wedding_cost': milestone.wedding_cost,
+                                            'spouse_occupation': st.session_state.selected_spouse_occ,
+                                            'lifestyle_adjustment': milestone.lifestyle_adjustment * 100,
+                                            'spouse_savings': milestone.spouse_savings,
+                                            'spouse_debt': milestone.spouse_debt
+                                        })
+                                    elif hasattr(milestone, 'homeprice'):
                                         details.update({
                                             'home_price': milestone.home_price,
                                             'down_payment': milestone.down_payment_percentage * 100,
@@ -716,98 +802,98 @@ def main():
                                             'monthly_hoa': milestone.monthly_hoa,
                                             'annual_renovation': milestone.annual_renovation
                                         })
-                                elif hasattr(milestone, 'car_price'):
-                                    details.update({
-                                        'car_price': milestone.car_price,
-                                        'down_payment': milestone.down_payment_percentage * 100,
-                                        'vehicle_type': milestone.vehicle_type,
-                                        'monthly_fuel': milestone.monthly_fuel,
-                                        'monthly_parking': milestone.monthly_parking
-                                    })
-                                elif hasattr(milestone, 'education_savings'):
-                                    details.update({
-                                        'education_savings': milestone.education_savings,
-                                        'healthcare_cost': milestone.healthcare_cost,
-                                        'insurance_cost': milestone.insurance_cost,
-                                        'tax_benefit': milestone.tax_benefit
-                                    })
-                                elif hasattr(milestone, 'total_cost'):  # Graduate School
-                                    details.update({
-                                        'total_cost': milestone.total_cost,
-                                        'program_years': milestone.program_years,
-                                        'part_time_income': milestone.part_time_income,
-                                        'scholarship_amount': milestone.scholarship_amount,
-                                        'salary_increase': milestone.salary_increase_percentage * 100
-                                    })
+                                    elif hasattr(milestone, 'car_price'):
+                                        details.update({
+                                            'car_price': milestone.car_price,
+                                            'down_payment': milestone.down_payment_percentage * 100,
+                                            'vehicle_type': milestone.vehicle_type,
+                                            'monthly_fuel': milestone.monthly_fuel,
+                                            'monthly_parking': milestone.monthly_parking
+                                        })
+                                    elif hasattr(milestone, 'education_savings'):
+                                        details.update({
+                                            'education_savings': milestone.education_savings,
+                                            'healthcare_cost': milestone.healthcare_cost,
+                                            'insurance_cost': milestone.insurance_cost,
+                                            'tax_benefit': milestone.tax_benefit
+                                        })
+                                    elif hasattr(milestone, 'total_cost'):  # Graduate School
+                                        details.update({
+                                            'total_cost': milestone.total_cost,
+                                            'program_years': milestone.program_years,
+                                            'part_time_income': milestone.part_time_income,
+                                            'scholarship_amount': milestone.scholarship_amount,
+                                            'salary_increase': milestone.salary_increase_percentage * 100
+                                        })
 
-                                milestone_details.append(details)
+                                    milestone_details.append(details)
 
-                            projection = {
-                                'name': scenario_name,
-                                'date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'),
-                                'location': st.session_state.selected_location,
-                                'occupation': st.session_state.selected_occupation,
-                                'investment_rate': investment_return_rate * 100,
-                                'final_net_worth': int(round(current_projections['net_worth'][-1])),
-                                'milestones': milestone_details,
-                                'yearly_data': {
-                                    'net_worth': current_projections['net_worth'],
-                                    'cash_flow': current_projections['cash_flow'],
-                                    'total_income': current_projections['total_income'],
-                                    'total_expenses': current_projections['total_expenses'],
-                                    'asset_values': current_projections['asset_values'],
-                                    'liability_values': current_projections['liability_values']
+                                projection = {
+                                    'name': scenario_name,
+                                    'date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'),
+                                    'location': st.session_state.selected_location,
+                                    'occupation': st.session_state.selected_occupation,
+                                    'investment_rate': investment_return_rate * 100,
+                                    'final_net_worth': int(round(current_projections['net_worth'][-1])),
+                                    'milestones': milestone_details,
+                                    'yearly_data': {
+                                        'net_worth': current_projections['net_worth'],
+                                        'cash_flow': current_projections['cash_flow'],
+                                        'total_income': current_projections['total_income'],
+                                        'total_expenses': current_projections['total_expenses'],
+                                        'asset_values': current_projections['asset_values'],
+                                        'liability_values': current_projections['liability_values']
+                                    }
                                 }
-                            }
-                            st.session_state.saved_projections.append(projection)
-                            st.success("Projection saved to your profile!")
-                        else:
-                            st.warning("Please enter a name for this scenario before saving.")
+                                st.session_state.saved_projections.append(projection)
+                                st.success("Projection saved to your profile!")
+                            else:
+                                st.warning("Please enter a name for this scenario before saving.")
 
-                # Add profile link
-                st.markdown("---")
-                if st.button("👤 View Your Profile"):
-                    st.switch_page("pages/user_profile.py")
+                    # Add profile link
+                    st.markdown("---")
+                    if st.button("👤 View Your Profile"):
+                        st.switch_page("pages/user_profile.py")
 
-                # Create tabs for different visualizations
-                tab1, tab2, tab3 = st.tabs([
-                    "Net Worth Projection 📈",
-                    "Cash Flow Analysis 💰",
-                    "Assets & Liabilities ⚖️"
-                ])
+                    # Create tabs for different visualizations
+                    tab1, tab2, tab3 = st.tabs([
+                        "Net Worth Projection 📈",
+                        "Cash Flow Analysis 💰",
+                        "Assets & Liabilities ⚖️"
+                    ])
 
-                with tab1:
-                    st.markdown("### Net Worth Over Time")
-                    FinancialPlotter.plot_net_worth(
-                        current_projections['years'],
-                        current_projections['net_worth'],
-                        current_projections['asset_values'],
-                        current_projections['liability_values']
-                    )
+                    with tab1:
+                        st.markdown("### Net Worth Over Time")
+                        FinancialPlotter.plot_net_worth(
+                            current_projections['years'],
+                            current_projections['net_worth'],
+                            current_projections['asset_values'],
+                            current_projections['liability_values']
+                        )
 
-                with tab2:
-                    st.markdown("### Cash Flow Analysis")
-                    FinancialPlotter.plot_cash_flow(
-                        current_projections['years'],
-                        current_projections['total_income'],
-                        current_projections['expense_categories'],
-                        current_projections['total_expenses'],
-                        current_projections['cash_flow'],
-                        current_projections['income_streams']
-                    )
+                    with tab2:
+                        st.markdown("### Cash Flow Analysis")
+                        FinancialPlotter.plot_cash_flow(
+                            current_projections['years'],
+                            current_projections['total_income'],
+                            current_projections['expense_categories'],
+                            current_projections['total_expenses'],
+                            current_projections['cash_flow'],
+                            current_projections['income_streams']
+                        )
 
-                with tab3:
-                    st.markdown("### Assets and Liabilities")
-                    FinancialPlotter.plot_assets_liabilities(
-                        current_projections['years'],
-                        current_projections['asset_values'],
-                        current_projections['liability_values'],
-                        current_projections['asset_breakdown'],
-                        current_projections['liability_breakdown']
-                    )
+                    with tab3:
+                        st.markdown("### Assets and Liabilities")
+                        FinancialPlotter.plot_assets_liabilities(
+                            current_projections['years'],
+                            current_projections['asset_values'],
+                            current_projections['liability_values'],
+                            current_projections['asset_breakdown'],
+                            current_projections['liability_breakdown']
+                        )
 
-                # Store current projections as previous before any new milestone is added
-                st.session_state.previous_projections = current_projections
+                    # Store current projections as previous before any new milestone is added
+                    st.session_state.previous_projections = current_projections
 
     except Exception as e:
         st.error(f"An unexpected error occurred: {str(e)}")
