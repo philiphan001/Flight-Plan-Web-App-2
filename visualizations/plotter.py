@@ -103,7 +103,31 @@ class FinancialPlotter:
                 # Ensure the values array is long enough
                 if year_idx < len(values) and values[year_idx] > 0:
                     year_expenses[category] = values[year_idx]
-            return dict(sorted(year_expenses.items(), key=lambda x: x[1], reverse=True))
+            
+            # Sort expenses by value in descending order
+            sorted_expenses = dict(sorted(year_expenses.items(), key=lambda x: x[1], reverse=True))
+            
+            # Calculate total expenses
+            total_expenses = sum(sorted_expenses.values())
+            
+            # Group expenses less than 5% into "Other"
+            main_expenses = {}
+            other_expenses = {}
+            
+            for category, amount in sorted_expenses.items():
+                percentage = (amount / total_expenses) * 100
+                if percentage >= 5:
+                    main_expenses[category] = amount
+                else:
+                    other_expenses[category] = amount
+            
+            # Add "Other" category if there are small expenses
+            if other_expenses:
+                main_expenses["Other"] = sum(other_expenses.values())
+                # Store the detailed breakdown for later use
+                main_expenses["_other_breakdown"] = other_expenses
+            
+            return main_expenses
 
         # Add expenses as separate bar
         fig.add_trace(
@@ -133,6 +157,11 @@ class FinancialPlotter:
 
         # Initialize pie chart with latest year data
         sorted_expenses = get_expense_pie_data(selected_year_idx)
+        other_breakdown = sorted_expenses.pop("_other_breakdown", {})  # Remove and store breakdown
+
+        # Store the other_breakdown in session state for access in callbacks
+        if 'other_breakdown' not in st.session_state:
+            st.session_state.other_breakdown = other_breakdown
 
         # Add initial pie chart
         fig.add_trace(
@@ -142,7 +171,11 @@ class FinancialPlotter:
                 textinfo='percent+label',
                 hole=0.3,
                 marker=dict(colors=['#E74C3C', '#C0392B', '#CD6155', '#EC7063', '#F1948A', '#F5B7B1']),
-                showlegend=False
+                showlegend=False,
+                hovertemplate="<b>%{label}</b><br>" +
+                            "Amount: $%{value:,.0f}<br>" +
+                            "Percentage: %{percent}<extra></extra>",
+                customdata=[1 if label == "Other" else 0 for label in sorted_expenses.keys()]  # Flag for "Other" slice
             ),
             row=2, col=1
         )
@@ -172,6 +205,11 @@ class FinancialPlotter:
         # Initialize or get the selected year from session state
         if 'selected_year_idx' not in st.session_state:
             st.session_state.selected_year_idx = selected_year_idx
+        if 'show_other_breakdown' not in st.session_state:
+            st.session_state.show_other_breakdown = False
+
+        # Create a container for the breakdown chart
+        breakdown_container = st.container()
 
         # Display the interactive plot
         clicked = st.plotly_chart(fig, use_container_width=True)
@@ -180,12 +218,14 @@ class FinancialPlotter:
         clicked_data = st.session_state.get('plotly_click')
         if clicked_data and len(clicked_data['points']) > 0:
             point = clicked_data['points'][0]
+            
             # Check if the clicked bar is an expense bar (curve number 1)
             if point['curveNumber'] == 1:  # Expense bar is the second trace
                 year_idx = years.index(point['x'])
                 if year_idx != st.session_state.selected_year_idx:
                     st.session_state.selected_year_idx = year_idx
                     new_expenses = get_expense_pie_data(year_idx)
+                    st.session_state.other_breakdown = new_expenses.pop("_other_breakdown", {})
                     fig.update_traces(
                         labels=list(new_expenses.keys()),
                         values=list(new_expenses.values()),
@@ -193,6 +233,37 @@ class FinancialPlotter:
                     )
                     fig.layout.annotations[1].text = f'Expense Breakdown - Year {years[year_idx]}'
                     st.plotly_chart(fig, use_container_width=True)
+            # Check if the clicked slice is the "Other" slice in the pie chart
+            elif point['curveNumber'] == 2 and point.get('customdata', 0) == 1:  # Pie chart is the third trace
+                st.session_state.show_other_breakdown = True
+                st.rerun()
+
+        # Remove the button since we now use click interaction
+        if st.session_state.other_breakdown and st.session_state.show_other_breakdown:
+            with breakdown_container:
+                st.markdown("### Breakdown of Other Expenses")
+                breakdown_fig = go.Figure()
+                breakdown_fig.add_trace(go.Pie(
+                    labels=list(st.session_state.other_breakdown.keys()),
+                    values=list(st.session_state.other_breakdown.values()),
+                    textinfo='percent+label',
+                    hole=0.3,
+                    marker=dict(colors=['#F1948A', '#F5B7B1', '#FADBD8', '#F9EBEA', '#FDFEFE']),
+                    showlegend=False,
+                    hovertemplate="<b>%{label}</b><br>" +
+                                "Amount: $%{value:,.0f}<br>" +
+                                "Percentage: %{percent}<extra></extra>"
+                ))
+                breakdown_fig.update_layout(
+                    height=400,
+                    template='plotly_white'
+                )
+                st.plotly_chart(breakdown_fig, use_container_width=True)
+                
+                # Add a close button
+                if st.button("Close Breakdown"):
+                    st.session_state.show_other_breakdown = False
+                    st.rerun()
 
         # Create and display tables for income and expenses
         df_income = pd.DataFrame({

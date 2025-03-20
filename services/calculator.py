@@ -29,13 +29,28 @@ class FinancialCalculator:
             'liability_values': [],
             'liability_breakdown': {},
             'investment_growth': [],
-            'tax_expenses': [],  # Total tax expenses
-            'tax_breakdown': {   # Detailed tax breakdown
+            'tax_expenses': [],
+            'tax_breakdown': {
                 'federal_income_tax': [],
                 'state_income_tax': [],
                 'payroll_tax': []
+            },
+            'loan_details': {
+                'by_type': {},
+                'by_id': {},
+                'total_balances': [],
+                'total_payments': []
             }
         }
+
+        # Initialize loan tracking
+        loan_types = {MortgageLoan, CarLoan, StudentLoan, Loan}  # Include base Loan class
+        for loan_type in loan_types:
+            projections['loan_details']['by_type'][loan_type.__name__] = {
+                'balances': [],
+                'payments': [],
+                'count': 0
+            }
 
         # Initialize income streams
         income_streams = {}
@@ -101,53 +116,23 @@ class FinancialCalculator:
             total_regular_expenses = 0
             for expense in self.expenses:
                 category = expense.name
-                # For graduate school expenses, handle as one-time costs
-                if "Graduate School Year" in category and "Out-of-pocket" in category:
-                    # Extract the year number and calculate target year
-                    year_num = int(category.split("Year ")[1].split(" ")[0]) - 1
-                    target_year = expense._milestone.trigger_year + year_num
-                    # Only apply the expense in its specific year
-                    if year == target_year:
-                        expense_amount = int(round(expense.annual_amount))
-                        category = f"One-time: {category}"  # Categorize as one-time expense
-                    else:
-                        expense_amount = 0
-                elif "Graduate School Year" in category and "Loan Payment" in category:
-                    # Extract loan year and find corresponding loan
-                    year_num = int(category.split("Year ")[1].split(" ")[0]) - 1
-                    loan_name = f"Graduate School Year {year_num + 1} Loan"
-                    # Find the corresponding loan
-                    loan = next((l for l in self.liabilities if l.name == loan_name), None)
-                    if loan and isinstance(loan, StudentLoan):
-                        # Only apply payment after deferment period
-                        expense_amount = int(round(loan.get_payment(year - loan._milestone.trigger_year)))
-                        category = f"Loan Payment: Graduate School Year {year_num + 1}"  # Categorize loan payments
-                    else:
-                        expense_amount = 0
-                elif "One-time Cost" in category:
-                    milestone_name = category.replace(" One-time Cost", "")
-                    category = f"One-time: {milestone_name}"
-                    # Only apply one-time expenses in their specific year
-                    if hasattr(expense, '_milestone') and year == expense._milestone.trigger_year:
-                        expense_amount = int(round(expense.annual_amount))
-                    else:
-                        expense_amount = 0
-                else:
-                    # Regular recurring expenses
-                    if hasattr(expense, '_milestone') and hasattr(expense._milestone, 'duration_years'):
-                        milestone = expense._milestone
-                        if year >= milestone.trigger_year and year < (milestone.trigger_year + milestone.duration_years):
-                            expense_amount = int(round(expense.calculate_expense(year - milestone.trigger_year)))
-                        else:
-                            expense_amount = 0
-                    else:
-                        expense_amount = int(round(expense.calculate_expense(year)))
-
-                # Add to expense categories
-                if category not in expense_categories:
-                    expense_categories[category] = [0] * projection_years
-                expense_categories[category][year] = expense_amount
-                total_regular_expenses += expense_amount
+                
+                # Use the expense's built-in calculation method
+                expense_amount = int(round(expense.calculate_expense(year)))
+                
+                # Special categorization for graduate school expenses
+                if "Graduate School Year" in category and "Out-of-pocket" in category and expense_amount > 0:
+                    category = f"One-time: {category}"  # Categorize as one-time expense
+                elif "Graduate School Year" in category and "Loan Payment" in category and expense_amount > 0:
+                    year_num = int(category.split("Year ")[1].split(" ")[0])
+                    category = f"Loan Payment: Graduate School Year {year_num}"
+                
+                # Add non-zero expenses to the categories
+                if expense_amount > 0:
+                    if category not in expense_categories:
+                        expense_categories[category] = [0] * projection_years
+                    expense_categories[category][year] = expense_amount
+                    total_regular_expenses += expense_amount
 
             # Total expenses including taxes
             total_expenses = total_regular_expenses + total_tax
@@ -188,29 +173,57 @@ class FinancialCalculator:
             )))
             projections['investment_growth'].append(investment_growth)
 
-            # Calculate liability values
+            # Calculate liability values and track loan details
             total_liability_value = 0
-            for liability in self.liabilities:
-                # For graduate school loans, check if we've reached their start year
-                liability_value = 0
-                if "Graduate School Year" in liability.name:
-                    # Extract the year number and calculate when this loan starts
-                    year_num = int(liability.name.split("Year ")[1].split(" ")[0]) - 1
-                    try: #Attempt to access from liability.  If it fails, assume 0.
-                        loan_start_year = liability._milestone.trigger_year + year_num
-                    except AttributeError:
-                        loan_start_year = 0
-                    if year >= loan_start_year:
-                        liability_value = int(round(liability.get_balance(year - loan_start_year)))
-                else:
-                    liability_value = int(round(liability.get_balance(year)))
+            total_loan_balance = 0
+            total_loan_payment = 0
 
-                liability_type = liability.__class__.__name__
-                liability_key = f"{liability_type}: {liability.name}"
-                if liability_key not in liability_breakdown:
-                    liability_breakdown[liability_key] = [0] * projection_years
-                liability_breakdown[liability_key][year] = liability_value
-                total_liability_value += liability_value
+            for liability in self.liabilities:
+                if isinstance(liability, Loan):
+                    # Track loan by type
+                    loan_type = liability.__class__.__name__
+                    if loan_type in projections['loan_details']['by_type']:
+                        loan_type_data = projections['loan_details']['by_type'][loan_type]
+                        loan_type_data['count'] += 1
+                        
+                        # Calculate loan balance and payment
+                        loan_balance = int(round(liability.get_balance(year)))
+                        loan_payment = int(round(liability.get_payment(year)))
+                        
+                        # Update type-specific tracking
+                        loan_type_data['balances'].append(loan_balance)
+                        loan_type_data['payments'].append(loan_payment)
+                        
+                        # Update total loan values
+                        total_loan_balance += loan_balance
+                        total_loan_payment += loan_payment
+                        
+                        # Track individual loan by ID
+                        if liability.loan_id not in projections['loan_details']['by_id']:
+                            projections['loan_details']['by_id'][liability.loan_id] = {
+                                'name': liability.name,
+                                'type': loan_type,
+                                'balances': [],
+                                'payments': [],
+                                'institution': getattr(liability, 'institution', None)
+                            }
+                        
+                        # Update individual loan tracking
+                        loan_data = projections['loan_details']['by_id'][liability.loan_id]
+                        loan_data['balances'].append(loan_balance)
+                        loan_data['payments'].append(loan_payment)
+                        
+                        # Update liability breakdown
+                        liability_key = f"{loan_type}: {liability.name}"
+                        if liability_key not in liability_breakdown:
+                            liability_breakdown[liability_key] = [0] * projection_years
+                        liability_breakdown[liability_key][year] = loan_balance
+                        
+                        total_liability_value += loan_balance
+
+            # Update loan summary data
+            projections['loan_details']['total_balances'].append(total_loan_balance)
+            projections['loan_details']['total_payments'].append(total_loan_payment)
 
             projections['liability_values'].append(total_liability_value)
             projections['liability_breakdown'] = liability_breakdown

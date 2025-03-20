@@ -84,61 +84,65 @@ class Liability(ABC):
         pass
 
 class Loan(Liability):
+    def __init__(self, name: str, principal: float, interest_rate: float, term_years: int, loan_id: str = None):
+        super().__init__(name, principal, interest_rate, term_years)
+        self.loan_id = loan_id or f"{name}_{id(self)}"  # Generate unique ID if not provided
+        self._milestone = None  # Reference to the milestone this loan belongs to
+        self.start_year = 0  # Default start year
+
     def calculate_payment(self) -> float:
         monthly_rate = self.interest_rate / 12
         num_payments = self.term_years * 12
         return (self.principal * monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
 
     def get_balance(self, year: int) -> float:
-        if year >= self.term_years:
+        # Return 0 for years before the loan starts
+        if year < self.start_year:
+            return 0
+        # For active years, calculate remaining balance
+        adjusted_year = year - self.start_year
+        if adjusted_year >= self.term_years:
             return 0
         monthly_rate = self.interest_rate / 12
         num_payments = self.term_years * 12
         payment = self.calculate_payment()
-        remaining_payments = (self.term_years - year) * 12
+        remaining_payments = (self.term_years - adjusted_year) * 12
         return (payment * ((1 - (1 + monthly_rate)**(-remaining_payments)) / monthly_rate))
 
+    def get_payment(self, year: int) -> float:
+        # Return 0 for years before the loan starts
+        if year < self.start_year:
+            return 0
+        # For active years, return the monthly payment * 12
+        return self.calculate_payment() * 12
+
 class MortgageLoan(Loan):
-    def __init__(self, principal: float, interest_rate: float, term_years: int = 30):
-        super().__init__("Mortgage", principal, interest_rate, term_years)
+    def __init__(self, principal: float, interest_rate: float, term_years: int = 30, loan_id: str = None):
+        super().__init__("Mortgage", principal, interest_rate, term_years, loan_id)
+
+class CarLoan(Loan):
+    def __init__(self, principal: float, interest_rate: float, term_years: int = 5, loan_id: str = None):
+        super().__init__("Car Loan", principal, interest_rate, term_years, loan_id)
+
+class StudentLoan(Loan):
+    def __init__(self, name: str, principal: float, interest_rate: float, 
+                 term_years: int = 10, deferment_years: int = 0, 
+                 loan_id: str = None, institution: str = None):
+        super().__init__(name, principal, interest_rate, term_years, loan_id)
+        self.deferment_years = deferment_years
+        self.institution = institution
 
     def get_balance(self, year: int) -> float:
         # Return 0 for years before the loan starts
-        if year < 0:
+        if year < self.start_year:
             return 0
-        # For active years, calculate remaining balance
-        if year < self.term_years:
-            monthly_rate = self.interest_rate / 12
-            num_payments = self.term_years * 12
-            payment = self.calculate_payment()
-            remaining_payments = (self.term_years - year) * 12
-            return (payment * ((1 - (1 + monthly_rate)**(-remaining_payments)) / monthly_rate))
-        # After term ends, balance is 0
-        return 0
-
-class CarLoan(Loan):
-    def __init__(self, principal: float, interest_rate: float, term_years: int = 5):
-        super().__init__("Car Loan", principal, interest_rate, term_years)
-
-class StudentLoan(Loan):
-    def __init__(self, principal: float, interest_rate: float, term_years: int = 10, deferment_years: int = 0):
-        super().__init__("Student Loan", principal, interest_rate, term_years)
-        self.deferment_years = deferment_years
-        self._milestone = None  # Reference to the milestone this loan belongs to
-
-    def calculate_payment(self) -> float:
-        # Standard 10-year repayment calculation
-        monthly_rate = self.interest_rate / 12
-        num_payments = self.term_years * 12
-        return (self.principal * monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
-
-    def get_balance(self, year: int) -> float:
         # During deferment, balance grows with interest
-        if year < self.deferment_years:
-            return self.principal * (1 + self.interest_rate) ** year
+        adjusted_year = year - self.start_year
+        if adjusted_year < self.deferment_years:
+            return self.principal * (1 + self.interest_rate) ** adjusted_year
 
         # After deferment, calculate remaining balance based on payments
-        payment_year = year - self.deferment_years
+        payment_year = adjusted_year - self.deferment_years
         if payment_year >= self.term_years:
             return 0
 
@@ -149,8 +153,12 @@ class StudentLoan(Loan):
         return (payment * ((1 - (1 + monthly_rate)**(-remaining_payments)) / monthly_rate))
 
     def get_payment(self, year: int) -> float:
-        """Get the annual payment amount, considering deferment period"""
-        if year < self.deferment_years or year >= (self.deferment_years + self.term_years):
+        # Return 0 for years before the loan starts
+        if year < self.start_year:
+            return 0
+        # During deferment, no payments
+        adjusted_year = year - self.start_year
+        if adjusted_year < self.deferment_years or adjusted_year >= (self.deferment_years + self.term_years):
             return 0
         return self.calculate_payment() * 12
 
@@ -210,6 +218,18 @@ class Expense(ABC):
 class FixedExpense(Expense):
     pass
 
+class OneTimeExpense(Expense):
+    """Expense that only occurs in a specific year"""
+    def __init__(self, name: str, amount: float, specific_year: int):
+        super().__init__(name, amount, inflation_rate=0)
+        self.specific_year = specific_year
+    
+    def calculate_expense(self, year: int) -> float:
+        # Only return the amount if it's the specific year
+        if year == self.specific_year:
+            return self.annual_amount
+        return 0.0
+
 class VariableExpense(Expense):
     def __init__(self, name: str, annual_amount: float, volatility: float = 0.1):
         super().__init__(name, annual_amount)
@@ -235,7 +255,7 @@ class Milestone:
         self.duration_years = None  # For time-limited milestones
 
     def add_one_time_expense(self, amount: float):
-        self.one_time_expense += amount #modified
+        self.one_time_expense += amount
 
     def add_recurring_expense(self, expense: Expense):
         expense._milestone = self  # Set the reference to this milestone
@@ -248,7 +268,39 @@ class Milestone:
         self.assets.append(asset)
 
     def add_liability(self, liability: Liability):
+        """Add a liability to the milestone"""
+        liability._milestone = self
         self.liabilities.append(liability)
+
+    def add_loan(self, loan: Loan):
+        """Add a loan with unique tracking"""
+        loan._milestone = self
+        self.liabilities.append(loan)
+
+    def get_loans_by_type(self, loan_type: type) -> List[Loan]:
+        """Get all loans of a specific type"""
+        return [loan for loan in self.liabilities if isinstance(loan, loan_type)]
+
+    def get_loan_by_id(self, loan_id: str) -> Optional[Loan]:
+        """Get a specific loan by its ID"""
+        return next((loan for loan in self.liabilities 
+                    if isinstance(loan, Loan) and loan.loan_id == loan_id), None)
+
+    def remove_loan(self, loan_id: str) -> bool:
+        """Remove a loan by its ID"""
+        loan = self.get_loan_by_id(loan_id)
+        if loan:
+            self.liabilities.remove(loan)
+            return True
+        return False
+
+    def get_total_loan_balance(self, year: int) -> float:
+        """Get the total balance of all loans at a given year"""
+        return sum(loan.get_balance(year) for loan in self.liabilities if isinstance(loan, Loan))
+
+    def get_total_loan_payment(self) -> float:
+        """Get the total payment for all loans"""
+        return sum(loan.calculate_payment() for loan in self.liabilities if isinstance(loan, Loan))
 
     def calculate_expenses(self, year: int) -> float:
         """Calculate expenses considering duration limits if applicable"""
@@ -305,9 +357,26 @@ class MilestoneFactory:
         if initial_savings > 0:
             milestone.add_asset(Investment("Spouse Savings", initial_savings))
 
-        # Add spouse's initial debt as a liability
+        # Add spouse's initial debt as a loan with standard terms
         if initial_debt > 0:
-            milestone.add_liability(Loan("Spouse Debt", initial_debt, 0.06, 10))  # Assuming 6% interest, 10-year term
+            spouse_loan = Loan(
+                name="Spouse Debt",
+                principal=initial_debt,
+                interest_rate=0.06,  # 6% interest rate
+                term_years=10,  # 10-year term
+                loan_id="spouse_debt"  # Add a unique loan ID
+            )
+            spouse_loan.start_year = trigger_year  # Set the start year to when marriage occurs
+            milestone.add_loan(spouse_loan)  # Use add_loan instead of add_liability
+
+            # Add the loan payment as a recurring expense
+            milestone.add_recurring_expense(
+                FixedExpense(
+                    "Spouse Debt Payment",
+                    spouse_loan.calculate_payment() * 12,
+                    inflation_rate=0  # Fixed payment amount
+                )
+            )
 
         # Add spouse income
         if spouse_income:
@@ -460,16 +529,27 @@ class MilestoneFactory:
                 loan_amount = yearly_loans[year_index] if yearly_loans else 0
                 out_of_pocket = net_cost - loan_amount
 
-                # Create a one-time expense for the out-of-pocket amount
+                # Create a one-time expense for each year's out-of-pocket amount
                 if out_of_pocket > 0:
-                    milestone.add_one_time_expense(out_of_pocket)
+                    expense = OneTimeExpense(
+                        f"Graduate School Year {year_index + 1} Out-of-pocket",
+                        out_of_pocket,
+                        trigger_year + year_index
+                    )
+                    expense._milestone = milestone
+                    milestone.add_recurring_expense(expense)
 
                 # Create a loan for this year's borrowed amount, starting in the year it's taken
                 if loan_amount > 0:
                     # Calculate deferment period (years until graduation + 1)
                     deferment_years = (years - year_index)
-                    year_loan = StudentLoan(loan_amount, 0.06, term_years=10, deferment_years=deferment_years)
-                    year_loan.name = f"Graduate School Year {year_index + 1} Loan"
+                    year_loan = StudentLoan(
+                        name=f"Graduate School Year {year_index + 1} Loan",
+                        principal=loan_amount,
+                        interest_rate=0.06,
+                        term_years=10,
+                        deferment_years=deferment_years
+                    )
                     year_loan._milestone = milestone  # Set milestone reference explicitly
                     milestone.add_liability(year_loan)
 
@@ -479,6 +559,7 @@ class MilestoneFactory:
                         year_loan.calculate_payment() * 12  # Annual payment amount
                     )
                     payment._milestone = milestone  # Set milestone reference for expense
+                    payment.start_year = trigger_year + deferment_years  # Set start year to after deferment
                     milestone.add_recurring_expense(payment)
 
         # Add networking and professional development costs if specified
@@ -513,7 +594,12 @@ class MilestoneFactory:
         annual_cost = total_cost / program_years
 
         # Add the total cost as a student loan
-        milestone.add_liability(StudentLoan(total_cost, 0.05))  # 5% interest rate for student loans
+        loan_name = f"{institution_name} Student Loan" if institution_name else "Student Loan"
+        milestone.add_liability(StudentLoan(
+            name=loan_name,
+            principal=total_cost,
+            interest_rate=0.05  # 5% interest rate for student loans
+        ))
 
         # Add annual expenses for the duration of the program
         milestone.add_recurring_expense(FixedExpense(f"{institution_name} Tuition", annual_cost))
@@ -613,3 +699,9 @@ class StateIncomeTax(Tax):
                     break
             return tax
         return 0  # Default for other states
+
+__all__ = [
+    'Income', 'SpouseIncome', 'Expense', 'FixedExpense', 'VariableExpense', 'OneTimeExpense',
+    'Asset', 'Investment', 'Home', 'Liability', 'Loan', 'MortgageLoan', 'CarLoan', 'StudentLoan',
+    'Milestone', 'MilestoneFactory', 'Tax', 'FederalIncomeTax', 'StateIncomeTax', 'PayrollTax'
+]

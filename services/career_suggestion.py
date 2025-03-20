@@ -3,10 +3,14 @@ from typing import Dict, List, Optional
 from openai import OpenAI
 import json
 from datetime import datetime, timedelta
+import streamlit as st
+from config import initialize_openai, load_openai_key
 
 class CareerSuggestionService:
     def __init__(self):
-        self.api_key = os.getenv('OPENAI_API_KEY')
+        if not initialize_openai():
+            raise ValueError("OpenAI API key not configured")
+        self.api_key = load_openai_key()
         self.client = OpenAI(api_key=self.api_key)
 
     def generate_career_suggestions(

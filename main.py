@@ -4,8 +4,15 @@ from difflib import get_close_matches
 from utils.data_processor import DataProcessor
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
-from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome, Home, MortgageLoan, FixedExpense, VariableExpense
+from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome, Home, MortgageLoan, FixedExpense, VariableExpense, OneTimeExpense
 from models.user_favorites import UserFavorites  # Added import for UserFavorites
+import time
+
+def handle_continue_to_projections():
+    """Handle transition to projections page"""
+    st.session_state.show_projections = True
+    st.session_state.needs_recalculation = True
+    st.rerun()  # Force a rerun
 
 def update_location(new_location: str):
     """Callback for location updates"""
@@ -21,41 +28,34 @@ def update_occupation(new_occupation: str):
 
 def initialize_session_state():
     """Initialize all session state variables"""
-    if 'needs_recalculation' not in st.session_state:
-        st.session_state.needs_recalculation = True
-    if 'selected_location' not in st.session_state:
-        st.session_state.selected_location = None
-    if 'selected_occupation' not in st.session_state:
-        st.session_state.selected_occupation = None
-    if 'show_projections' not in st.session_state:
+    if 'initialized' not in st.session_state:
+        st.session_state.clear()
+        st.session_state.initialized = True
         st.session_state.show_projections = False
-    if 'milestones' not in st.session_state:
+        st.session_state.needs_recalculation = True
+        st.session_state.selected_location = ""
+        st.session_state.selected_occupation = ""
         st.session_state.milestones = []
-    if 'previous_projections' not in st.session_state:
         st.session_state.previous_projections = None
-    if 'show_location_matches' not in st.session_state:
+        st.session_state.current_projections = None
         st.session_state.show_location_matches = False
-    if 'show_occupation_matches' not in st.session_state:
         st.session_state.show_occupation_matches = False
-    if 'sidebar_location_input' not in st.session_state:
         st.session_state.sidebar_location_input = ""
-    if 'sidebar_occupation_input' not in st.session_state:
         st.session_state.sidebar_occupation_input = ""
-    if 'selected_spouse_occ' not in st.session_state:
-        st.session_state['selected_spouse_occ'] = ""
-    if 'show_marriage_options' not in st.session_state:
+        st.session_state.selected_spouse_occ = ""
         st.session_state.show_marriage_options = False
-    if 'saved_projections' not in st.session_state:
         st.session_state.saved_projections = []
-    if 'selected_colleges_for_projection' not in st.session_state:
         st.session_state.selected_colleges_for_projection = []
 
-
 def main():
+    # Initialize session state
     initialize_session_state()
-    # Initialize UserFavorites session state
-    UserFavorites.init_session_state()
+    
     st.title("Financial Projection Application")
+
+    # Get current page from URL parameters
+    params = st.query_params
+    current_page = params.get("page", "selection")
 
     try:
         # Load data files
@@ -68,13 +68,13 @@ def main():
         occupations = sorted([occ for occ in occupation_df['Occupation'].astype(str).unique().tolist()
                              if occ.lower() != 'nan'])
 
-        if not st.session_state.show_projections:
+        if current_page == "selection":
             # Create two columns for location and occupation selection
             col1, col2 = st.columns(2)
 
             with col1:
                 st.markdown("### Select Your Location 📍")
-                if st.session_state.selected_location:
+                if st.session_state.selected_location and st.session_state.selected_location != "":
                     st.markdown(f"**Selected Location:** {st.session_state.selected_location}")
                 else:
                     location_input = st.text_input("Enter Location")
@@ -92,7 +92,7 @@ def main():
 
             with col2:
                 st.markdown("### Select Your Occupation 💼")
-                if st.session_state.selected_occupation:
+                if st.session_state.selected_occupation and st.session_state.selected_occupation != "":
                     st.markdown(f"**Selected Occupation:** {st.session_state.selected_occupation}")
                 else:
                     occupation_input = st.text_input("Enter Occupation")
@@ -108,18 +108,21 @@ def main():
                                              args=(occ,)):
                                     st.rerun()
 
-            # Show continue button only if both selections are made
-            if st.session_state.selected_location and st.session_state.selected_occupation:
+            # Show continue button only if both selections are made and not empty
+            if (st.session_state.selected_location and st.session_state.selected_location != "" and 
+                st.session_state.selected_occupation and st.session_state.selected_occupation != ""):
                 st.markdown("---")
+
+                # Continue button
                 if st.button("Continue to Financial Projections ➡️"):
-                    st.session_state.show_projections = True
+                    st.session_state.needs_recalculation = True
+                    st.query_params["page"] = "projections"
                     st.rerun()
 
-        else:
+        elif current_page == "projections":
             # Back button
             if st.button("← Back to Selection"):
-                st.session_state.show_projections = False
-                st.session_state.needs_recalculation = True
+                st.query_params["page"] = "selection"
                 st.rerun()
 
             # Add location and occupation editing in sidebar
@@ -216,7 +219,6 @@ def main():
 
                 except Exception as e:
                     st.error(f"Error processing data: {str(e)}")
-                    st.write("Debug info:", e)
                     st.session_state.show_projections = False
                     st.rerun()
                     return
@@ -754,6 +756,16 @@ def main():
             # Display financial metrics only if we have projections
             if hasattr(st.session_state, 'current_projections'):
                 current_projections = st.session_state.current_projections
+                
+                # Ensure we have all required data for visualizations
+                if not all(key in current_projections for key in ['years', 'net_worth', 'asset_values', 'liability_values', 
+                                                                'total_income', 'expense_categories', 'total_expenses', 
+                                                                'cash_flow', 'income_streams', 'asset_breakdown', 
+                                                                'liability_breakdown']):
+                    st.error("Missing required data for visualizations. Recalculating...")
+                    st.session_state.needs_recalculation = True
+                    st.rerun()
+                    return
 
                 st.markdown("### Financial Summary")
                 col5, col6, col7 = st.columns(3)
@@ -938,7 +950,6 @@ def main():
 
     except Exception as e:
         st.error(f"An unexpected error occurred: {str(e)}")
-        st.write("Debug info:", e)
 
 
 if __name__ == "__main__":

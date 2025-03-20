@@ -1,6 +1,10 @@
 import pandas as pd
 from typing import Dict, List, Tuple, Optional
-from models.financial_models import *
+from models.financial_models import (
+    Asset, Liability, Income, Expense,
+    Salary, Investment, FixedExpense, VariableExpense,
+    Milestone
+)
 
 class DataProcessor:
     @staticmethod
@@ -75,6 +79,15 @@ class DataProcessor:
     @staticmethod
     def create_financial_objects(location_data: Dict, 
                                milestones: Optional[List[Milestone]] = None) -> Tuple[List[Asset], List[Liability], List[Income], List[Expense]]:
+        # Define OneTimeExpense at the method level
+        class OneTimeExpense(FixedExpense):
+            def __init__(self, name: str, amount: float, trigger_year: int):
+                super().__init__(name, amount, inflation_rate=0)
+                self.trigger_year = trigger_year
+
+            def calculate_expense(self, year: int) -> float:
+                return self.annual_amount if year == self.trigger_year else 0
+
         assets = []
         liabilities = []
         income = []
@@ -149,16 +162,19 @@ class DataProcessor:
         # Add milestone-related financial objects
         if milestones:
             for milestone in milestones:
+                # First, determine if this is a graduate school milestone and its duration
+                is_grad_school = milestone.name == "Graduate School"
+                program_duration = 0
+                if is_grad_school:
+                    # Find the highest year number in the recurring expenses to determine program length
+                    for expense in milestone.recurring_expenses:
+                        if "Graduate School" in str(expense.name):
+                            for i in range(1, 5):  # Support up to 4 year programs
+                                if f"Year {i}" in str(expense.name):
+                                    program_duration = max(program_duration, i)
+
                 # Handle one-time expenses
                 if milestone.one_time_expense > 0:
-                    class OneTimeExpense(FixedExpense):
-                        def __init__(self, name: str, amount: float, trigger_year: int):
-                            super().__init__(name, amount, inflation_rate=0)
-                            self.trigger_year = trigger_year
-
-                        def calculate_expense(self, year: int) -> float:
-                            return self.annual_amount if year == self.trigger_year else 0
-
                     one_time_exp = OneTimeExpense(
                         f"{milestone.name} Down Payment",
                         milestone.one_time_expense,
@@ -168,11 +184,70 @@ class DataProcessor:
 
                 # Add recurring expenses starting from milestone year
                 for expense in milestone.recurring_expenses:
+                    # Special handling for graduate school expenses
+                    if "Graduate School" in str(expense.name):
+                        # Extract the program year from the expense name (e.g., "Year 1", "Year 2", etc.)
+                        program_year = 0
+                        for i in range(1, 5):  # Support up to 4 year programs
+                            if f"Year {i}" in str(expense.name):
+                                program_year = i
+                                break
+                        
+                        if program_year == 0:
+                            # If no year specified, treat as first year
+                            program_year = 1
+
+                        # Actual year this expense occurs
+                        expense_year = milestone.trigger_year + program_year - 1
+
+                        if "Loan Payment" in str(expense.name):
+                            # Loan payments should be recurring, starting after graduation
+                            class PostGraduationLoanPayment(expense.__class__):
+                                def __init__(self, base_expense, program_start_year, program_duration):
+                                    # Copy all attributes from the base expense
+                                    for attr, value in base_expense.__dict__.items():
+                                        setattr(self, attr, value)
+                                    self.program_start_year = program_start_year
+                                    self.program_duration = program_duration
+                                    # All loan payments start after graduation
+                                    self.payment_start_year = program_start_year + program_duration
+
+                                def calculate_expense(self, year: int) -> float:
+                                    if year < self.payment_start_year:
+                                        return 0
+                                    # For years after payment starts, calculate with inflation from the start year
+                                    years_since_start = year - self.payment_start_year
+                                    return self.annual_amount * (1 + self.inflation_rate) ** years_since_start
+
+                            expenses.append(PostGraduationLoanPayment(expense, milestone.trigger_year, program_duration))
+                        else:
+                            # Out of pocket/tuition costs should be one-time in the specific program year
+                            one_time_exp = OneTimeExpense(
+                                expense.name,
+                                expense.annual_amount,
+                                expense_year  # Use the calculated expense year
+                            )
+                            expenses.append(one_time_exp)
+                        continue
+
+                    # Special handling for OneTimeExpense
+                    if isinstance(expense, OneTimeExpense):
+                        # For one-time expenses, adjust the specific_year based on milestone trigger
+                        one_time_exp = OneTimeExpense(
+                            expense.name,
+                            expense.annual_amount,
+                            milestone.trigger_year + (expense.specific_year if hasattr(expense, 'specific_year') else 0)
+                        )
+                        expenses.append(one_time_exp)
+                        continue
+
+                    # For regular recurring expenses
                     class PostMilestoneExpense(expense.__class__):
                         def __init__(self, base_expense, trigger_year):
-                            super().__init__(base_expense.name, base_expense.annual_amount)
+                            # Copy all attributes from the base expense
+                            for attr, value in base_expense.__dict__.items():
+                                setattr(self, attr, value)
                             self.trigger_year = trigger_year
-                            self.inflation_rate = base_expense.inflation_rate  # Preserve inflation rate
 
                         def calculate_expense(self, year: int) -> float:
                             if year < self.trigger_year:
@@ -201,36 +276,31 @@ class DataProcessor:
 
                     assets.append(TimedAsset(asset, milestone.trigger_year))
 
+                # Add liabilities with proper timing for graduate school
                 for liability in milestone.liabilities:
-                    class TimedLiability:
-                        def __init__(self, base_liability, start_year):
-                            self.name = base_liability.name
-                            self.principal = base_liability.principal
-                            self.interest_rate = base_liability.interest_rate
-                            self.term_years = base_liability.term_years
-                            self.start_year = start_year
-                            self._payment = self.calculate_payment()  # Calculate payment once
+                    if is_grad_school and "Graduate School" in str(liability.name):
+                        # Extract the program year from the liability name
+                        program_year = 0
+                        for i in range(1, 5):
+                            if f"Year {i}" in str(liability.name):
+                                program_year = i
+                                break
+                        
+                        if program_year == 0:
+                            program_year = 1
+                            
+                        # Set the start year to when this specific year's loan is taken
+                        liability.start_year = milestone.trigger_year + program_year - 1
+                    else:
+                        # For non-graduate school liabilities, use the milestone trigger year
+                        liability.start_year = milestone.trigger_year
+                        # Ensure loan tracking is set up properly
+                        if hasattr(liability, 'loan_id') and not liability.loan_id:
+                            liability.loan_id = f"{liability.name}_{id(liability)}"
+                    # Add the liability to the main list
+                    liabilities.append(liability)
 
-                        def calculate_payment(self) -> float:
-                            monthly_rate = self.interest_rate / 12
-                            num_payments = self.term_years * 12
-                            return (self.principal * monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
-
-                        def get_balance(self, year: int) -> float:
-                            if year < self.start_year:
-                                return 0
-                            adjusted_year = year - self.start_year
-                            if adjusted_year >= self.term_years:
-                                return 0
-                            monthly_rate = self.interest_rate / 12
-                            remaining_payments = (self.term_years - adjusted_year) * 12
-                            return (self._payment * ((1 - (1 + monthly_rate)**(-remaining_payments)) / monthly_rate))
-
-                        def get_annual_payment(self) -> float:
-                            return self._payment * 12
-
-                    liabilities.append(TimedLiability(liability, milestone.trigger_year))
-
+                # Add income adjustments
                 income.extend(milestone.income_adjustments)
 
         return assets, liabilities, income, expenses
