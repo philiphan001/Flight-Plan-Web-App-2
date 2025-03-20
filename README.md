@@ -22,7 +22,7 @@ A comprehensive financial planning web application built with Streamlit that hel
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/Flight-Plan-Web-App-2.git
+git clone https://github.com/philiphan001/Flight-Plan-Web-App-2.git
 cd Flight-Plan-Web-App-2
 ```
 
