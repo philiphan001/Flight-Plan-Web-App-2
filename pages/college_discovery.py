@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from models.user_favorites import UserFavorites
+from difflib import get_close_matches
+from fuzzywuzzy import fuzz
 
 def load_college_data():
     """Load and preprocess college scorecard data"""
@@ -25,6 +27,83 @@ def load_college_data():
         st.error(f"Error loading college data: {str(e)}")
         return None
 
+def get_best_matches(search_query: str, df: pd.DataFrame, num_matches: int = 3) -> pd.DataFrame:
+    """Find the best matching colleges using fuzzy string matching"""
+    if not search_query:
+        return pd.DataFrame()
+    
+    # Calculate similarity scores for each college name
+    scores = [(name, fuzz.ratio(search_query.lower(), name.lower()))
+             for name in df['name']]
+    
+    # Sort by score in descending order and get top matches
+    best_matches = sorted(scores, key=lambda x: x[1], reverse=True)[:num_matches]
+    best_match_names = [match[0] for match in best_matches]
+    
+    # Create a new DataFrame with the matching rows
+    matched_colleges = df[df['name'].isin(best_match_names)].copy()
+    
+    # Create a mapping for sorting
+    name_to_order = {name: idx for idx, name in enumerate(best_match_names)}
+    
+    # Add sort order and sort
+    matched_colleges.loc[:, 'sort_order'] = matched_colleges['name'].map(name_to_order)
+    matched_colleges = matched_colleges.sort_values('sort_order')
+    matched_colleges = matched_colleges.drop('sort_order', axis=1)
+    
+    return matched_colleges
+
+def display_college_card(college: pd.Series, show_favorite_button: bool = True, source: str = "filter"):
+    """Display a college card with consistent styling"""
+    # Create a title that includes ranking if available
+    if pd.notna(college['US News Top 150']):
+        title = f"🏫 #{int(college['US News Top 150'])} - {college['name']}"
+    elif pd.notna(college['best liberal arts colleges']):
+        title = f"🏫 Liberal Arts #{int(college['best liberal arts colleges'])} - {college['name']}"
+    else:
+        title = f"🏫 {college['name']}"
+    
+    # Add location to title
+    title += f" ({college['city']}, {college['state']})"
+
+    with st.expander(title):
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.write("**Institution Details**")
+            if pd.notna(college['admission_rate.overall']):
+                st.write(f"• Admission Rate: {college['admission_rate.overall']*100:.1f}%")
+            if pd.notna(college['sat_scores.average.overall']):
+                st.write(f"• Average SAT: {int(college['sat_scores.average.overall'])}")
+            if pd.notna(college['US News Top 150']):
+                st.write(f"• US News: #{int(college['US News Top 150'])}")
+            if pd.notna(college['best liberal arts colleges']):
+                st.write(f"• Liberal Arts: #{int(college['best liberal arts colleges'])}")
+        
+        with col2:
+            st.write("**Cost Information**")
+            if college['ownership'] == 1:  # Public institution
+                if pd.notna(college['avg_net_price.public']):
+                    st.write(f"• In-State: ${int(college['avg_net_price.public']):,}")
+                if pd.notna(college['avg_net_price.private']):
+                    st.write(f"• Out-of-State: ${int(college['avg_net_price.private']):,}")
+            else:  # Private institution
+                if pd.notna(college['avg_net_price.private']):
+                    st.write(f"• Tuition: ${int(college['avg_net_price.private']):,}")
+            
+            if show_favorite_button:
+                college_dict = college.to_dict()
+                # Create a unique key using name, city, state, and source
+                unique_key = f"{college['name']}_{college['city']}_{college['state']}_{source}"
+                if UserFavorites.is_favorite_school(college_dict):
+                    if st.button("❌ Remove", key=f"remove_{unique_key}", use_container_width=True):
+                        UserFavorites.remove_favorite_school(college_dict)
+                        st.rerun()
+                else:
+                    if st.button("⭐ Add", key=f"add_{unique_key}", use_container_width=True):
+                        UserFavorites.add_favorite_school(college_dict)
+                        st.rerun()
+
 def load_college_discovery_page():
     st.title("College Discovery 🎓")
 
@@ -35,6 +114,32 @@ def load_college_discovery_page():
     df = load_college_data()
     if df is None:
         return
+
+    # Create a search section at the top
+    st.markdown("## 🔍 Quick Search")
+    search_query = st.text_input(
+        "Search for a college by name",
+        placeholder="Enter college name (e.g., Harvard, Stanford, MIT)",
+        help="This will show the top 3 closest matches to your search"
+    )
+
+    # Display search results if there's a query
+    if search_query:
+        matched_colleges = get_best_matches(search_query, df)
+        if not matched_colleges.empty:
+            st.markdown("### Top Matches")
+            with st.container():
+                for _, college in matched_colleges.iterrows():
+                    # Create a unique key using both the school name and location
+                    unique_key = f"{college['name']}_{college['city']}_{college['state']}"
+                    if st.button(f"View {college['name']}", key=f"search_view_{unique_key}", use_container_width=True):
+                        display_college_card(college, source="search")
+        else:
+            st.info("No matching colleges found. Try a different search term.")
+        
+        st.markdown("---")
+
+    st.markdown("## 📊 Advanced Filters")
 
     # Main ranking filter at the top of the page
     show_top_150 = st.checkbox(
@@ -73,7 +178,9 @@ def load_college_discovery_page():
             for school in favorite_schools:
                 col1, col2 = st.columns([4, 1])
                 with col1:
-                    if st.button(f"📚 {school['name']}", key=f"view_{school['name']}", use_container_width=True):
+                    # Create a unique key using both the school name and location
+                    unique_key = f"{school['name']}_{school['city']}_{school['state']}"
+                    if st.button(f"📚 {school['name']}", key=f"fav_view_{unique_key}", use_container_width=True):
                         with st.expander(f"⭐ {school['name']}", expanded=True):
                             st.write(f"Location: {school['city']}, {school['state']}")
                             if 'US News Top 150' in school and pd.notna(school['US News Top 150']):
@@ -96,7 +203,8 @@ def load_college_discovery_page():
         selected_states = st.sidebar.multiselect(
             "Select States",
             options=states,
-            default=[]
+            default=[],
+            help="Filter colleges by state(s). Select multiple states by clicking."
         )
 
         # Tuition filters
@@ -157,8 +265,9 @@ def load_college_discovery_page():
         if show_liberal_arts:
             filtered_df = filtered_df[filtered_df['best liberal arts colleges'].notna()].sort_values('best liberal arts colleges')
 
+        # Apply state filter if states are selected
         if selected_states:
-            filtered_df = filtered_df[filtered_df['state'].isin(selected_states)]
+            filtered_df = filtered_df[filtered_df['state'].isin(selected_states)].copy()
 
         # Apply tuition filters
         # For public schools (ownership == 1), check in-state tuition
@@ -209,77 +318,27 @@ def load_college_discovery_page():
             selected_codes = [type_to_code[type_name] for type_name in selected_types]
             filtered_df = filtered_df[filtered_df['ownership'].isin(selected_codes)]
 
-        # Display results
+        # Display results in a scrollable container
         st.subheader(f"Found {len(filtered_df)} matching institutions")
-
-        # Show results in an expandable format
-        for _, college in filtered_df.iterrows():
-            # Create title with appropriate ranking
-            if show_liberal_arts and pd.notna(college['best liberal arts colleges']):
-                title = f"Liberal Arts #{int(college['best liberal arts colleges'])} - {college['name']} - {college['city']}, {college['state']}"
-            elif pd.notna(college['US News Top 150']):
-                title = f"#{int(college['US News Top 150'])} - {college['name']} - {college['city']}, {college['state']}"
-            else:
-                title = f"{college['name']} - {college['city']}, {college['state']}"
-
-            with st.expander(title):
-                col1, col2 = st.columns([2, 1])
-
-                with col1:
-                    st.write("**Institution Details**")
-                    # Get institution type from mapping
-                    institution_type = institution_types.get(college['ownership'], 'Unknown')
-                    st.write(f"Type: {institution_type}")
-
-                    # Show appropriate ranking information
-                    if pd.notna(college['US News Top 150']):
-                        st.write(f"US News Ranking: #{int(college['US News Top 150'])}")
-                    else:
-                        st.write("US News Ranking: Not ranked")
-
-                    if pd.notna(college['best liberal arts colleges']):
-                        st.write(f"Liberal Arts Ranking: #{int(college['best liberal arts colleges'])}")
-
-                    # Show admission rate if available
-                    if pd.notna(college['admission_rate.overall']):
-                        st.write(f"Admission Rate: {college['admission_rate.overall']*100:.1f}%")
-                    else:
-                        st.write("Admission Rate: Not available")
-
-                    # Show SAT score if available
-                    if pd.notna(college['sat_scores.average.overall']):
-                        st.write(f"Average SAT Score: {int(college['sat_scores.average.overall'])}")
-                    else:
-                        st.write("Average SAT Score: Not available")
-
-                with col2:
-                    st.write("**Cost Information**")
-                    # Show appropriate cost based on institution type
-                    if college['ownership'] == 1:
-                        if pd.notna(college['avg_net_price.public']):
-                            st.write(f"In-State Tuition: ${int(college['avg_net_price.public']):,}")
-                        else:
-                            st.write("In-State Tuition: Not available")
-                        if pd.notna(college['avg_net_price.private']):
-                            st.write(f"Out-of-State Tuition: ${int(college['avg_net_price.private']):,}")
-                        else:
-                            st.write("Out-of-State Tuition: Not available")
-                    else:
-                        if pd.notna(college['avg_net_price.private']):
-                            st.write(f"Tuition: ${int(college['avg_net_price.private']):,}")
-                        else:
-                            st.write("Tuition: Not available")
-
-                    # Add favorite button
-                    college_dict = college.to_dict()
-                    if UserFavorites.is_favorite_school(college_dict):
-                        if st.button("❌ Remove from Favorites", key=f"remove_{college['name']}"):
-                            UserFavorites.remove_favorite_school(college_dict)
-                            st.rerun()
-                    else:
-                        if st.button("⭐ Add to Favorites", key=f"add_{college['name']}"):
-                            UserFavorites.add_favorite_school(college_dict)
-                            st.rerun()
+        with st.container():
+            max_height = 600  # Maximum height in pixels
+            st.markdown(f"""
+                <style>
+                    .college-results {{
+                        max-height: {max_height}px;
+                        overflow-y: auto;
+                        padding: 1rem;
+                        border-radius: 0.5rem;
+                        background-color: #f8f9fa;
+                    }}
+                </style>
+            """, unsafe_allow_html=True)
+            
+            with st.container():
+                st.markdown('<div class="college-results">', unsafe_allow_html=True)
+                for _, college in filtered_df.iterrows():
+                    display_college_card(college, source="filter")
+                st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     load_college_discovery_page()

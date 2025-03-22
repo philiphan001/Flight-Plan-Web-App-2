@@ -174,10 +174,10 @@ class DataProcessor:
                                     program_duration = max(program_duration, i)
 
                 # Handle one-time expenses
-                if milestone.one_time_expense > 0:
+                for expense_amount in milestone.one_time_expenses:
                     one_time_exp = OneTimeExpense(
-                        f"{milestone.name} Down Payment",
-                        milestone.one_time_expense,
+                        f"{milestone.name} One-time Cost",
+                        expense_amount,
                         milestone.trigger_year
                     )
                     expenses.append(one_time_exp)

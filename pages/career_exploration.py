@@ -146,10 +146,16 @@ def load_career_exploration_page():
                         st.write(", ".join(aliases))
 
                 with col2:
-                    # Add to favorites button
-                    if st.button("⭐", key=f"fav_{title}", help="Add to favorites"):
-                        UserFavorites.add_favorite_career(career)
-                        st.rerun()
+                    # Check if career is already a favorite
+                    is_favorite = UserFavorites.is_favorite_career(career)
+                    if is_favorite:
+                        if st.button("⭐", key=f"unfav_{title}", help="Remove from favorites", type="secondary"):
+                            UserFavorites.remove_favorite_career(career)
+                            st.rerun()
+                    else:
+                        if st.button("☆", key=f"fav_{title}", help="Add to favorites"):
+                            UserFavorites.add_favorite_career(career)
+                            st.rerun()
 
 if __name__ == "__main__":
     load_career_exploration_page() 

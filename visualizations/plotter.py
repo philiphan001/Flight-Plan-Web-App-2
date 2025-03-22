@@ -285,6 +285,41 @@ class FinancialPlotter:
 
         # Create and display expenses breakdown
         expense_data = {'Year': years}
+        
+        # Calculate lifestyle adjustment impact if marriage milestone exists
+        if any("Marriage" in category for category in expenses.keys()):
+            lifestyle_adjustments = [0] * max_len
+            base_expenses = [0] * max_len
+            marriage_year = None
+            
+            # Find marriage year and base expenses
+            for category, values in expenses.items():
+                if "Marriage" in category:
+                    marriage_year = next((i for i, v in enumerate(values) if v > 0), None)
+                    break
+            
+            if marriage_year is not None:
+                # Calculate base expenses before marriage (excluding one-time marriage costs)
+                for category, values in expenses.items():
+                    if not any(x in category for x in ["Marriage One-time", "Spouse", "Joint"]):
+                        for i in range(marriage_year):
+                            base_expenses[i] += values[i]
+                
+                # Calculate lifestyle adjustment after marriage
+                for i in range(marriage_year, max_len):
+                    # Sum all expenses after marriage except one-time marriage costs
+                    total_exp = sum(values[i] for category, values in expenses.items() 
+                                  if not "Marriage One-time" in category)
+                    
+                    # Calculate what base expenses would have been with inflation
+                    base_with_inflation = base_expenses[marriage_year - 1] * (1.02) ** (i - marriage_year + 1)
+                    
+                    # Lifestyle adjustment is the difference
+                    lifestyle_adjustments[i] = total_exp - base_with_inflation
+            
+            expense_data['Joint Lifestyle Impact'] = ['${:,.0f}'.format(x) for x in lifestyle_adjustments]
+
+        # Add all expense categories
         for category, values in expenses.items():
             # Pad expense values if needed
             padded_values = values + [0] * (max_len - len(values)) if len(values) < max_len else values[:max_len]

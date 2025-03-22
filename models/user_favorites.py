@@ -14,14 +14,25 @@ class UserFavorites:
     @staticmethod
     def add_favorite_career(career_data: Dict):
         """Add a career to favorites"""
-        if career_data not in st.session_state.favorite_careers:
-            st.session_state.favorite_careers.append(career_data)
+        # Convert Pandas Series to dict if needed
+        if hasattr(career_data, 'to_dict'):
+            career_dict = career_data.to_dict()
+        else:
+            career_dict = career_data
+            
+        # Only add if not already in favorites
+        if not UserFavorites.is_favorite_career(career_data):
+            st.session_state.favorite_careers.append(career_dict)
 
     @staticmethod
     def remove_favorite_career(career_data: Dict):
         """Remove a career from favorites"""
-        if career_data in st.session_state.favorite_careers:
-            st.session_state.favorite_careers.remove(career_data)
+        career_title = career_data['OCC_TITLE']
+        # Find and remove the career with matching title
+        st.session_state.favorite_careers = [
+            fav for fav in st.session_state.favorite_careers 
+            if fav['OCC_TITLE'] != career_title
+        ]
 
     @staticmethod
     def add_favorite_school(school_data: Dict):
@@ -48,7 +59,9 @@ class UserFavorites:
     @staticmethod
     def is_favorite_career(career_data: Dict) -> bool:
         """Check if a career is in favorites"""
-        return career_data in st.session_state.favorite_careers
+        # Compare by occupation title since we're dealing with Pandas Series objects
+        career_title = career_data['OCC_TITLE']
+        return any(fav['OCC_TITLE'] == career_title for fav in st.session_state.favorite_careers)
 
     @staticmethod
     def is_favorite_school(school_data: Dict) -> bool:

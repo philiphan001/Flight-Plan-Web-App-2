@@ -1,12 +1,51 @@
+"""Main application entry point"""
 import streamlit as st
 import pandas as pd
 from difflib import get_close_matches
 from utils.data_processor import DataProcessor
+from utils.cache_utils import process_location_data, calculate_yearly_projection
 from services.calculator import FinancialCalculator
 from visualizations.plotter import FinancialPlotter
-from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome, Home, MortgageLoan, FixedExpense, VariableExpense, OneTimeExpense
+from models.financial_models import MilestoneFactory, SpouseIncome as ModelSpouseIncome, Home, MortgageLoan, FixedExpense, VariableExpense, OneTimeExpense, MortgagePayment, LoanPayment
 from models.user_favorites import UserFavorites  # Added import for UserFavorites
 import time
+import plotly.graph_objects as go
+from typing import Dict, List, Optional
+import os
+from datetime import datetime
+from components.ui_components import (
+    render_location_selection,
+    render_occupation_selection,
+    render_milestone_form,
+    render_financial_controls,
+    render_milestone_list
+)
+
+# Set page config - must be the first Streamlit command
+st.set_page_config(
+    page_title="Flight Plan - Your Financial Journey",
+    page_icon="✈️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Load custom CSS
+def load_css():
+    with open('.streamlit/style.css') as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+# Initialize session state
+if 'page' not in st.session_state:
+    st.session_state.page = 'initial'
+if 'needs_recalculation' not in st.session_state:
+    st.session_state.needs_recalculation = True
+if 'milestones' not in st.session_state:
+    st.session_state.milestones = []
+if 'selected_colleges_for_projection' not in st.session_state:
+    st.session_state.selected_colleges_for_projection = []
+
+# Load custom CSS
+load_css()
 
 def handle_continue_to_projections():
     """Handle transition to projections page"""
@@ -46,18 +85,22 @@ def initialize_session_state():
         st.session_state.show_marriage_options = False
         st.session_state.saved_projections = []
         st.session_state.selected_colleges_for_projection = []
+        st.session_state.current_page = "home"
+        st.session_state.selected_year_idx = -1
+        st.session_state.other_breakdown = {}
 
 def main():
-    # Initialize session state
-    initialize_session_state()
-    
-    st.title("Financial Projection Application")
-
-    # Get current page from URL parameters
-    params = st.query_params
-    current_page = params.get("page", "selection")
-
+    """Main application entry point"""
     try:
+        # Initialize session state
+        initialize_session_state()
+        
+        st.title("Financial Projection Application")
+
+        # Get current page from URL parameters
+        params = st.query_params
+        current_page = params.get("page", "selection")
+
         # Load data files
         coli_df = DataProcessor.load_coli_data("COLI by Location.csv")
         occupation_df = DataProcessor.load_occupation_data("Occupational Data.csv")
@@ -84,11 +127,12 @@ def main():
                                                    n=3, cutoff=0.1)
                         matching_locations = [loc for loc in locations if loc.lower() in matches]
                         if matching_locations:
-                            st.markdown("#### Select from matches:")
-                            for loc in matching_locations:
-                                if st.button(f"📍 {loc}", key=f"loc_{loc}", on_click=update_location,
-                                             args=(loc,)):
-                                    st.rerun()
+                            cols = st.columns(3)
+                            for idx, loc in enumerate(matching_locations):
+                                with cols[idx]:
+                                    if st.button(f"📍 {loc}", key=f"loc_{loc}", on_click=update_location,
+                                                 args=(loc,)):
+                                        st.rerun()
 
             with col2:
                 st.markdown("### Select Your Occupation 💼")
@@ -102,29 +146,22 @@ def main():
                                                    n=3, cutoff=0.1)
                         matching_occupations = [occ for occ in occupations if occ.lower() in matches]
                         if matching_occupations:
-                            st.markdown("#### Select from matches:")
-                            for occ in matching_occupations:
-                                if st.button(f"💼 {occ}", key=f"occ_{occ}", on_click=update_occupation,
-                                             args=(occ,)):
-                                    st.rerun()
+                            cols = st.columns(3)
+                            for idx, occ in enumerate(matching_occupations):
+                                with cols[idx]:
+                                    if st.button(f"💼 {occ}", key=f"occ_{occ}", on_click=update_occupation,
+                                                 args=(occ,)):
+                                        st.rerun()
 
             # Show continue button only if both selections are made and not empty
             if (st.session_state.selected_location and st.session_state.selected_location != "" and 
                 st.session_state.selected_occupation and st.session_state.selected_occupation != ""):
-                st.markdown("---")
-
-                # Continue button
-                if st.button("Continue to Financial Projections ➡️"):
+                if st.button("Continue to Financial Projections ➡️", use_container_width=True):
                     st.session_state.needs_recalculation = True
                     st.query_params["page"] = "projections"
                     st.rerun()
 
         elif current_page == "projections":
-            # Back button
-            if st.button("← Back to Selection"):
-                st.query_params["page"] = "selection"
-                st.rerun()
-
             # Add location and occupation editing in sidebar
             st.sidebar.markdown("## Current Selections 📍")
 
@@ -163,7 +200,7 @@ def main():
                         st.sidebar.markdown("#### Select from matches:")
                         for occ in matching_occupations:
                             if st.sidebar.button(f"💼 {occ}", key=f"new_occ_{occ}", on_click=update_occupation,
-                                                 args=(occ,)):
+                                             args=(occ,)):
                                 st.rerun()
 
             st.sidebar.markdown("---")
@@ -230,7 +267,7 @@ def main():
             # Marriage Milestone
             with st.sidebar.expander("💑 Marriage"):
                 milestone_year = st.slider("Marriage Year", 1, projection_years, 2, key="marriage_year")
-                wedding_cost = st.number_input("Wedding Cost ($)", 10000, 100000, 30000, step=5000, key="wedding_cost")
+                wedding_cost = st.number_input("Wedding Cost ($)", 1000, 200000, 20000, step=5000, key="wedding_cost")
 
                 # New marriage variables
                 joint_lifestyle_adjustment = st.slider(
@@ -241,7 +278,7 @@ def main():
                 )
                 spouse_savings = st.number_input(
                     "Spouse's Current Savings ($)",
-                    0, 1000000, 0,
+                    0, 2000000, 0,
                     step=1000,
                     key="spouse_savings"
                 )
@@ -293,17 +330,17 @@ def main():
                             investment_return_rate
                         )
                         spouse_income = ModelSpouseIncome(
-                            spouse_data['base_income'],
-                            spouse_data['location_adjustment'],
-                            lifestyle_adjustment=joint_lifestyle_adjustment / 100,
-                            initial_savings=spouse_savings,
-                            initial_debt=spouse_debt,
-                            insurance_cost=joint_insurance_cost * 12
+                            annual_amount=spouse_data['base_income'],
+                            growth_rate=0.03,  # Default growth rate
+                            location_adjustment=spouse_data['location_adjustment'],
+                            start_year=milestone_year,
+                            lifestyle_adjustment=joint_lifestyle_adjustment / 100
                         )
                         milestone = MilestoneFactory.create_marriage(
                             milestone_year,
                             wedding_cost,
-                            spouse_income,
+                            spouse_income=spouse_data['base_income'],
+                            spouse_income_increase=0.03,  # Default growth rate
                             lifestyle_adjustment=joint_lifestyle_adjustment / 100,
                             initial_savings=spouse_savings,
                             initial_debt=spouse_debt,
@@ -326,7 +363,7 @@ def main():
                 )
                 healthcare_cost = st.number_input(
                     "Additional Monthly Healthcare ($)",
-                    0, 1000, 200,
+                    0, 3000, 200,
                     step=50,
                     key="child_healthcare"
                 )
@@ -365,19 +402,19 @@ def main():
                 # New home variables
                 monthly_utilities = st.number_input(
                     "Estimated Monthly Utilities ($)",
-                    100, 1000, 300,
+                    100, 2000, 300,
                     step=50,
                     key="utilities"
                 )
                 monthly_hoa = st.number_input(
                     "Monthly HOA Fees ($)",
-                    0, 1000, 0,
+                    0, 5000, 0,
                     step=25,
                     key="hoa"
                 )
                 annual_renovation = st.number_input(
                     "Annual Renovation Budget ($)",
-                    0, 50000, 2000,
+                    0, 100000, 2000,
                     step=500,
                     key="renovation"
                 )
@@ -453,12 +490,12 @@ def main():
             # Graduate School Milestone
             with st.sidebar.expander("🎓 Graduate School"):
                 grad_year = st.slider("Start Year", 1, projection_years, 2, key="grad_year")
-                program_years = st.slider("Program Length (Years)", 1, 4, 2)
+                program_years = st.slider("Program Length (Years)", 1, 6, 2)
 
                 # Scholarship amount applies to each year
                 scholarship_amount = st.number_input(
                     "Expected Annual Scholarship ($)",
-                    0, 50000, 0,
+                    0, 100000, 0,
                     step=1000,
                     key="scholarship"
                 )
@@ -491,7 +528,7 @@ def main():
                 # Other graduate school variables
                 part_time_income = st.number_input(
                     "Estimated Monthly Part-Time Income ($)",
-                    0, 5000, 0,
+                    0, 10000, 0,
                     step=100,
                     key="part_time"
                 )
@@ -532,12 +569,14 @@ def main():
                         if "Marriage" in milestone.name:
                             # Marriage milestone editing
                             new_year = st.slider("Marriage Year", 1, projection_years, milestone.trigger_year, key=f"edit_marriage_year_{idx}")
-                            new_cost = st.number_input("Wedding Cost ($)", 10000, 100000, int(milestone.one_time_expense), step=5000, key=f"edit_wedding_cost_{idx}")
+                            # Get the wedding cost from one_time_expenses list
+                            current_wedding_cost = milestone.one_time_expenses[0] if milestone.one_time_expenses else 30000
+                            new_cost = st.number_input("Wedding Cost ($)", 10000, 100000, int(current_wedding_cost), step=5000, key=f"edit_wedding_cost_{idx}")
 
                             # Update milestone if changes detected
-                            if new_year != milestone.trigger_year or new_cost != milestone.one_time_expense:
+                            if new_year != milestone.trigger_year or new_cost != current_wedding_cost:
                                 milestone.trigger_year = new_year
-                                milestone.one_time_expense = new_cost
+                                milestone.one_time_expenses[0] = new_cost
                                 st.session_state.needs_recalculation = True
 
                         elif "Child" in milestone.name:
@@ -620,7 +659,7 @@ def main():
 
                                         # Update milestone attributes
                                         milestone.trigger_year = new_year
-                                        milestone.one_time_expense = new_price * (new_down_payment_pct / 100)  # Update down payment
+                                        milestone.one_time_expenses[0] = new_price * (new_down_payment_pct / 100)  # Update down payment
 
                                         # Update milestone liabilities
                                         milestone.liabilities = [liability for liability in milestone.liabilities if not isinstance(liability, MortgageLoan)]
@@ -639,12 +678,20 @@ def main():
 
                                         # Add all updated recurring expenses
                                         monthly_payment = new_mortgage.calculate_payment()
-                                        milestone.add_recurring_expense(FixedExpense("Mortgage Payment", monthly_payment * 12, inflation_rate=0))
-                                        milestone.add_recurring_expense(FixedExpense("Property Tax", new_price * property_tax_rate))
-                                        milestone.add_recurring_expense(FixedExpense("Home Insurance", new_price * insurance_rate))
-                                        milestone.add_recurring_expense(FixedExpense("Home Maintenance", new_price * maintenance_rate))
+                                        milestone.add_recurring_expense(
+                                            MortgagePayment(monthly_payment * 12, mortgage.term_years, milestone.trigger_year)
+                                        )
+                                        milestone.add_recurring_expense(
+                                            LoanPayment("Property Tax", new_price * property_tax_rate, mortgage.term_years, milestone.trigger_year)
+                                        )
+                                        milestone.add_recurring_expense(
+                                            LoanPayment("Home Insurance", new_price * insurance_rate, mortgage.term_years, milestone.trigger_year)
+                                        )
+                                        milestone.add_recurring_expense(
+                                            LoanPayment("Home Maintenance", new_price * maintenance_rate, mortgage.term_years, milestone.trigger_year)
+                                        )
 
-                                        # Add utility, HOA, and renovation expenses
+                                        # Add utility, HOA, and renovation expenses that continue indefinitely
                                         if new_monthly_utilities > 0:
                                             milestone.add_recurring_expense(VariableExpense("Utilities", new_monthly_utilities * 12))
                                         if new_monthly_hoa > 0:
@@ -902,11 +949,6 @@ def main():
                             st.success("Projection saved to your profile!")
                         else:
                             st.warning("Please enter a name for this scenario before saving.")
-
-                # Add profile link
-                st.markdown("---")
-                if st.button("👤 View Your Profile"):
-                    st.switch_page("pages/user_profile.py")
 
                 # Create tabs for different visualizations
                 tab1, tab2, tab3 = st.tabs([

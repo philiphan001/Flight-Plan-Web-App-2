@@ -1,4 +1,26 @@
 [server]
-headless = true
-address = "0.0.0.0"
-port = 5000
+port = 8501
+address = "localhost"
+headless = false
+enableCORS = true
+enableXsrfProtection = true
+maxUploadSize = 200
+maxMessageSize = 200
+
+[browser]
+serverAddress = "localhost"
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#FF4B4B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8F9FA"
+textColor = "#262730"
+font = "Poppins"
+
+[runner]
+fastRerenderThreshold = 1000
+
+[client]
+toolbarMode = "minimal"
+showSidebarNavigation = true

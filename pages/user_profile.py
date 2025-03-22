@@ -42,6 +42,7 @@ def load_user_profile_page():
     # Create tabs for different sections of the profile
     tabs = st.tabs([
         "Favorite Colleges 🎓",
+        "Favorite Careers 💼",
         "Career Interests 💼",
         "Skills & Experience 🛠️",
         "Saved Projections 📊"
@@ -96,36 +97,47 @@ def load_user_profile_page():
             if st.button("Go to College Discovery"):
                 st.switch_page("pages/college_discovery.py")
 
-    # Career Interests Tab
+    # Favorite Careers Tab
     with tabs[1]:
-        st.header("Your Career Interests")
+        st.header("Your Favorite Careers")
+        favorite_careers = UserFavorites.get_favorite_careers()
 
-        # Display saved career suggestions
-        if 'saved_career_suggestions' in st.session_state and st.session_state.saved_career_suggestions:
-            for idx, career in enumerate(st.session_state.saved_career_suggestions):
-                with st.expander(f"📋 {career['title']}", expanded=False):
-                    st.write(f"**Path Type:** {career['type'].title()}")
-                    st.write(f"**Description:** {career['description']}")
+        if favorite_careers:
+            for career in favorite_careers:
+                # Create two columns: career info and remove button
+                col1, col2 = st.columns([4, 1])
 
-                    st.write("**Timeline:**")
-                    for milestone in career['timeline']:
-                        st.write(f"Year {milestone['year']}: {milestone['milestone']}")
-                        st.write(f"- Required Skills: {', '.join(milestone['skills_needed'])}")
-                        st.write(f"- Estimated Salary: ${milestone['estimated_salary']:,}")
+                with col1:
+                    # Create expander for career details
+                    with st.expander(f"💼 {career.get('title', career.get('OCC_TITLE', 'Unknown Career'))}", expanded=False):
+                        if 'A_MEAN' in career:
+                            st.write(f"Mean Annual Salary: ${career['A_MEAN']:,.2f}")
+                        if 'TOT_EMP' in career:
+                            st.write(f"Total Employment: {career['TOT_EMP']:,}")
+                        if 'A_MEDIAN' in career:
+                            st.write(f"Median Annual Salary: ${career['A_MEDIAN']:,.2f}")
+                        if 'A_PCT10' in career and 'A_PCT90' in career:
+                            st.write(f"Salary Range (10th-90th percentile): ${career['A_PCT10']:,.2f} - ${career['A_PCT90']:,.2f}")
 
-                    st.write(f"**Education Level:** {career['education_level']}")
-                    st.write(f"**Preferred Work Style:** {career['work_style']}")
-
-                    if st.button("❌ Remove", key=f"remove_career_sugg_{idx}"):
-                        st.session_state.saved_career_suggestions.pop(idx)
+                with col2:
+                    # Add remove button
+                    if st.button("❌", key=f"remove_career_{career.get('title', career.get('OCC_TITLE', 'Unknown Career'))}", help="Remove from favorites"):
+                        UserFavorites.remove_favorite_career(career)
                         st.rerun()
+
+                st.markdown("---")  # Add separator between careers
         else:
-            st.info("No saved career suggestions yet. Visit the Career Suggestions page to explore!")
-            if st.button("Go to Career Suggestions"):
-                st.switch_page("pages/career_suggestions.py")
+            st.info("No favorite careers yet. Visit the Career Exploration page to add some!")
+            if st.button("Go to Career Exploration"):
+                st.switch_page("pages/career_exploration.py")
+
+    # Career Interests Tab
+    with tabs[2]:
+        st.header("Career Interests")
+        st.info("This section is coming soon! Stay tuned for updates.")
 
     # Skills & Experience Tab
-    with tabs[2]:
+    with tabs[3]:
         st.header("Your Skills & Experience")
 
         # Display interests from career suggestions
@@ -178,7 +190,7 @@ def load_user_profile_page():
                         st.rerun()
 
     # Saved Projections Tab
-    with tabs[3]:
+    with tabs[4]:
         st.header("Your Saved Financial Projections")
         if 'saved_projections' in st.session_state and st.session_state.saved_projections:
             for idx, proj in enumerate(st.session_state.saved_projections):

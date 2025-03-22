@@ -1,5 +1,10 @@
 from typing import List, Dict, Optional
-from models.financial_models import *
+from models.financial_models import (
+    Asset, Liability, Income, Expense, Tax,
+    FederalIncomeTax, PayrollTax, StateIncomeTax,
+    Investment, Loan, MortgageLoan, CarLoan, StudentLoan,
+    LoanPayment
+)
 
 class FinancialCalculator:
     def __init__(self, assets: List[Asset], liabilities: List[Liability],
@@ -117,8 +122,21 @@ class FinancialCalculator:
             for expense in self.expenses:
                 category = expense.name
                 
-                # Use the expense's built-in calculation method
-                expense_amount = int(round(expense.calculate_expense(year)))
+                # Special handling for loan payments
+                if isinstance(expense, LoanPayment):
+                    # For loan payments, use their built-in term handling
+                    expense_amount = int(round(expense.calculate_expense(year)))
+                    
+                    # Find the associated loan
+                    loan = next((loan for loan in self.liabilities 
+                                if isinstance(loan, Loan) and loan.name == expense.name.replace(" Payment", "")), None)
+                    
+                    # If loan exists and is paid off, set expense to 0
+                    if loan and loan.get_balance(year) <= 0:
+                        expense_amount = 0
+                else:
+                    # For other expenses, use their built-in calculation method
+                    expense_amount = int(round(expense.calculate_expense(year)))
                 
                 # Special categorization for graduate school expenses
                 if "Graduate School Year" in category and "Out-of-pocket" in category and expense_amount > 0:
